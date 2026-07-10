@@ -6,6 +6,19 @@
 - Incorporadas rutas protegidas, empleados, asistencia, jornadas, kiosco web, reportes, nómina y configuración con datos demostrativos.
 - Configurado despliegue SPA en Vercel y documentada la separación Android/web en `WEB_ADMIN_PANEL.md`.
 - La aplicación Android y su ponchador PIN + huella no fueron modificados.
+- Agregada migración inicial Supabase PostgreSQL en `supabase/migrations/0001_initial_schema.sql` con modelo multiempresa, integridad referencial, índices y RLS seguro.
+- Agregados `supabase/seed.sql` y `docs/SUPABASE_DATABASE.md`; la migración no fue ejecutada.
+- Agregada `0002_empleados_permisos_portal.sql` con expediente laboral, permisos granulares, funciones de autorización y RLS por alcance.
+- Actualizado el seed con el rol `payroll`, catálogo de permisos y asignaciones por rol; no se crearon usuarios Auth.
+- Documentado el portal, aprovisionamiento seguro y enlace usuario-perfil-empleado en `PORTAL_ROLES_Y_PERMISOS.md`.
+- Creado el plano integral Supabase/Android/web en diez documentos de arquitectura, datos, ERD, seguridad, sincronización y negocio.
+- Revisada y corregida la migración `0002` antes de su ejecución: FK de perfil, desactivación, alcances múltiples y políticas granulares de `profiles`.
+- Confirmado que no se ejecutaron migraciones, no se crearon objetos Supabase reales y no se modificaron Android ni web.
+- Investigados Frappe HR, Odoo HR, OrangeHRM, Kimai y repositorios OCA mediante fuentes oficiales; documentados patrones adoptados y descartados.
+- Creada auditoría modular, protección biométrica, mapa de navegación/acciones, plan gradual y matriz de regresión.
+- Extraída la navegación web a configuración jerárquica con adaptador de permisos, sin añadir rutas vacías ni mover código Android.
+- Agregado `scripts/verify_critical_flows.ps1` para proteger BiometricPrompt, 2Connect, PIN, kiosco, cuatro eventos y Room.
+- Verificados `vite build` y `:app:assembleDebug` correctamente; no se cambiaron fórmulas ni porcentajes de nómina.
 
 ## 2026-07-07
 
