@@ -1,0 +1,10 @@
+Reemplazar módulo completo:
+app/
+
+Archivos ajustados en esta entrega:
+app/src/main/java/ui/vacations/VacationsScreen.kt
+app/src/main/java/ui/employees/EmployeesScreen.kt
+app/src/main/java/ui/employees/EmployeeDocumentsScreen.kt
+app/src/main/java/ui/employees/EmployeeDocumentsViewModel.kt
+app/src/main/java/ui/settings/CompanySettingsScreen.kt
+app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt

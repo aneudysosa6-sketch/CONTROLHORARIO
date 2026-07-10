@@ -1,0 +1,12 @@
+CORRECCIÓN KSP EmployeeDao
+
+Error corregido:
+[ksp] Each bind variable in the query must have a matching function parameter.
+Cannot find function parameters for :registeredAt, :registeredBy, :updatedAt, :employeeId.
+
+Causa:
+El @Query de markFingerprintRegistered quedó separado de su función por otros métodos intermedios.
+Room/KSP no encontraba los parámetros de la consulta.
+
+Archivo corregido:
+app/src/main/java/database/EmployeeDao.kt

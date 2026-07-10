@@ -1,0 +1,209 @@
+# CHANGELOG
+
+Proyecto:
+
+OSINET Time ERP
+
+---
+
+# Historial Oficial del Proyecto
+
+Este documento registra todos los cambios importantes realizados durante el desarrollo del sistema.
+
+---
+
+## Versión 1.0
+
+Fecha:
+
+04 Julio 2026
+
+Estado:
+
+En desarrollo
+
+---
+
+# Arquitectura
+
+✔ Se definió la arquitectura oficial del proyecto.
+
+Tecnologías:
+
+- Kotlin
+- Jetpack Compose
+- Material Design 3
+- Room Database
+- MVVM
+- Repository Pattern
+- Engine Pattern
+- Navigation Compose
+
+---
+
+# Base de Datos
+
+Implementadas las entidades principales para:
+
+- Empleados
+- Departamentos
+- Sucursales
+- Horarios
+- Calendario Laboral
+- Asistencia
+- Configuración de Empresa
+- Configuración de Nómina
+- Historial de Nómina
+- Expediente Digital
+
+---
+
+# Módulos desarrollados
+
+## Gestión de Empleados
+
+✔ Registro
+
+✔ Edición
+
+✔ Eliminación
+
+✔ Perfil
+
+---
+
+## Asistencia
+
+✔ Registro
+
+✔ Historial
+
+✔ Reportes
+
+---
+
+## Nómina
+
+✔ Configuración
+
+✔ Cálculo
+
+✔ Historial
+
+✔ PDF
+
+---
+
+## Empresa
+
+✔ Configuración
+
+✔ Datos generales
+
+---
+
+## Expediente Digital
+
+✔ Creación del expediente
+
+✔ Asociación de documentos
+
+✔ Vista de documentos
+
+✔ Descarga de documentos
+
+---
+
+## WhatsApp
+
+Se inició la arquitectura para integración mediante n8n.
+
+Motores creados:
+
+✔ WhatsAppPdfEngine
+
+✔ WhatsAppPayrollEngine
+
+✔ WhatsAppAttendanceEngine
+
+✔ WhatsAppNotificationEngine
+
+✔ WhatsAppCreditEngine
+
+---
+
+# Seguridad
+
+Se estableció como regla oficial:
+
+Cada empleado únicamente podrá consultar su propia información.
+
+La validación se realizará utilizando el número telefónico registrado en la ficha del empleado.
+
+Nunca se permitirá el acceso a información de otros empleados.
+
+---
+
+# PDF
+
+Implementado:
+
+✔ Recibo de Nómina
+
+Preparados para el futuro:
+
+- Vacaciones
+- Permisos
+- Constancias
+- Evaluaciones
+- Expediente
+
+---
+
+# Documentación
+
+Se creó la carpeta oficial:
+
+docs/
+
+Documentos iniciales:
+
+✔ README.md
+
+✔ PROJECT_RULES.md
+
+✔ PROJECT_CONTEXT.md
+
+✔ CHANGELOG.md
+
+✔ OSINET_PROJECT_GUIDE.md
+
+✔ DATABASE.md
+
+✔ MODULES.md
+
+✔ NAVIGATION.md
+
+✔ WHATSAPP.md
+
+✔ ROADMAP.md
+
+---
+
+# Próximo desarrollo
+
+Módulo de Vacaciones
+
+Posteriormente:
+
+- Permisos
+- Licencias
+- Evaluaciones
+- Portal del Empleado
+- Portal Administrativo
+- API REST
+- Sincronización Cloud
+
+---
+
+Fin del registro de la versión 1.0

@@ -1,0 +1,6 @@
+La pantalla GENERAL NÓMINA ya contiene los botones:
+- Enviar por Gmail
+- Enviar por WhatsApp
+
+La conexión real con N8N queda pendiente.
+Los botones no ejecutan el envío externo todavía; solo muestran el estado preparado para N8N.

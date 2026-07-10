@@ -1,0 +1,5 @@
+Reemplazar el módulo app completo con el contenido de este paquete, o reemplazar estos archivos puntuales:
+
+1. app/src/main/java/com/example/controlhorario/fingerprint/external/TwoConnectFingerprintManager.kt
+2. app/src/main/java/ui/biometrics/FingerprintRegistrationScreen.kt
+3. app/src/main/java/ui/punch/EmployeePunchScreen.kt

@@ -1,0 +1,8 @@
+Paquete OSINET: módulos restantes conectados.
+
+Colocar/reemplazar el contenido de este módulo app sobre la carpeta app actual del proyecto Android Studio.
+
+Importante:
+- La conexión externa real con N8N queda pendiente a propósito.
+- WhatsApp/N8N conserva cola local y preparación de datos, pero no envía a webhook externo.
+- La integración base del lector 2Connect USB no fue modificada porque el usuario indicó que ya funciona.

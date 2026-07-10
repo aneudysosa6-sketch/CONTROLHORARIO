@@ -1,0 +1,13 @@
+Paquete: OSINET_2CONNECT_USB_MODULE_STABLE.zip
+
+Este paquete corrige el módulo USB del lector 2Connect.
+
+Uso esperado:
+1. Reemplaza la carpeta app por la incluida en este ZIP, o reemplaza los 4 archivos indicados en ARCHIVOS_A_REEMPLAZAR.txt.
+2. Abre Android Studio.
+3. Sync Gradle.
+4. Instala en el teléfono.
+5. Conecta el lector 2Connect por OTG.
+6. Abre Administrador > Registro de Huellas, o Perfil del empleado > Registrar huella.
+
+El botón dentro del perfil del empleado ya abre la pantalla real de registro con el código del empleado cargado automáticamente.

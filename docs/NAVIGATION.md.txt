@@ -1,0 +1,285 @@
+# NAVIGATION.md
+
+# Navegación Oficial
+
+Proyecto: OSINET Time ERP
+
+Archivo principal:
+
+ui/navigation/AppNavigation.kt
+
+---
+
+# Regla principal
+
+Toda navegación debe pasar por Navigation Compose.
+
+No crear navegación manual fuera de AppNavigation.
+
+---
+
+# Rutas principales
+
+## login
+
+Pantalla:
+
+LoginScreen
+
+Uso:
+
+Entrada inicial al sistema.
+
+---
+
+## home
+
+Pantalla:
+
+HomeScreen
+
+Uso:
+
+Dashboard principal.
+
+---
+
+## employees
+
+Pantalla:
+
+EmployeesScreen
+
+Uso:
+
+Menú principal de empleados.
+
+---
+
+## add_employee
+
+Pantalla:
+
+AddEmployeeScreen
+
+Uso:
+
+Agregar nuevo empleado.
+
+---
+
+## employee_list
+
+Pantalla:
+
+EmployeeListScreen
+
+Uso:
+
+Lista de empleados registrados.
+
+---
+
+## employee_profile/{employeeId}
+
+Pantalla:
+
+EmployeeProfileScreen
+
+Uso:
+
+Perfil del empleado.
+
+---
+
+## employee_file/{employeeId}
+
+Pantalla:
+
+EmployeeFileScreen
+
+Uso:
+
+Expediente Digital del empleado.
+
+---
+
+## employee_documents/{employeeId}
+
+Pantalla:
+
+EmployeeDocumentsScreen
+
+Uso:
+
+Documentos del empleado.
+
+---
+
+## employee_document_upload/{employeeId}
+
+Pantalla:
+
+EmployeeDocumentUploadScreen
+
+Uso:
+
+Subir documentos al expediente.
+
+---
+
+## employee_attendance_history/{employeeId}
+
+Pantalla:
+
+EmployeeAttendanceHistoryScreen
+
+Uso:
+
+Historial de asistencia del empleado.
+
+---
+
+## employee_payroll_settings/{employeeId}
+
+Pantalla:
+
+EmployeePayrollSettingsScreen
+
+Uso:
+
+Configuración individual de nómina.
+
+---
+
+## employee_payroll_preview/{employeeId}
+
+Pantalla:
+
+EmployeePayrollPreviewScreen
+
+Uso:
+
+Vista previa de nómina.
+
+---
+
+## employee_payroll_history/{employeeId}
+
+Pantalla:
+
+EmployeePayrollHistoryScreen
+
+Uso:
+
+Historial de nómina.
+
+---
+
+## attendance
+
+Pantalla:
+
+AttendanceScreen
+
+Uso:
+
+Control de asistencia.
+
+---
+
+## branches
+
+Pantalla:
+
+BranchScreen
+
+Uso:
+
+Sucursales.
+
+---
+
+## departments
+
+Pantalla:
+
+DepartmentScreen
+
+Uso:
+
+Departamentos.
+
+---
+
+## company_settings
+
+Pantalla:
+
+CompanySettingsScreen
+
+Uso:
+
+Configuración general.
+
+---
+
+## company_info
+
+Pantalla:
+
+CompanyInfoScreen
+
+Uso:
+
+Datos de empresa.
+
+---
+
+## work_schedule_templates
+
+Pantalla:
+
+WorkScheduleTemplateScreen
+
+Uso:
+
+Plantillas de jornada.
+
+---
+
+## labor_calendar
+
+Pantalla:
+
+LaborCalendarScreen
+
+Uso:
+
+Calendario laboral.
+
+---
+
+## payroll_settings
+
+Pantalla:
+
+PayrollSettingsScreen
+
+Uso:
+
+Configuración general de nómina.
+
+---
+
+# Reglas futuras
+
+Cuando AppNavigation crezca demasiado, deberá dividirse por módulos:
+
+- EmployeeNavigation.kt
+- PayrollNavigation.kt
+- CompanyNavigation.kt
+- AttendanceNavigation.kt
+- DocumentNavigation.kt
+
+Pero sin romper las rutas existentes.

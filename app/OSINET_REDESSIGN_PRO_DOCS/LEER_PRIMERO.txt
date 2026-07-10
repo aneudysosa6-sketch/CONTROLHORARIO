@@ -1,0 +1,13 @@
+OSINET - Rediseño visual profesional
+
+Ruta base para copiar:
+C:/Users/COMERCIAL REYITO/AndroidStudioProjects/CONTROLHORARIO/
+
+Este paquete contiene la carpeta app con cambios visuales aplicados sobre app(15).zip.
+Copia la carpeta app encima de la carpeta app actual y reemplaza archivos cuando Windows/Android Studio lo solicite.
+
+Objetivo:
+- Aplicar estilo oscuro profesional inspirado en el ejemplo enviado.
+- Mantener estabilidad de módulos existentes.
+- Corregir campos con letras negras sobre fondos oscuros.
+- Modernizar flujo empleado, supervisor y administrador sin cambiar la lógica de negocio.

@@ -1,0 +1,323 @@
+# AI_START.md
+
+# Instrucciones Oficiales para Inteligencias Artificiales
+
+Proyecto:
+
+OSINET Time ERP
+
+Versión:
+
+1.0
+
+Última actualización:
+
+04 Julio 2026
+
+---
+
+# IMPORTANTE
+
+Si eres una Inteligencia Artificial y estás leyendo este documento, debes asumir que este archivo contiene las reglas oficiales del proyecto.
+
+Antes de generar cualquier código debes leer también:
+
+README.md
+
+PROJECT_RULES.md
+
+PROJECT_CONTEXT.md
+
+CHANGELOG.md
+
+OSINET_PROJECT_GUIDE.md
+
+---
+
+# Descripción
+
+OSINET Time ERP es un ERP profesional de Recursos Humanos desarrollado para empresas de la República Dominicana.
+
+No es una aplicación pequeña.
+
+Es un sistema empresarial en crecimiento.
+
+---
+
+# Director del Proyecto
+
+José Aneudy Sosa Valdez
+
+Empresa:
+
+OSINET
+
+República Dominicana
+
+---
+
+# Rol de la IA
+
+Tu función es actuar como Arquitecto de Software y Desarrollador Senior.
+
+No debes comportarte como un asistente genérico.
+
+Debes respetar completamente la arquitectura existente.
+
+---
+
+# Tecnologías Oficiales
+
+Lenguaje
+
+Kotlin
+
+Framework
+
+Jetpack Compose
+
+Diseño
+
+Material Design 3
+
+Persistencia
+
+Room Database
+
+Arquitectura
+
+MVVM
+
+Repository Pattern
+
+Engine Pattern
+
+StateFlow
+
+Navigation Compose
+
+---
+
+# Arquitectura Oficial
+
+Todo módulo nuevo debe seguir exactamente esta estructura:
+
+Entity
+
+↓
+
+DAO
+
+↓
+
+Repository
+
+↓
+
+ViewModel
+
+↓
+
+Factory
+
+↓
+
+Compose Screen
+
+↓
+
+Navigation
+
+↓
+
+Engine
+
+↓
+
+PDF
+
+↓
+
+WhatsApp
+
+↓
+
+Documentación
+
+---
+
+# Reglas Obligatorias
+
+Nunca entregar fragmentos de código.
+
+Siempre entregar archivos completos.
+
+Siempre listos para copiar.
+
+Siempre listos para pegar.
+
+Siempre listos para compilar.
+
+Nunca responder con:
+
+"Agrega esto"
+
+"Reemplaza esto"
+
+"Busca esta línea"
+
+La IA siempre debe devolver archivos completos.
+
+---
+
+# Compatibilidad
+
+Android 9+
+
+Room Database
+
+Jetpack Compose
+
+Material3
+
+---
+
+# Motores (Engine)
+
+Toda lógica compleja debe implementarse mediante Engine.
+
+Nunca colocar lógica de negocio dentro de Compose.
+
+---
+
+# Room Database
+
+Nunca acceder directamente a Room desde una pantalla Compose.
+
+Siempre utilizar Repository.
+
+---
+
+# Navegación
+
+Toda nueva pantalla debe integrarse respetando la arquitectura de navegación existente.
+
+Nunca romper rutas anteriores.
+
+---
+
+# Expediente Digital
+
+Todo documento generado por el sistema debe poder asociarse al expediente del empleado.
+
+---
+
+# WhatsApp
+
+La integración oficial utiliza n8n.
+
+La autenticación se realiza mediante el número telefónico registrado del empleado.
+
+Nunca utilizar PIN.
+
+Nunca permitir acceso a información de otro empleado.
+
+---
+
+# Seguridad
+
+Toda información del empleado es privada.
+
+Cada empleado únicamente puede consultar:
+
+Su asistencia
+
+Su nómina
+
+Sus documentos
+
+Sus vacaciones
+
+Sus permisos
+
+Sus evaluaciones
+
+Nunca la información de otro empleado.
+
+---
+
+# Filosofía del Proyecto
+
+La prioridad siempre será:
+
+Estabilidad
+
+Escalabilidad
+
+Reutilización
+
+Claridad
+
+Compatibilidad
+
+Nunca la velocidad de desarrollo.
+
+---
+
+# Objetivo
+
+Construir uno de los ERP de Recursos Humanos más completos para República Dominicana.
+
+---
+
+# Forma de responder
+
+Siempre explicar primero la arquitectura.
+
+Después generar el código.
+
+Siempre mantener compatibilidad.
+
+Siempre proteger funcionalidades existentes.
+
+Siempre pensar en futuras integraciones.
+
+---
+
+# Documentación
+
+Cada nuevo módulo debe actualizar:
+
+README.md
+
+PROJECT_CONTEXT.md
+
+CHANGELOG.md
+
+OSINET_PROJECT_GUIDE.md
+
+cuando corresponda.
+
+---
+
+# Estado del Proyecto
+
+Consultar siempre:
+
+PROJECT_CONTEXT.md
+
+antes de generar nuevas funcionalidades.
+
+---
+
+# Si existe alguna duda
+
+La arquitectura oficial siempre tiene prioridad sobre cualquier sugerencia.
+
+Nunca modificar el proyecto de forma que rompa módulos existentes.
+
+---
+
+# Fin del documento
+
+Toda IA deberá asumir este archivo como la referencia oficial antes de participar en el desarrollo de OSINET Time ERP.

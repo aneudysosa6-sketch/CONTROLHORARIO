@@ -1,0 +1,9 @@
+REPARACION REALIZADA
+
+- Eliminado por completo el módulo Vacaciones.
+- Eliminados archivos: ui/vacations, VacationDao, VacationEntity, VacationEngine, VacationRepository.
+- AppDatabase ya no registra VacationEntity ni vacationDao().
+- Eliminados botones/parámetros de Vacaciones en pantallas de empleado.
+- AppNavigation.kt mantiene pantalla inicial visible.
+
+Instalación: usar esta carpeta/ZIP como proyecto limpio y compilar con Build > Clean Project y Build > Assemble Project.

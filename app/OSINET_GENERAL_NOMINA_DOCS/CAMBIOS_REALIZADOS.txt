@@ -1,0 +1,42 @@
+OSINET - GENERAL NÓMINA
+
+Cambios incluidos:
+
+1. Panel Administrador
+- Se eliminó el botón Nómina del menú principal.
+- Se agregó el botón GENERAL NÓMINA.
+- GENERAL NÓMINA abre una pantalla real para cálculo, exportación y preparación de envío.
+
+2. Configuración
+- Se eliminó Horarios laborales del menú Configuración.
+- Se eliminó Nómina del menú Configuración.
+- Configuración queda con: Sucursales, Departamentos, Datos de empresa y Calendario laboral.
+
+3. Crear empleado / Perfil empleado
+- Se agregó tiempo de almuerzo en Crear empleado.
+- Los datos de nómina se manejan desde la configuración individual del empleado.
+- El sueldo quincenal calcula automáticamente la hora normal: sueldo / 15 / 8.
+- Hora extra, nocturna y festiva se calculan por porcentaje.
+
+4. Préstamos y créditos
+- Se agregaron campos para total préstamo, total pagado, pendiente y descuento quincenal.
+- Se agregaron campos para total crédito, crédito pendiente y crédito a descontar.
+- Si el saldo restante es menor al descuento, se cobra solo el saldo restante.
+- Al llegar a 0, los campos relacionados quedan en 0.
+
+5. Plantilla de descuentos
+- Botón Descargar plantilla.
+- Botón Subir plantilla.
+- La plantilla generada incluye solo:
+  CODIGO EMPLEADO, NOMBRE EMPLEADO, DESCU-PRES, DESCU-CRED, ROTUR/FALT.
+- Los empleados se ordenan por código de menor a mayor.
+
+6. Reporte general de nómina
+- Genera PDF general con formato de pagos de empleados.
+- Incluye resumen de nómina en la primera página.
+- Genera CSV compatible con Excel.
+- Columna IMPUESTOS = AFP + SFS.
+
+7. N8N
+- Se agregaron botones Enviar por Gmail y Enviar por WhatsApp.
+- Quedan preparados, pero sin conexión real con N8N, según instrucción del usuario.

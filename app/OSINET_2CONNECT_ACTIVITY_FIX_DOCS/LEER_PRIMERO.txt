@@ -1,0 +1,11 @@
+Este paquete corrige el cierre/error del módulo USB 2Connect mostrado en pantalla:
+
+android.app.Application cannot be cast to android.app.Activity
+
+Después de reemplazar:
+1. Sincroniza Gradle.
+2. Limpia y recompila el proyecto.
+3. Conecta el lector USB por OTG.
+4. Abre Registro de Huellas 2Connect.
+5. Pulsa Solicitar permiso USB.
+6. Luego busca empleado y registra huella.

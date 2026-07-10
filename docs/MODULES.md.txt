@@ -1,0 +1,264 @@
+# MODULES.md
+
+# Módulos del Sistema
+
+Proyecto: OSINET Time ERP
+
+---
+
+# Módulos implementados
+
+## Login
+
+Estado: Funciona
+
+Uso:
+
+Permite entrada inicial al sistema.
+
+---
+
+## Dashboard
+
+Estado: Funciona
+
+Muestra:
+
+- Empleados registrados
+- Trabajando
+- En pausa
+- Finalizados
+- Sin jornada
+
+---
+
+## Empleados
+
+Estado: Funciona
+
+Incluye:
+
+- Agregar empleado
+- Lista de empleados
+- Perfil del empleado
+- Asociación a sucursal
+- Asociación a departamento
+- Sueldo
+- PIN
+
+---
+
+## Sucursales
+
+Estado: Funciona
+
+Permite gestionar sucursales de la empresa.
+
+---
+
+## Departamentos
+
+Estado: Funciona
+
+Permite gestionar departamentos por sucursal.
+
+---
+
+## Asistencia
+
+Estado: Funciona
+
+Incluye:
+
+- Iniciar jornada
+- Pausa
+- Reanudar
+- Finalizar jornada
+- Validación biométrica
+- Máquina de estados
+
+---
+
+## Calendario Laboral
+
+Estado: Funciona
+
+Incluye feriados y días especiales.
+
+---
+
+## Plantillas de Jornada
+
+Estado: Funciona
+
+Permite configurar horarios laborales.
+
+---
+
+## Nómina
+
+Estado: Funciona
+
+Incluye:
+
+- Configuración general
+- Configuración individual
+- Vista previa
+- Historial
+- PDF
+- Crédito temporal
+
+---
+
+## Expediente Digital
+
+Estado: En desarrollo activo
+
+Incluye:
+
+- EmployeeFileScreen
+- Documentos del empleado
+- Carga de documentos
+- Asociación por employeeId
+
+---
+
+## WhatsApp
+
+Estado: Motores internos creados
+
+Incluye:
+
+- Validación por teléfono
+- Menú
+- Comandos
+- Conversación
+- Workflow
+- Créditos
+- Asistencia
+- Nómina
+- PDF
+- Notificaciones
+
+---
+
+# Módulos pendientes
+
+## Vacaciones
+
+Pendiente.
+
+Debe incluir:
+
+- Solicitud
+- Aprobación
+- Historial
+- Cálculo automático
+- PDF
+- WhatsApp
+
+---
+
+## Permisos
+
+Pendiente.
+
+Debe incluir:
+
+- Solicitud
+- Aprobación
+- Rechazo
+- PDF
+- WhatsApp
+
+---
+
+## Amonestaciones
+
+Pendiente.
+
+Debe incluir:
+
+- Registro
+- Historial
+- PDF
+- Notificación
+
+---
+
+## Capacitaciones
+
+Pendiente.
+
+Debe incluir:
+
+- Cursos
+- Certificados
+- Historial
+
+---
+
+## Evaluaciones
+
+Pendiente.
+
+Debe incluir:
+
+- Evaluación de desempeño
+- Comentarios
+- Resultados
+
+---
+
+## Certificaciones
+
+Pendiente.
+
+Debe incluir:
+
+- Carta laboral
+- Carta de salario
+- Certificación de ingresos
+- PDF
+- WhatsApp
+
+---
+
+## Portal del Empleado
+
+Pendiente.
+
+Canales futuros:
+
+- WhatsApp
+- Web
+- Android
+
+---
+
+## Portal Administrativo Web
+
+Pendiente.
+
+Será una etapa futura del ERP.
+
+---
+
+## API REST
+
+Pendiente.
+
+Necesaria para n8n, Portal Web y sincronización cloud.
+
+---
+
+## Inteligencia Artificial
+
+Pendiente.
+
+Usos futuros:
+
+- Alertas
+- Detección de anomalías
+- Resumen de RR. HH.
+- Análisis de documentos

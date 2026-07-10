@@ -1,0 +1,238 @@
+# DATABASE.md
+
+# Base de Datos Oficial
+
+Proyecto: OSINET Time ERP
+
+Motor: Room Database
+
+---
+
+# Regla principal
+
+Nunca acceder a Room directamente desde Compose.
+
+Flujo obligatorio:
+
+Entity  
+↓  
+DAO  
+↓  
+Repository  
+↓  
+ViewModel  
+↓  
+Screen  
+
+---
+
+# Tablas actuales
+
+## employees
+
+Entidad:
+
+Employee
+
+Uso:
+
+Guarda la información principal del empleado.
+
+Campos principales:
+
+- id
+- nombre
+- cedula
+- telefono
+- cargo
+- departamento
+- branchId
+- departmentId
+- sueldo
+- pin
+
+---
+
+## attendance_records
+
+Entidad:
+
+AttendanceEntity
+
+Uso:
+
+Guarda los registros de asistencia.
+
+Campos principales:
+
+- id
+- employeeId
+- employeeName
+- date
+- time
+- actionType
+- latitude
+- longitude
+- biometricVerified
+- deviceName
+- notes
+
+---
+
+## branches
+
+Entidad:
+
+BranchEntity
+
+Uso:
+
+Sucursales de la empresa.
+
+---
+
+## departments
+
+Entidad:
+
+DepartmentEntity
+
+Uso:
+
+Departamentos asociados a sucursales.
+
+---
+
+## company_settings
+
+Entidad:
+
+CompanySettingsEntity
+
+Uso:
+
+Datos generales de la empresa.
+
+Campos:
+
+- companyName
+- rnc
+- address
+- phone
+- email
+
+---
+
+## payroll_settings
+
+Entidad:
+
+PayrollSettingsEntity
+
+Uso:
+
+Configuración general de nómina.
+
+---
+
+## employee_payroll_settings
+
+Entidad:
+
+EmployeePayrollSettingsEntity
+
+Uso:
+
+Configuración individual de nómina por empleado.
+
+Incluye:
+
+- precio hora normal
+- precio hora extra
+- precio nocturno
+- descuentos
+- crédito temporal
+
+---
+
+## payroll_history
+
+Entidad:
+
+PayrollHistoryEntity
+
+Uso:
+
+Historial de nóminas generadas.
+
+---
+
+## labor_calendar_days
+
+Entidad:
+
+LaborCalendarDayEntity
+
+Uso:
+
+Calendario laboral, feriados y días especiales.
+
+---
+
+## work_schedule_templates
+
+Entidad:
+
+WorkScheduleTemplate
+
+Uso:
+
+Plantillas de jornada laboral.
+
+---
+
+## employee_documents
+
+Entidad:
+
+EmployeeDocumentEntity
+
+Uso:
+
+Documentos del expediente digital del empleado.
+
+Campos:
+
+- id
+- employeeId
+- documentName
+- documentType
+- filePath
+- fileExtension
+- fileSizeBytes
+- uploadedAt
+- notes
+- isActive
+
+---
+
+# Versión actual de Room
+
+La base de datos usa migración destructiva durante desarrollo.
+
+Cuando el sistema pase a producción, deberán implementarse migraciones formales.
+
+---
+
+# Reglas futuras
+
+Toda nueva tabla debe tener:
+
+- Entity
+- DAO
+- Repository
+- ViewModel
+- Factory
+- Screen si aplica
+
+Todo documento generado debe poder asociarse al employeeId.

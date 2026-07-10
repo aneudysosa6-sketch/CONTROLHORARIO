@@ -1,0 +1,323 @@
+# AGENT_RULES.md
+
+# OSINET Time ERP Enterprise
+## Reglas oficiales para cualquier IA que modifique este proyecto
+
+---
+
+# IDENTIDAD DEL PROYECTO
+
+Nombre:
+
+OSINET Time ERP Enterprise
+
+Plataforma:
+
+Android
+
+Lenguaje:
+
+Kotlin
+
+UI:
+
+Jetpack Compose
+
+Arquitectura:
+
+MVVM
+
+Persistencia:
+
+Room Database
+
+Sin Firebase.
+
+Sin Backend.
+
+Todo funciona localmente.
+
+---
+
+# OBJETIVO
+
+Construir un ERP profesional para Recursos Humanos comparable con:
+
+- Softland
+- Nomiplus
+- SPN
+- SAP HR (escala Android)
+
+Nunca construir una aplicación sencilla.
+
+Siempre pensar como un ERP empresarial.
+
+---
+
+# REGLA #1
+
+NUNCA eliminar funcionalidades existentes.
+
+Siempre ampliar el proyecto.
+
+Nunca reemplazar lógica sin analizar el código actual.
+
+---
+
+# REGLA #2
+
+Antes de modificar un archivo existente:
+
+1. Leer el archivo completo.
+
+2. Entender la arquitectura.
+
+3. Conservar nombres.
+
+4. Conservar paquetes.
+
+5. Conservar imports.
+
+6. Mantener compatibilidad.
+
+---
+
+# REGLA #3
+
+Nunca generar fragmentos.
+
+Siempre entregar archivos completos.
+
+Si un archivo es demasiado grande:
+
+Dividirlo por etapas.
+
+Etapa 1
+
+Etapa 2
+
+Etapa 3
+
+...
+
+Hasta completar el archivo.
+
+---
+
+# REGLA #4
+
+Nunca inventar clases.
+
+Nunca asumir propiedades.
+
+Nunca crear métodos inexistentes.
+
+Leer primero las clases relacionadas.
+
+---
+
+# REGLA #5
+
+Todos los módulos deben usar:
+
+Repository
+
+↓
+
+ViewModel
+
+↓
+
+Compose
+
+↓
+
+Navigation
+
+Nunca acceder directamente al DAO desde una pantalla Compose.
+
+---
+
+# REGLA #6
+
+Todas las pantallas deben reutilizar:
+
+OSINETButton
+
+OSINETTextField
+
+Componentes Compose reutilizables.
+
+---
+
+# REGLA #7
+
+Mantener el estilo visual OSINET.
+
+Colores consistentes.
+
+Tarjetas modernas.
+
+Diseño empresarial.
+
+No crear pantallas básicas.
+
+---
+
+# REGLA #8
+
+Todas las entidades Room deben mantener:
+
+createdAt
+
+updatedAt
+
+isActive
+
+Siempre que aplique.
+
+Nunca eliminar campos.
+
+---
+
+# REGLA #9
+
+Toda modificación debe compilar.
+
+Nunca entregar código con errores.
+
+---
+
+# REGLA #10
+
+Si una modificación requiere cambios en varios archivos:
+
+Actualizar TODOS los archivos necesarios.
+
+Nunca dejar referencias rotas.
+
+---
+
+# REGLA #11
+
+Mantener la estructura del proyecto.
+
+database/
+
+repository/
+
+engine/
+
+model/
+
+ui/
+
+navigation/
+
+docs/
+
+memory/
+
+---
+
+# REGLA #12
+
+Cada nuevo módulo debe incluir:
+
+Entity
+
+DAO
+
+Repository
+
+Engine
+
+ViewModel
+
+ViewModelFactory
+
+Compose Screens
+
+Navigation
+
+Documentación
+
+---
+
+# REGLA #13
+
+Todo cambio debe ser escalable.
+
+Siempre pensar en futuras funciones.
+
+Nunca crear soluciones temporales.
+
+---
+
+# REGLA #14
+
+Mantener el código limpio.
+
+Nombres claros.
+
+Funciones pequeñas.
+
+Clases reutilizables.
+
+---
+
+# REGLA #15
+
+Antes de finalizar una modificación verificar:
+
+✓ Compila
+
+✓ Imports
+
+✓ Navegación
+
+✓ Room
+
+✓ ViewModels
+
+✓ Repository
+
+✓ UI
+
+---
+
+# REGLA #16
+
+Respetar los documentos de la carpeta docs/.
+
+Especialmente:
+
+README.md
+
+PROJECT_CONTEXT.md
+
+PROJECT_RULES.md
+
+DATABASE.md
+
+MODULES.md
+
+ROADMAP.md
+
+CHANGELOG.md
+
+OSINET_PROJECT_GUIDE.md
+
+---
+
+# REGLA #17
+
+La IA debe comportarse como Arquitecto de Software Senior.
+
+No como generador de ejemplos.
+
+Todas las decisiones deben favorecer la estabilidad, mantenibilidad y escalabilidad del ERP.
+
+---
+
+FIN DEL DOCUMENTO

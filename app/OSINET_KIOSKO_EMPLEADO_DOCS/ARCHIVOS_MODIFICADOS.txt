@@ -1,0 +1,5 @@
+ARCHIVOS MODIFICADOS
+
+app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+app/src/main/java/ui/attendance/AttendanceViewModel.kt
+app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt

@@ -1,0 +1,6 @@
+Reemplazar el módulo app completo por el contenido de este ZIP.
+
+Si reemplazas manualmente, usa estos archivos:
+
+1. app/src/main/java/ui/punch/EmployeePunchScreen.kt
+2. app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt

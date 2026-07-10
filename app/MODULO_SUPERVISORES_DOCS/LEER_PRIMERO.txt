@@ -1,0 +1,22 @@
+MÓDULO 1 - SUPERVISORES OSINET
+
+Ruta de instalación:
+Copia el contenido de la carpeta app/ de este ZIP dentro de:
+C:/Users/COMERCIAL REYITO/AndroidStudioProjects/CONTROLHORARIO/app/
+
+Reemplaza los archivos cuando Android Studio lo solicite.
+
+Después de copiar:
+1. Abre Android Studio.
+2. Sync Gradle.
+3. Build > Rebuild Project.
+4. Si Room/KSP pide limpiar, usa Build > Clean Project y luego Rebuild Project.
+
+IMPORTANTE:
+Este paquete cambia AppDatabase a versión 20 y agrega nuevas tablas Room:
+- supervisors
+- supervisor_departments
+- supervisor_work_schedules
+- supervisor_events
+
+La conexión real con N8N queda pendiente. El módulo deja eventos preparados para N8N.

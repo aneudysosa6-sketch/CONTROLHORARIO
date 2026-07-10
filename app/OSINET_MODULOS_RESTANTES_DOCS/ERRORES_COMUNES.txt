@@ -1,0 +1,10 @@
+Si aparece error de navegación:
+- Hacer Clean Project y Rebuild Project.
+- Verificar que AppNavigation.kt fue reemplazado completo.
+
+Si aparece error de Room/KSP:
+- No modificar AppDatabase primero.
+- Verificar que VacationEntity/VacationDao/WhatsAppOutboxEntity existen y compilan.
+
+Si N8N no envía mensajes:
+- Es intencional. La conexión externa N8N quedó pendiente por instrucción del usuario.

@@ -1,0 +1,517 @@
+# OSINET PROJECT GUIDE
+
+Versión: 1.0
+
+Proyecto:
+
+OSINET Time ERP
+
+Empresa:
+
+OSINET
+
+Director del Proyecto:
+
+José Aneudy Sosa Valdez
+
+Arquitectura:
+
+OpenAI ChatGPT
+
+Fecha de inicio de documentación:
+
+04 Julio 2026
+
+---
+
+# 1. VISIÓN DEL PROYECTO
+
+OSINET Time ERP es un ERP profesional de Recursos Humanos desarrollado para empresas de la República Dominicana.
+
+El objetivo del sistema es administrar completamente el ciclo de vida de un empleado desde su contratación hasta su salida de la empresa.
+
+El proyecto está diseñado para crecer durante muchos años sin necesidad de rehacer su arquitectura.
+
+La prioridad siempre será la estabilidad, escalabilidad y reutilización del código.
+
+---
+
+# 2. FILOSOFÍA
+
+El proyecto NO es una simple aplicación Android.
+
+Es un ERP completo.
+
+Cada nuevo módulo debe poder funcionar posteriormente desde:
+
+• Android
+
+• Portal Web
+
+• WhatsApp
+
+• API REST
+
+• n8n
+
+• Inteligencia Artificial
+
+---
+
+# 3. TECNOLOGÍAS
+
+Lenguaje:
+
+Kotlin
+
+Framework UI:
+
+Jetpack Compose
+
+Diseño:
+
+Material Design 3
+
+Persistencia:
+
+Room Database
+
+Arquitectura:
+
+MVVM
+
+Repository Pattern
+
+Engine Pattern
+
+StateFlow
+
+Navigation Compose
+
+Android mínimo:
+
+Android 9 (API 28)
+
+---
+
+# 4. ESTRUCTURA OFICIAL
+
+app/
+
+database/
+
+repository/
+
+model/
+
+engine/
+
+ui/
+
+navigation/
+
+utils/
+
+whatsapp/
+
+docs/
+
+---
+
+# 5. BASE DE DATOS
+
+La base de datos local utiliza Room Database.
+
+Todas las tablas deben tener:
+
+Entity
+
+DAO
+
+Repository
+
+ViewModel
+
+Factory
+
+Pantalla
+
+Nunca acceder a Room directamente desde Compose.
+
+Siempre utilizar Repository.
+
+---
+
+# 6. PATRONES
+
+Arquitectura oficial:
+
+MVVM
+
+Cada Entity tendrá:
+
+DAO
+
+↓
+
+Repository
+
+↓
+
+ViewModel
+
+↓
+
+Compose
+
+Toda lógica compleja deberá implementarse mediante Engine.
+
+---
+
+# 7. ENGINE PATTERN
+
+Toda lógica de negocio debe separarse de la interfaz.
+
+Ejemplos:
+
+PayrollEngine
+
+PayrollPdfEngine
+
+VacationEngine
+
+AttendanceEngine
+
+WhatsAppPayrollEngine
+
+WhatsAppAttendanceEngine
+
+DocumentEngine
+
+NotificationEngine
+
+Los Engine nunca deben depender de Compose.
+
+---
+
+# 8. MÓDULOS IMPLEMENTADOS
+
+✔ Login
+
+✔ Dashboard
+
+✔ Gestión de empleados
+
+✔ Perfil del empleado
+
+✔ Expediente Digital
+
+✔ Documentos
+
+✔ Sucursales
+
+✔ Departamentos
+
+✔ Horarios
+
+✔ Calendario Laboral
+
+✔ Asistencia
+
+✔ Configuración Empresa
+
+✔ Configuración Nómina
+
+✔ Nómina
+
+✔ Historial Nómina
+
+✔ PDF Nómina
+
+✔ WhatsApp (estructura)
+
+---
+
+# 9. MÓDULOS PLANIFICADOS
+
+Vacaciones
+
+Permisos
+
+Licencias
+
+Créditos
+
+Beneficios
+
+Evaluaciones
+
+Capacitaciones
+
+Certificaciones
+
+Portal del Empleado
+
+Portal Administrativo
+
+Sincronización Cloud
+
+API REST
+
+IA
+
+Dashboard Ejecutivo
+
+Multiempresa
+
+Multisucursal
+
+---
+
+# 10. EXPEDIENTE DIGITAL
+
+Cada empleado tendrá un expediente único.
+
+Contendrá:
+
+Información general
+
+Información laboral
+
+Documentos
+
+Asistencia
+
+Nómina
+
+Vacaciones
+
+Permisos
+
+Amonestaciones
+
+Evaluaciones
+
+Capacitaciones
+
+Certificaciones
+
+Historial completo
+
+Todo documento generado por el sistema deberá poder almacenarse en este expediente.
+
+---
+
+# 11. DOCUMENTOS
+
+Se podrán almacenar:
+
+PDF
+
+JPG
+
+PNG
+
+DOCX
+
+XLSX
+
+ZIP
+
+XML
+
+Firmas
+
+Contratos
+
+Curriculum
+
+Seguro Médico
+
+Licencias
+
+Pasaporte
+
+Otros
+
+---
+
+# 12. WHATSAPP
+
+La integración oficial será mediante n8n.
+
+La autenticación utilizará únicamente el número telefónico registrado del empleado.
+
+Nunca se utilizará PIN.
+
+Nunca se permitirá consultar información de otro empleado.
+
+Información disponible:
+
+Asistencia
+
+Historial
+
+Vista previa de nómina
+
+PDF de nómina
+
+Documentos
+
+Vacaciones
+
+Permisos
+
+Constancias
+
+---
+
+# 13. PDF
+
+Todo PDF deberá generarse mediante Engine.
+
+Ejemplos:
+
+PayrollPdfEngine
+
+VacationPdfEngine
+
+CertificatePdfEngine
+
+AttendancePdfEngine
+
+DocumentPdfEngine
+
+Todos los PDF deberán poder asociarse al expediente del empleado.
+
+---
+
+# 14. SEGURIDAD
+
+Cada empleado solamente podrá consultar:
+
+Su asistencia
+
+Su nómina
+
+Sus vacaciones
+
+Sus documentos
+
+Sus permisos
+
+Sus evaluaciones
+
+Nunca información de otro empleado.
+
+---
+
+# 15. ROLES
+
+Administrador
+
+Control total.
+
+Recursos Humanos
+
+Gestión completa de empleados.
+
+Supervisor
+
+Solo empleados asignados.
+
+Empleado
+
+Solo su expediente.
+
+---
+
+# 16. PRINCIPIOS
+
+Nunca romper funcionalidades existentes.
+
+Nunca eliminar módulos ya implementados.
+
+Siempre ampliar el sistema.
+
+Mantener compatibilidad.
+
+Mantener escalabilidad.
+
+Mantener reutilización.
+
+---
+
+# 17. REGLAS DE DESARROLLO
+
+Siempre entregar archivos completos.
+
+Nunca entregar fragmentos.
+
+Todo archivo debe quedar listo para copiar, pegar y compilar.
+
+Mantener nombres consistentes.
+
+No duplicar lógica.
+
+No acceder directamente a Room desde Compose.
+
+Toda lógica compleja debe ir en Engine.
+
+---
+
+# 18. DOCUMENTACIÓN
+
+Cada nuevo módulo deberá actualizar:
+
+README.md
+
+PROJECT_CONTEXT.md
+
+CHANGELOG.md
+
+OSINET_PROJECT_GUIDE.md
+
+cuando corresponda.
+
+---
+
+# 19. ROADMAP
+
+Fase 1
+
+Base del sistema.
+
+Fase 2
+
+Recursos Humanos.
+
+Fase 3
+
+Portal del Empleado.
+
+Fase 4
+
+Portal Administrativo.
+
+Fase 5
+
+API REST.
+
+Fase 6
+
+Sincronización Cloud.
+
+Fase 7
+
+Inteligencia Artificial.
+
+---
+
+# 20. VISIÓN A LARGO PLAZO
+
+OSINET Time ERP deberá convertirse en uno de los sistemas de Recursos Humanos más completos para la República Dominicana.
+
+El sistema deberá competir con soluciones empresariales consolidadas, manteniendo una arquitectura moderna, modular y preparada para futuras integraciones tecnológicas.
+
+Todo nuevo desarrollo deberá respetar esta guía como referencia oficial del proyecto.
