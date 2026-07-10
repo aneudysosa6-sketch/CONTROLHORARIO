@@ -2,6 +2,11 @@
 
 ## 2026-07-10
 
+- Añadido User Provisioning mediante Edge Function y RPC transaccional exclusiva de `service_role`.
+- Revocada la escritura cliente directa sobre `profiles` y añadida auditoría inmutable de aprovisionamiento.
+- Incorporado bootstrap de primer administrador y la herramienta web “Sincronizar usuarios Auth”.
+- Añadidas pruebas de contratos de autorización, tenant, bootstrap, detección y rutas protegidas.
+
 - Implementada autenticación web real con Supabase Auth, recuperación/cambio de contraseña y cierre/restauración de sesión.
 - Añadidos permisos efectivos, menú dinámico, rutas protegidas y pantalla de acceso denegado.
 - Eliminadas credenciales web demo y persistencia Android de contraseñas en SharedPreferences.

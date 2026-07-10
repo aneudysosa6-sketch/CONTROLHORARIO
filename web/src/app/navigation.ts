@@ -1,4 +1,4 @@
-import { BarChart3, CalendarClock, Clock3, FileBarChart, LayoutDashboard, Settings, Users, WalletCards, type LucideIcon } from 'lucide-react';
+import { BarChart3, CalendarClock, Clock3, FileBarChart, LayoutDashboard, Settings, UserCog, Users, WalletCards, type LucideIcon } from 'lucide-react';
 export type NavigationSection='Inicio'|'Personal'|'Tiempo'|'Nómina'|'Reportes'|'Administración';
 export interface NavigationItem{to:string;label:string;section:NavigationSection;permission:string;icon:LucideIcon}
 export const navigationItems:NavigationItem[]=[
@@ -10,5 +10,6 @@ export const navigationItems:NavigationItem[]=[
  {to:'/nomina',label:'Procesamiento',section:'Nómina',permission:'nomina.procesar',icon:WalletCards},
  {to:'/reportes',label:'Reportes',section:'Reportes',permission:'reportes.ver_globales',icon:FileBarChart},
  {to:'/configuracion',label:'Configuración',section:'Administración',permission:'configuracion.administrar',icon:Settings},
+ {to:'/usuarios/sincronizar',label:'Sincronizar usuarios',section:'Administración',permission:'usuarios.administrar',icon:UserCog},
 ];
 export const navigationSections:NavigationSection[]=['Inicio','Personal','Tiempo','Nómina','Reportes','Administración'];
