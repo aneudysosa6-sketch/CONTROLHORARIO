@@ -41,7 +41,7 @@ curl -X POST "$SUPABASE_URL/functions/v1/user-provisioning" \
 
 ## Archivos y despliegue futuro
 
-- `supabase/migrations/0003_user_provisioning.sql`: auditoría, revocaciones y transacción interna.
+- `supabase/migrations/0003_FINAL.sql`: auditoría, revocaciones, provisioning y bootstrap transaccional.
 - `supabase/functions/user-provisioning/`: servicio de Admin API.
 - `web/src/pages/UserProvisioningPage.tsx`: herramienta administrativa.
 - `scripts/test_user_provisioning.ps1`: contratos de seguridad estáticos.

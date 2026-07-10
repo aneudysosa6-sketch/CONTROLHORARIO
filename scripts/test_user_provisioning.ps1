@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$migration = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'supabase/migrations/0003_user_provisioning.sql')
+$migration = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'supabase/migrations/0003_FINAL.sql')
 $edge = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'supabase/functions/user-provisioning/index.ts')
 $app = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/App.tsx')
 $checks = [ordered]@{

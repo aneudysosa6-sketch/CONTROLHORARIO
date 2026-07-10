@@ -2,8 +2,11 @@
 
 ## Estado
 
-- `0001_initial_schema.sql`: informada como ejecutada en Supabase.
-- `0002_empleados_permisos_portal.sql`: revisada y corregida, pero **no ejecutada**.
+- `0001_FINAL.sql`: núcleo, organización e identidad.
+- `0002_FINAL.sql`: empleados, permisos y RLS granular.
+- `0003_FINAL.sql`: auditoría, provisioning y bootstrap.
+
+La secuencia FINAL es un diseño de reemplazo y no fue ejecutada. `seed.sql` contiene únicamente capacidades globales; no crea empresas ni usuarios.
 - Migraciones posteriores: solo planificadas en documentación; no existen todavía.
 
 No crear tablas manualmente en el editor SQL remoto. Todo cambio se versiona en `migrations/`, se prueba con un stack local desde cero y se despliega de forma coordinada.

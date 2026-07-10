@@ -35,7 +35,7 @@ Deno.serve(async(req)=>{
 
     if(action==='list'){return await listState(admin,callerCompanyId)}
     if(action==='bootstrap'){
-      return await provision(admin,{...body,user_id:user.id,actor_user_id:null,action:'bootstrap_admin'});
+      const{data,error}=await admin.rpc('bootstrap_tenant_internal',{payload:{...body,user_id:user.id}});if(error)throw error;return json({profile:data});
     }
     if(action==='create'||action==='invite'){
       const email=required(body.email,'email').toLowerCase();
