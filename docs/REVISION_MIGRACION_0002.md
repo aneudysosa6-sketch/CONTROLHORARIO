@@ -2,7 +2,7 @@
 
 ## Veredicto
 
-La versión original generada no debía ejecutarse. Fue corregida en este trabajo y ahora encaja conceptualmente con el modelo objetivo, pero sigue **pendiente de prueba local real** junto con `0001` y el seed. No se autoriza producción hasta superar `supabase db reset` y pruebas RLS multiempresa.
+**APTA PARA EJECUTAR (revisión estática contra `0001`).** La versión original fue corregida y los nombres, claves, relaciones, funciones y políticas corresponden al esquema versionado. No fue ejecutada. Antes de producción sigue siendo obligatorio probar `0001` → `0002` → seed en Supabase local y comprobar que la base remota no tenga drift.
 
 ## Hallazgos
 
@@ -47,4 +47,4 @@ La migración usa los nombres reales `companies`, `profiles`, `roles`, `branches
 5. Añadir tests pgTAP de funciones y políticas.
 6. Comparar la base remota ya migrada con `0001`; cualquier drift requiere migración compensatoria, no edición manual.
 
-Estado final: **corregida documentalmente, no ejecutada y no aprobada todavía para producción**.
+Estado final: **APTA PARA EJECUTAR según revisión estática; no ejecutada y todavía no autorizada para producción sin ensayo local y verificación de drift**.

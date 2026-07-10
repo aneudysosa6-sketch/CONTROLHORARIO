@@ -10,7 +10,8 @@ object UserSessionManager {
     private const val KEY_USER_ID = "user_id"
     private const val KEY_FULL_NAME = "full_name"
     private const val KEY_USERNAME = "username"
-    private const val KEY_PASSWORD = "password"
+    // Legacy key kept only so existing plaintext values can be removed safely.
+    private const val LEGACY_KEY_PASSWORD = "password"
     private const val KEY_ROLE = "role"
     private const val KEY_PERMISSIONS = "permissions"
     private const val KEY_EMPLOYEE_ID = "employee_id"
@@ -79,7 +80,7 @@ object UserSessionManager {
             ?.putInt(KEY_USER_ID, user.id)
             ?.putString(KEY_FULL_NAME, user.fullName)
             ?.putString(KEY_USERNAME, user.username)
-            ?.putString(KEY_PASSWORD, user.password)
+            ?.remove(LEGACY_KEY_PASSWORD)
             ?.putString(KEY_ROLE, user.role)
             ?.putString(KEY_PERMISSIONS, user.permissionsCsv)
             ?.putInt(KEY_EMPLOYEE_ID, user.employeeId)
@@ -100,7 +101,8 @@ object UserSessionManager {
             id = userId,
             fullName = prefs.getString(KEY_FULL_NAME, "").orEmpty(),
             username = prefs.getString(KEY_USERNAME, "").orEmpty(),
-            password = prefs.getString(KEY_PASSWORD, "").orEmpty(),
+            // Authentication secrets are never restored into the persisted session.
+            password = "",
             role = prefs.getString(KEY_ROLE, "").orEmpty(),
             permissionsCsv = prefs.getString(KEY_PERMISSIONS, "").orEmpty(),
             employeeId = prefs.getInt(KEY_EMPLOYEE_ID, 0),

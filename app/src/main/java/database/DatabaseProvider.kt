@@ -16,9 +16,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            )
-                .fallbackToDestructiveMigration()
-                .build()
+            ).build()
 
             INSTANCE = instance
 

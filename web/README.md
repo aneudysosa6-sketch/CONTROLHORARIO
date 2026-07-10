@@ -15,7 +15,11 @@ npm install
 npm run dev
 ```
 
-Acceso demo: usuario `admin`, contraseña `Admin123!`. No es una credencial real y debe reemplazarse al conectar autenticación de servidor.
+## Autenticación
+
+El panel usa Supabase Auth con correo y contraseña. Copie `.env.example` a `.env.local` y configure `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. La clave `service_role` nunca debe usarse en el navegador.
+
+El usuario debe existir en Auth y tener un `profiles` activo, un rol activo y el permiso efectivo `portal.acceder`. No existen credenciales demo ni se guardan contraseñas en `localStorage`.
 
 ## Compilación
 

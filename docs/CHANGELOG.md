@@ -2,6 +2,11 @@
 
 ## 2026-07-10
 
+- Implementada autenticación web real con Supabase Auth, recuperación/cambio de contraseña y cierre/restauración de sesión.
+- Añadidos permisos efectivos, menú dinámico, rutas protegidas y pantalla de acceso denegado.
+- Eliminadas credenciales web demo y persistencia Android de contraseñas en SharedPreferences.
+- Auditadas las entidades Room huérfanas y eliminado el fallback destructivo.
+
 - Agregado panel administrativo web independiente en `web/` con React, TypeScript, Vite y React Router.
 - Incorporadas rutas protegidas, empleados, asistencia, jornadas, kiosco web, reportes, nómina y configuración con datos demostrativos.
 - Configurado despliegue SPA en Vercel y documentada la separación Android/web en `WEB_ADMIN_PANEL.md`.

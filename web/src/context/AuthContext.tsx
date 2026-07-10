@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { authService } from '../services/storage';
-import type { Session } from '../types';
-type AuthValue={session:Session|null;login:(u:string,p:string)=>Promise<void>;logout:()=>void};
+import{createContext,useContext,useEffect,useState,type ReactNode}from'react';
+import{authService,hydrateSession}from'../modules/auth/authService';
+import type{Session}from'../types';
+type AuthValue={session:Session|null;loading:boolean;error:string;login:(e:string,p:string)=>Promise<void>;logout:()=>Promise<void>;requestPasswordReset:(e:string)=>Promise<void>;updatePassword:(p:string)=>Promise<void>;hasPermission:(p:string)=>boolean};
 const AuthContext=createContext<AuthValue|null>(null);
-export function AuthProvider({children}:{children:ReactNode}){const [session,setSession]=useState(authService.getSession());return <AuthContext.Provider value={{session,login:async(u,p)=>setSession(await authService.login(u,p)),logout:()=>{authService.logout();setSession(null)}}}>{children}</AuthContext.Provider>}
+const message=(e:unknown)=>e instanceof Error?e.message:'No fue posible completar la operación.';
+export function AuthProvider({children}:{children:ReactNode}){const[session,setSession]=useState<Session|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');useEffect(()=>{let active=true;authService.current().then(s=>{if(active)setSession(s)}).catch(e=>{if(active)setError(message(e))}).finally(()=>{if(active)setLoading(false)});let subscription:{unsubscribe:()=>void}|undefined;try{subscription=authService.listen((event,s)=>{if(!active)return;if(event==='SIGNED_OUT'){setSession(null);return}if(s&&(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='USER_UPDATED'))setTimeout(()=>hydrateSession(s).then(x=>{if(active){setSession(x);setError('')}}).catch(e=>{if(active){setSession(null);setError(message(e))}}),0)})}catch(e){setError(message(e));setLoading(false)}return()=>{active=false;subscription?.unsubscribe()}},[]);const value:AuthValue={session,loading,error,login:async(email,password)=>{setError('');setSession(await authService.login(email,password))},logout:async()=>{await authService.logout();setSession(null)},requestPasswordReset:authService.requestPasswordReset,updatePassword:authService.updatePassword,hasPermission:p=>session?.permissions.includes(p)===true};return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>}
 export function useAuth(){const value=useContext(AuthContext);if(!value)throw new Error('AuthProvider requerido');return value}
