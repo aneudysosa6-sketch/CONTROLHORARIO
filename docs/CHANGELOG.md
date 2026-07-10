@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## 2026-07-10
+
+- Agregado panel administrativo web independiente en `web/` con React, TypeScript, Vite y React Router.
+- Incorporadas rutas protegidas, empleados, asistencia, jornadas, kiosco web, reportes, nómina y configuración con datos demostrativos.
+- Configurado despliegue SPA en Vercel y documentada la separación Android/web en `WEB_ADMIN_PANEL.md`.
+- La aplicación Android y su ponchador PIN + huella no fueron modificados.
+
 ## 2026-07-07
 
 - Creado paquete profesional de documentación OSINET.
