@@ -4,6 +4,7 @@ $migration = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'supabase/migratio
 $edge = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'supabase/functions/user-provisioning/index.ts')
 $app = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/App.tsx')
 $bootstrapPage = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/BootstrapPage.tsx')
+$loginPage = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/LoginPage.tsx')
 $provisioningService = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/userProvisioning/userProvisioningService.ts')
 $checks = [ordered]@{
   'profiles sin DML de authenticated' = $migration -match 'revoke insert, update, delete on public\.profiles from authenticated'
@@ -20,6 +21,9 @@ $checks = [ordered]@{
   'secreto bootstrap solo en header' = $provisioningService -match "'x-bootstrap-secret':secret" -and $bootstrapPage -notmatch 'localStorage|sessionStorage|VITE_.*SECRET'
   'formulario bootstrap completo' = @('company_name','legal_name','company_slug','full_name','branch_name','employee_code','America/Santo_Domingo') | ForEach-Object { $bootstrapPage -match $_ } | Where-Object { -not $_ } | Measure-Object | Select-Object -ExpandProperty Count | ForEach-Object { $_ -eq 0 }
   'bloqueo bootstrap con profile' = $bootstrapPage -match "from\('profiles'\)" -and $bootstrapPage -match "navigate\('/dashboard'"
+  'estado bootstrap publico sin JWT' = $edge -match "action==='bootstrap-status'" -and $edge.IndexOf("action==='bootstrap-status'") -lt $edge.IndexOf("if(!jwt)")
+  'login redirige a bootstrap vacio' = $loginPage -match 'bootstrapStatus' -and $loginPage -match "navigate\('/bootstrap'"
+  'bootstrap finaliza en login' = $bootstrapPage -match 'await logout\(\)' -and $bootstrapPage -match "navigate\('/login'"
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }

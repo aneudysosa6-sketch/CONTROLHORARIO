@@ -2,6 +2,8 @@
 
 ## 2026-07-11
 
+- Corregido el arranque web para consultar mediante Edge Function si `profiles` está vacío y redirigir automáticamente de `/login` a `/bootstrap` sin exigir sesión.
+- El bootstrap exitoso ahora cierra la sesión temporal y devuelve a `/login`; si el usuario autenticado ya tiene profile, `/bootstrap` continúa bloqueado y redirige al dashboard.
 - Añadida la ruta pública `/bootstrap` para iniciar sesión con el primer usuario Auth y crear de forma transaccional empresa, rol administrador, sucursal principal, profile y empleado opcional.
 - El secreto efímero se envía exclusivamente en `x-bootstrap-secret`, permanece solo en memoria del formulario y se limpia después de cada intento.
 - La ruta detecta profiles existentes, refresca sesión y permisos al finalizar y redirige al dashboard sin exponer `service_role` ni nuevos secretos Vite.

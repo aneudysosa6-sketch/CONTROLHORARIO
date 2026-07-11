@@ -10,14 +10,19 @@ Deno.serve(async(req)=>{
     const url=required(Deno.env.get('SUPABASE_URL'),'SUPABASE_URL');
     const publishable=required(Deno.env.get('SUPABASE_ANON_KEY'),'SUPABASE_ANON_KEY');
     const serviceKey=required(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),'SUPABASE_SERVICE_ROLE_KEY');
+    const body=await req.json();
+    const action=required(body.action,'action');
+    const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    if(action==='bootstrap-status'){
+      const{count,error}=await admin.from('profiles').select('id',{count:'exact',head:true});
+      if(error)throw error;
+      return json({bootstrap_required:count===0});
+    }
     const jwt=req.headers.get('Authorization')?.replace(/^Bearer\s+/i,'');
     if(!jwt)return json({error:'Sesión requerida'},401);
-    const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
     const callerClient=createClient(url,publishable,{global:{headers:{Authorization:`Bearer ${jwt}`}},auth:{persistSession:false}});
     const{data:{user},error:userError}=await admin.auth.getUser(jwt);
     if(userError||!user)return json({error:'Sesión inválida'},401);
-    const body=await req.json();
-    const action=required(body.action,'action');
     const isBootstrap=action==='bootstrap';
     let callerCompanyId:string|undefined;
     if(isBootstrap){

@@ -22,6 +22,8 @@ Los clientes ya no tienen privilegios `INSERT`, `UPDATE` ni `DELETE` sobre `prof
 
 La web expone `/bootstrap` únicamente como punto de entrada inicial. La pantalla autentica al usuario existente con Supabase Auth, comprueba si su UUID ya tiene `profiles` y, si existe, redirige al dashboard. Si falta, solicita empresa, razón social, slug, nombre del administrador, correo autenticado, sucursal principal, código de empleado opcional, zona horaria fija `America/Santo_Domingo` y el secreto temporal.
 
+Al abrir `/login`, el cliente invoca la acción pública `bootstrap-status`. La función consulta `profiles` con sus credenciales de servidor y responde únicamente `bootstrap_required: boolean`; no expone filas, conteos, usuarios ni secretos. Si no hay profiles, la web redirige a `/bootstrap`. Tras crear el primer profile, cierra la sesión usada durante la activación y vuelve a `/login` para un inicio normal.
+
 El secreto se conserva solo en estado de memoria mientras el formulario está abierto, se envía como `x-bootstrap-secret` y se limpia tras cada intento. No se guarda en `localStorage`, `sessionStorage`, variables `VITE_*` ni archivos. La Edge Function vuelve a validar el JWT, el secreto y que el conteo global de profiles sea cero; la UI no sustituye esas garantías del servidor.
 
 El bootstrap existe para resolver el ciclo inicial cuando no hay profiles:

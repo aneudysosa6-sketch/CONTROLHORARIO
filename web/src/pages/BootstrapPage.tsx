@@ -9,7 +9,7 @@ const timezone = 'America/Santo_Domingo' as const;
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'No fue posible completar el bootstrap.';
 
 export function BootstrapPage() {
-  const { session, loading: authLoading, refresh } = useAuth();
+  const { session, loading: authLoading, refresh, logout } = useAuth();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
@@ -106,9 +106,8 @@ export function BootstrapPage() {
         timezone,
       }, secret);
       setSecret('');
-      const next = await refresh();
-      if (!next) throw new Error('El profile fue creado, pero no se pudo refrescar la sesión. Vuelve a iniciar sesión.');
-      navigate('/dashboard', { replace: true });
+      await logout();
+      navigate('/login', { replace: true });
     } catch (caught) {
       setSecret('');
       setError(errorMessage(caught));
