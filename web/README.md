@@ -21,6 +21,10 @@ El panel usa Supabase Auth con correo y contraseña. Copie `.env.example` a `.en
 
 El usuario debe existir en Auth y tener un `profiles` activo, un rol activo y el permiso efectivo `portal.acceder`. No existen credenciales demo ni se guardan contraseñas en `localStorage`.
 
+### Bootstrap inicial
+
+Cuando el primer usuario Auth todavía no tiene profile, abra `/bootstrap`. Inicie sesión y complete la configuración inicial usando el secreto temporal configurado directamente en la Edge Function. El secreto no se configura como variable Vite ni se persiste en el navegador. Después del éxito, elimine o rote `USER_PROVISIONING_BOOTSTRAP_SECRET` en Supabase.
+
 ## Compilación
 
 ```bash

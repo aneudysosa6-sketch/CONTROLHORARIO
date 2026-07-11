@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## 2026-07-11
+
+- Añadida la ruta pública `/bootstrap` para iniciar sesión con el primer usuario Auth y crear de forma transaccional empresa, rol administrador, sucursal principal, profile y empleado opcional.
+- El secreto efímero se envía exclusivamente en `x-bootstrap-secret`, permanece solo en memoria del formulario y se limpia después de cada intento.
+- La ruta detecta profiles existentes, refresca sesión y permisos al finalizar y redirige al dashboard sin exponer `service_role` ni nuevos secretos Vite.
+- Ampliadas las pruebas estáticas de User Provisioning para cubrir ruta pública, campos, header seguro y bloqueo posterior al bootstrap.
+
 ## 2026-07-10
 
 - Añadido User Provisioning mediante Edge Function y RPC transaccional exclusiva de `service_role`.

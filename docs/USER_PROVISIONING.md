@@ -20,6 +20,10 @@ Los clientes ya no tienen privilegios `INSERT`, `UPDATE` ni `DELETE` sobre `prof
 
 ## Bootstrap del primer administrador
 
+La web expone `/bootstrap` únicamente como punto de entrada inicial. La pantalla autentica al usuario existente con Supabase Auth, comprueba si su UUID ya tiene `profiles` y, si existe, redirige al dashboard. Si falta, solicita empresa, razón social, slug, nombre del administrador, correo autenticado, sucursal principal, código de empleado opcional, zona horaria fija `America/Santo_Domingo` y el secreto temporal.
+
+El secreto se conserva solo en estado de memoria mientras el formulario está abierto, se envía como `x-bootstrap-secret` y se limpia tras cada intento. No se guarda en `localStorage`, `sessionStorage`, variables `VITE_*` ni archivos. La Edge Function vuelve a validar el JWT, el secreto y que el conteo global de profiles sea cero; la UI no sustituye esas garantías del servidor.
+
 El bootstrap existe para resolver el ciclo inicial cuando no hay profiles:
 
 1. Aplicar por CLI `0001`, `0002`, `0003` y seed en un entorno de ensayo.
