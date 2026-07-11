@@ -2,6 +2,7 @@
 
 ## 2026-07-11
 
+- Corregida la autorización del bootstrap: antes de `action=bootstrap`, la pantalla vuelve a autenticar correo/contraseña con `signInWithPassword`, valida la sesión y deja que `functions.invoke` adjunte el JWT; si la operación falla después del login, cierra la sesión.
 - Añadido `BootstrapGate` como destino explícito de `/`; la ruta raíz ya no pasa por dashboard/login y decide entre `/bootstrap` y `/login` mediante `bootstrap-status`, sin consultar sesión.
 - Corregido el arranque web para consultar mediante Edge Function si `profiles` está vacío y redirigir automáticamente de `/login` a `/bootstrap` sin exigir sesión.
 - El bootstrap exitoso ahora cierra la sesión temporal y devuelve a `/login`; si el usuario autenticado ya tiene profile, `/bootstrap` continúa bloqueado y redirige al dashboard.

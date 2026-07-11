@@ -28,6 +28,9 @@ $checks = [ordered]@{
   'ruta raiz usa BootstrapGate' = $app -match 'path="/" element={<BootstrapGate' -and $app -match 'import\{BootstrapGate\}'
   'gate no depende de sesion' = $bootstrapGate -match 'bootstrapStatus' -and $bootstrapGate -notmatch 'useAuth|getSession|session'
   'gate decide bootstrap o login' = $bootstrapGate -match "bootstrap_required \? '/bootstrap' : '/login'"
+  'bootstrap autentica antes de invocar' = $bootstrapPage -match 'signInWithPassword' -and $bootstrapPage.IndexOf('signInWithPassword') -lt $bootstrapPage.IndexOf('userProvisioningService.bootstrap')
+  'invoke usa sesion automatica' = $provisioningService -match "functions.invoke\('user-provisioning'" -and $provisioningService -notmatch 'Authorization|Bearer'
+  'fallo bootstrap cierra sesion' = $bootstrapPage -match 'if \(loginCompleted\) await logout'
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }

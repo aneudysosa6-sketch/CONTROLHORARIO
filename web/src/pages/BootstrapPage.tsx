@@ -73,7 +73,6 @@ export function BootstrapPage() {
         return;
       }
       setAuthenticated(true);
-      setPassword('');
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -94,7 +93,16 @@ export function BootstrapPage() {
       return;
     }
     setBusy(true);
+    let loginCompleted = false;
     try {
+      const supabase = getSupabaseClient();
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (loginError) throw loginError;
+      if (!loginData.session) throw new Error('Supabase no devolvió una sesión válida para ejecutar el bootstrap.');
+      loginCompleted = true;
       await userProvisioningService.bootstrap({
         company_name: companyName.trim(),
         legal_name: legalName.trim(),
@@ -110,6 +118,7 @@ export function BootstrapPage() {
       navigate('/login', { replace: true });
     } catch (caught) {
       setSecret('');
+      if (loginCompleted) await logout().catch(() => undefined);
       setError(errorMessage(caught));
     } finally {
       setBusy(false);
@@ -131,6 +140,7 @@ export function BootstrapPage() {
           <label>Sucursal principal<input required maxLength={120} value={branchName} onChange={e => setBranchName(e.target.value)} /></label>
           <label>Código de empleado (opcional)<input maxLength={30} value={employeeCode} onChange={e => setEmployeeCode(e.target.value)} /></label>
           <label>Zona horaria<input readOnly value={timezone} /></label>
+          <label className="bootstrap-secret">Contraseña de la cuenta Auth<input required type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} /></label>
           <label className="bootstrap-secret">Secreto temporal de bootstrap<input required type="password" autoComplete="off" value={secret} onChange={e => setSecret(e.target.value)} /></label>
         </div>
         {error && <div className="error" role="alert">{error}</div>}

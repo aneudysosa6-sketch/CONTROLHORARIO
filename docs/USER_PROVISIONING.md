@@ -28,6 +28,8 @@ La ruta inicial `/` monta `BootstrapGate`, que no consume `AuthContext` ni inspe
 
 El secreto se conserva solo en estado de memoria mientras el formulario está abierto, se envía como `x-bootstrap-secret` y se limpia tras cada intento. No se guarda en `localStorage`, `sessionStorage`, variables `VITE_*` ni archivos. La Edge Function vuelve a validar el JWT, el secreto y que el conteo global de profiles sea cero; la UI no sustituye esas garantías del servidor.
 
+Inmediatamente antes de enviar `action=bootstrap`, `BootstrapPage` ejecuta `supabase.auth.signInWithPassword` con el correo y contraseña mantenidos únicamente en memoria y exige que la respuesta incluya una sesión. Luego usa `supabase.functions.invoke`, sin construir el encabezado `Authorization`; el SDK adjunta el JWT de esa sesión. Un error de autenticación se muestra sin invocar la función y un error posterior cierra la sesión antes de permitir otro intento.
+
 El bootstrap existe para resolver el ciclo inicial cuando no hay profiles:
 
 1. Aplicar por CLI `0001`, `0002`, `0003` y seed en un entorno de ensayo.
