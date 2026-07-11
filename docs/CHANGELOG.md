@@ -2,6 +2,7 @@
 
 ## 2026-07-11
 
+- Añadido `BootstrapGate` como destino explícito de `/`; la ruta raíz ya no pasa por dashboard/login y decide entre `/bootstrap` y `/login` mediante `bootstrap-status`, sin consultar sesión.
 - Corregido el arranque web para consultar mediante Edge Function si `profiles` está vacío y redirigir automáticamente de `/login` a `/bootstrap` sin exigir sesión.
 - El bootstrap exitoso ahora cierra la sesión temporal y devuelve a `/login`; si el usuario autenticado ya tiene profile, `/bootstrap` continúa bloqueado y redirige al dashboard.
 - Añadida la ruta pública `/bootstrap` para iniciar sesión con el primer usuario Auth y crear de forma transaccional empresa, rol administrador, sucursal principal, profile y empleado opcional.

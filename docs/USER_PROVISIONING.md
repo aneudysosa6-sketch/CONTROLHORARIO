@@ -24,6 +24,8 @@ La web expone `/bootstrap` únicamente como punto de entrada inicial. La pantall
 
 Al abrir `/login`, el cliente invoca la acción pública `bootstrap-status`. La función consulta `profiles` con sus credenciales de servidor y responde únicamente `bootstrap_required: boolean`; no expone filas, conteos, usuarios ni secretos. Si no hay profiles, la web redirige a `/bootstrap`. Tras crear el primer profile, cierra la sesión usada durante la activación y vuelve a `/login` para un inicio normal.
 
+La ruta inicial `/` monta `BootstrapGate`, que no consume `AuthContext` ni inspecciona sesiones. El gate espera `bootstrap-status` y sustituye la URL por `/bootstrap` cuando no existe ningún profile o por `/login` cuando el sistema ya fue inicializado. Las rutas desconocidas regresan a `/` para pasar por la misma decisión segura.
+
 El secreto se conserva solo en estado de memoria mientras el formulario está abierto, se envía como `x-bootstrap-secret` y se limpia tras cada intento. No se guarda en `localStorage`, `sessionStorage`, variables `VITE_*` ni archivos. La Edge Function vuelve a validar el JWT, el secreto y que el conteo global de profiles sea cero; la UI no sustituye esas garantías del servidor.
 
 El bootstrap existe para resolver el ciclo inicial cuando no hay profiles:

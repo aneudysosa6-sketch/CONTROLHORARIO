@@ -5,6 +5,7 @@ $edge = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'supabase/functions/use
 $app = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/App.tsx')
 $bootstrapPage = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/BootstrapPage.tsx')
 $loginPage = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/LoginPage.tsx')
+$bootstrapGate = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/BootstrapGate.tsx')
 $provisioningService = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/userProvisioning/userProvisioningService.ts')
 $checks = [ordered]@{
   'profiles sin DML de authenticated' = $migration -match 'revoke insert, update, delete on public\.profiles from authenticated'
@@ -24,6 +25,9 @@ $checks = [ordered]@{
   'estado bootstrap publico sin JWT' = $edge -match "action==='bootstrap-status'" -and $edge.IndexOf("action==='bootstrap-status'") -lt $edge.IndexOf("if(!jwt)")
   'login redirige a bootstrap vacio' = $loginPage -match 'bootstrapStatus' -and $loginPage -match "navigate\('/bootstrap'"
   'bootstrap finaliza en login' = $bootstrapPage -match 'await logout\(\)' -and $bootstrapPage -match "navigate\('/login'"
+  'ruta raiz usa BootstrapGate' = $app -match 'path="/" element={<BootstrapGate' -and $app -match 'import\{BootstrapGate\}'
+  'gate no depende de sesion' = $bootstrapGate -match 'bootstrapStatus' -and $bootstrapGate -notmatch 'useAuth|getSession|session'
+  'gate decide bootstrap o login' = $bootstrapGate -match "bootstrap_required \? '/bootstrap' : '/login'"
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }
