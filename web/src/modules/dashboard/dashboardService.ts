@@ -1,0 +1,5 @@
+import{getSupabaseClient}from'../../infrastructure/supabase/client';
+export interface RecentActivity{id:string;employee:string;description:string;time:string}
+type JourneyRow=Record<string,unknown>;
+const value=(row:JourneyRow,...keys:string[])=>{for(const key of keys)if(typeof row[key]==='string'&&row[key])return row[key]as string;return''};
+export const dashboardService={async recentActivity():Promise<RecentActivity[]>{const{data,error}=await getSupabaseClient().from('jornadas').select('*').limit(8);if(error){if(error.code==='PGRST205'||/jornadas.*schema cache/i.test(error.message))return[];throw error}return(data??[]).map((raw,index)=>{const row=raw as JourneyRow;const employee=value(row,'nombre_empleado','empleado_nombre','employee_name')||'Empleado';const status=value(row,'estado','status');const started=value(row,'inicio','started_at','fecha_inicio','created_at');return{id:value(row,'id')||String(index),employee,description:status?`Jornada · ${status}`:'Jornada registrada',time:started?new Date(started).toLocaleString('es-DO',{dateStyle:'short',timeStyle:'short'}):''}})}};
