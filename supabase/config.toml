@@ -4,3 +4,7 @@ project_id = "heiafcxsvfhinygzxsdk"
 # de dispositivo para employee-sync.
 [functions.device-enrollment]
 verify_jwt = false
+
+# Autenticación propia mediante x-device-id + x-device-credential.
+[functions.employee-sync]
+verify_jwt = false

@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-07-12
+
+- Implementado Módulo 2.2 de sincronización incremental mediante `employee-sync`, autenticación del dispositivo, aislamiento por empresa, payload activo sin PIN/biometría y tombstones mínimos para bajas.
+- Room actualizado a v28 con merge por `remoteId`, preservación de datos locales y WorkManager al enrolar, abrir, recuperar Internet y cada seis horas.
+- Añadida pantalla temporal de métricas y pruebas de seguridad, merge, reintentos, migración y scheduling. Supabase no fue desplegado.
+
 ## 2026-07-11
 
 - Añadida migración idempotente `0004_admin_employee_permissions.sql`: asegura el código real `empleados.ver_todos` y asigna ver/crear/editar/desactivar con alcance empresa a roles `admin` activos, sin modificar RLS.

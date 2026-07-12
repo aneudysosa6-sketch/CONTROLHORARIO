@@ -35,6 +35,10 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.controlhorario.database.DatabaseProvider
 import com.example.controlhorario.device.DeviceEnrollmentScreen
+import com.example.controlhorario.device.DeviceSyncScheduler
+import com.example.controlhorario.device.EmployeeSyncDashboardScreen
+import com.example.controlhorario.device.EmployeeSyncDashboardViewModel
+import com.example.controlhorario.device.EmployeeSyncDashboardViewModelFactory
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.EmployeePermissionRequestEntity
@@ -447,8 +451,15 @@ fun AppNavigation(
             EmployeesScreen(
                 onAddEmployeeClick = { navController.navigate(Route.EMPLOYEE_ADD) },
                 onEmployeeListClick = { navController.navigate(Route.EMPLOYEE_LIST) },
+                onSyncedEmployeesClick = { navController.navigate(Route.EMPLOYEE_SYNC_DASHBOARD) },
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        composable(Route.EMPLOYEE_SYNC_DASHBOARD) {
+            val db = DatabaseProvider.getDatabase(LocalContext.current)
+            val vm: EmployeeSyncDashboardViewModel = viewModel(factory = EmployeeSyncDashboardViewModelFactory(db.employeeDao(),db.deviceEnrollmentDao()))
+            EmployeeSyncDashboardScreen(vm,onSync={DeviceSyncScheduler.start(context)},onBack={navController.popBackStack()})
         }
 
         composable(Route.EMPLOYEE_ADD) {
@@ -1508,6 +1519,7 @@ private object Route {
     const val EMPLOYEES_MENU = "employees_menu"
     const val EMPLOYEE_ADD = "employee_add"
     const val EMPLOYEE_LIST = "employee_list"
+    const val EMPLOYEE_SYNC_DASHBOARD = "employee_sync_dashboard"
     const val EMPLOYEE_PROFILE = "employee_profile"
     const val EMPLOYEE_FILE = "employee_file"
     const val EMPLOYEE_DOCUMENTS = "employee_documents"

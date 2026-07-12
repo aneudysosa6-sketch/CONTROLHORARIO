@@ -1,6 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 
+& (Join-Path $PSScriptRoot 'test_employee_sync_module.ps1')
+
 $checks = @(
     @{ File = 'app/src/main/java/com/example/controlhorario/security/BiometricAuthManager.kt'; Pattern = 'BiometricPrompt'; Name = 'BiometricPrompt' },
     @{ File = 'app/src/main/java/com/example/controlhorario/fingerprint/external/TwoConnectFingerprintManager.kt'; Pattern = 'MatchTemplate'; Name = 'comparación 2Connect' },

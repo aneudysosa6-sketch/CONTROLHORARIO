@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 fun EmployeesScreen(
     onAddEmployeeClick: () -> Unit,
     onEmployeeListClick: () -> Unit,
+    onSyncedEmployeesClick: () -> Unit,
     onBack: () -> Unit
 ) {
     Column(
@@ -35,6 +36,10 @@ fun EmployeesScreen(
         Spacer(modifier = Modifier.height(12.dp))
         Button(onClick = onEmployeeListClick, modifier = Modifier.fillMaxWidth()) {
             Text("Lista de empleados")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onSyncedEmployeesClick, modifier = Modifier.fillMaxWidth()) {
+            Text("Empleados sincronizados")
         }
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {

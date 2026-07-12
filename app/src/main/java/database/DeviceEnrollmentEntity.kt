@@ -9,5 +9,7 @@ data class DeviceEnrollmentEntity(
     val installationId:String,
     val credentialExpiresAt:String,
     val enrolledAt:Long=System.currentTimeMillis(),
-    val lastEmployeeSyncAt:Long?=null
+    val lastEmployeeSyncAt:Long?=null,
+    val employeeSyncCursorUpdatedAt:String?=null,
+    val employeeSyncCursorId:String?=null
 )

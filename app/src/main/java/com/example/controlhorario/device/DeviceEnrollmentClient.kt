@@ -4,7 +4,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import com.example.controlhorario.security.DeviceIdentityManager
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.net.ConnectException
@@ -15,7 +14,6 @@ import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 
 data class EnrollmentResult(val deviceId:String,val credential:String,val expiresAt:String)
-data class RemoteEmployee(val id:String,val code:String,val name:String,val phone:String,val active:Boolean,val branchId:String?,val updatedAt:String?)
 
 class DeviceEnrollmentHttpException(
  val statusCode:Int,
@@ -51,11 +49,6 @@ class DeviceEnrollmentClient(private val endpoint:String){
    .put("name","OSINET Android").put("model",Build.MODEL).put("android_version",Build.VERSION.RELEASE).put("app_version","1.0")
   val json=post(body)
   return EnrollmentResult(json.getString("device_id"),json.getString("credential"),json.getString("expires_at"))
- }
- fun employees(deviceId:String,credential:String):List<RemoteEmployee>{
-  val json=post(JSONObject().put("action","employee-sync"),mapOf("x-device-id" to deviceId,"x-device-credential" to credential))
-  val rows=json.optJSONArray("employees")?:JSONArray()
-  return (0 until rows.length()).map{rows.getJSONObject(it)}.map{row->RemoteEmployee(row.getString("id"),row.getString("codigo_empleado"),row.getString("nombre_completo"),row.optString("telefono"),row.optBoolean("activo"),row.optString("sucursal_id").takeIf{it.isNotBlank()&&it!="null"},row.optString("updated_at").takeIf{it.isNotBlank()})}
  }
  private fun post(body:JSONObject,headers:Map<String,String> = emptyMap()):JSONObject{
   require(endpoint.startsWith("https://")){"Configura CONTROLHORARIO_DEVICE_ENROLLMENT_URL con HTTPS"}
