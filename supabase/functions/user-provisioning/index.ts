@@ -26,8 +26,11 @@ Deno.serve(async(req)=>{
     const isBootstrap=action==='bootstrap';
     let callerCompanyId:string|undefined;
     if(isBootstrap){
-      const expected=Deno.env.get('USER_PROVISIONING_BOOTSTRAP_SECRET');
-      if(!expected||req.headers.get('x-bootstrap-secret')!==expected)return json({error:'Bootstrap no autorizado'},403);
+      const expectedSecret=Deno.env.get('USER_PROVISIONING_BOOTSTRAP_SECRET')?.trim()??'';
+      const receivedSecret=req.headers.get('x-bootstrap-secret')?.trim()??'';
+      const secretMatches=expectedSecret.length>0&&receivedSecret.length>0&&receivedSecret===expectedSecret;
+      console.info('bootstrap secret validation',{received:receivedSecret.length>0,configured:expectedSecret.length>0,matches:secretMatches});
+      if(!secretMatches)return json({error:'Bootstrap no autorizado'},403);
       const{count}=await admin.from('profiles').select('id',{count:'exact',head:true});
       if(count!==0)return json({error:'Bootstrap cerrado: ya existe al menos un profile'},409);
     }else{

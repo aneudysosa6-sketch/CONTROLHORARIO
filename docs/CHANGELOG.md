@@ -2,6 +2,10 @@
 
 ## 2026-07-11
 
+- Implementado el módulo web Empleados sobre Supabase: lista con búsqueda/filtros, alta, edición, detalle, activación/desactivación, catálogos organizativos y estadísticas reales de personal en dashboard.
+- Añadida `employee-management` para mutaciones sensibles: fuerza tenant desde profile, valida permisos, código/correo únicos y PIN bcrypt único sin exponer PIN ni `service_role`; preparada la UI de huella 2Connect sin captura web.
+- Corregida la hidratación del login: PostgREST encontraba ambiguo el embed de `roles` por las FKs simple y compuesta; ahora consulta primero el profile propio por UUID Auth y después valida el rol mediante `role_id + company_id`, con errores diferenciados de RLS, fila ausente y rol inválido.
+- Normalizada la validación de `USER_PROVISIONING_BOOTSTRAP_SECRET`: variable y header `x-bootstrap-secret` eliminan solo espacios exteriores antes de la comparación exacta; añadido log temporal de presencia/configuración/coincidencia sin imprimir valores.
 - Corregida la autorización del bootstrap: antes de `action=bootstrap`, la pantalla vuelve a autenticar correo/contraseña con `signInWithPassword`, valida la sesión y deja que `functions.invoke` adjunte el JWT; si la operación falla después del login, cierra la sesión.
 - Añadido `BootstrapGate` como destino explícito de `/`; la ruta raíz ya no pasa por dashboard/login y decide entre `/bootstrap` y `/login` mediante `bootstrap-status`, sin consultar sesión.
 - Corregido el arranque web para consultar mediante Edge Function si `profiles` está vacío y redirigir automáticamente de `/login` a `/bootstrap` sin exigir sesión.

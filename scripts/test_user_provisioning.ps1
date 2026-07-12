@@ -7,6 +7,7 @@ $bootstrapPage = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages
 $loginPage = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/LoginPage.tsx')
 $bootstrapGate = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/BootstrapGate.tsx')
 $provisioningService = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/userProvisioning/userProvisioningService.ts')
+$authService = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/auth/authService.ts')
 $checks = [ordered]@{
   'profiles sin DML de authenticated' = $migration -match 'revoke insert, update, delete on public\.profiles from authenticated'
   'RPC solo service_role' = $migration -match 'grant execute on function public\.provision_user_internal\(jsonb\) to service_role'
@@ -31,6 +32,11 @@ $checks = [ordered]@{
   'bootstrap autentica antes de invocar' = $bootstrapPage -match 'signInWithPassword' -and $bootstrapPage.IndexOf('signInWithPassword') -lt $bootstrapPage.IndexOf('userProvisioningService.bootstrap')
   'invoke usa sesion automatica' = $provisioningService -match "functions.invoke\('user-provisioning'" -and $provisioningService -notmatch 'Authorization|Bearer'
   'fallo bootstrap cierra sesion' = $bootstrapPage -match 'if \(loginCompleted\) await logout'
+  'secreto normalizado y comparado' = $edge -match "get\('USER_PROVISIONING_BOOTSTRAP_SECRET'\)\?\.trim" -and $edge -match "get\('x-bootstrap-secret'\)\?\.trim" -and $edge -match 'receivedSecret===expectedSecret'
+  'log de secreto no expone valor' = $edge -match "console\.info\('bootstrap secret validation',\{received:[^,]+,configured:[^,]+,matches:secretMatches\}\)" -and $edge -notmatch 'console\.(log|info|warn|error)\([^\r\n]*\{[^\r\n]*(expectedSecret,|receivedSecret,)'
+  'login consulta profile por usuario Auth' = $authService -match "from\('profiles'\)" -and $authService -match "eq\('id', authSession\.user\.id\)"
+  'login evita join ambiguo de roles' = $authService -notmatch 'roles\(name,code\)' -and $authService -match "from\('roles'\)"
+  'login valida rol y empresa' = $authService -match "eq\('id', profile\.role_id\)" -and $authService -match "eq\('company_id', profile\.company_id\)"
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }
