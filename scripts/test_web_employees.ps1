@@ -6,6 +6,7 @@ $list = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/Employee
 $form = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/EmployeeFormPage.tsx')
 $detail = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/EmployeeDetailPage.tsx')
 $dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/DashboardPage.tsx')
+$codePolicy = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/employees/employeeCodePolicy.ts')
 $checks = [ordered]@{
   'lecturas Supabase con RLS' = $service -match "from\('empleados'\)" -and $service -notmatch 'localStorage'
   'relaciones compuestas explicitas' = $service -match 'empleados_sucursal_misma_empresa_fk' -and $service -match 'empleados_departamento_misma_empresa_fk' -and $service -match 'empleados_puesto_misma_empresa_fk'
@@ -14,6 +15,7 @@ $checks = [ordered]@{
   'permisos efectivos' = $edge -match "empleados.crear" -and $edge -match "empleados.editar" -and $edge -match "empleados.desactivar"
   'PIN bcrypt unico' = $edge -match 'bcrypt.compare' -and $edge -match 'bcrypt.hash' -and $edge -notmatch 'pin_hash:pin([,}])'
   'codigo y correo unicos' = $edge -match "eq\('codigo_empleado',code\)" -and $edge -match "eq\('correo',email\)" -and ([regex]::Matches($edge,"return json\(\{error:").Count -ge 6)
+  'codigo PIN exacto cinco digitos' = $codePolicy -match "\\d\{5\}" -and $codePolicy -match 'slice\(0,EMPLOYEE_CODE_LENGTH\)' -and $form -match 'maxLength=\{5\}' -and $form -match 'disabled=\{busy\|\|!validCode\|\|!validPin\}' -and $edge -match "\\d\{5\}"
   'lista busca y filtra' = $list -match 'Buscar por nombre' -and $list -match 'Todos los estados'
   'pantallas crear editar ver' = $form -match 'employeeService.save' -and $detail -match 'employeeService.get' -and $detail -match '/editar'
   'huella preparada sin captura web' = $detail -match 'Huella 2Connect' -and $detail -match 'nunca recibe ni muestra el template' -and $detail -match 'Registrar huella en Android'

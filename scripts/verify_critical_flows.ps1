@@ -6,7 +6,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $checks = @(
     @{ File = 'app/src/main/java/com/example/controlhorario/security/BiometricAuthManager.kt'; Pattern = 'BiometricPrompt'; Name = 'BiometricPrompt' },
     @{ File = 'app/src/main/java/com/example/controlhorario/fingerprint/external/TwoConnectFingerprintManager.kt'; Pattern = 'MatchTemplate'; Name = 'comparación 2Connect' },
-    @{ File = 'app/src/main/java/ui/punch/EmployeePunchViewModel.kt'; Pattern = 'REQUIRED_PIN_LENGTH = 5'; Name = 'PIN de cinco dígitos' },
+    @{ File = 'app/src/main/java/ui/punch/EmployeePunchViewModel.kt'; Pattern = 'REQUIRED_PIN_LENGTH = EmployeeCodePolicy.LENGTH'; Name = 'PIN de cinco dígitos' },
     @{ File = 'app/src/main/java/ui/punch/EmployeePunchViewModel.kt'; Pattern = 'Debe verificar la huella 2Connect antes de ponchar'; Name = 'bloqueo sin huella' },
     @{ File = 'app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt'; Pattern = 'title = "Modo Kiosko"'; Name = 'modo kiosco' },
     @{ File = 'app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt'; Pattern = 'title = "PIN"'; Name = 'acceso PIN' },

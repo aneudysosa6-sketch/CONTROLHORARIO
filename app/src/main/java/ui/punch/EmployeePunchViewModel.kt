@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.controlhorario.database.AttendanceEntity
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.repository.AttendanceRepository
 import com.example.controlhorario.repository.EmployeeBiometricRepository
 import com.example.controlhorario.repository.EmployeeRepository
@@ -26,7 +27,7 @@ class EmployeePunchViewModel(
 
     fun appendDigit(digit: String) {
         val current = _state.value
-        if (current.code.length >= REQUIRED_PIN_LENGTH || current.identifying) return
+        if (current.code.length >= REQUIRED_PIN_LENGTH || current.identifying || digit.length != 1 || !digit[0].isDigit()) return
         _state.value = current.copy(
             code = current.code + digit,
             employee = null,
@@ -137,7 +138,7 @@ class EmployeePunchViewModel(
     private fun currentTime(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
 
     companion object {
-        const val REQUIRED_PIN_LENGTH = 5
+        const val REQUIRED_PIN_LENGTH = EmployeeCodePolicy.LENGTH
     }
 }
 

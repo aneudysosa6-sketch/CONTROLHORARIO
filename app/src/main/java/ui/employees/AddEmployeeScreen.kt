@@ -12,10 +12,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.BranchEntity
 import com.example.controlhorario.database.DepartmentEntity
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETTextField
 
@@ -30,6 +33,7 @@ fun AddEmployeeScreen(
     onSaved: () -> Unit = {},
     onBack: () -> Unit
 ) {
+    var codigoPin by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var cedula by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
@@ -54,7 +58,7 @@ fun AddEmployeeScreen(
     LaunchedEffect(initialEmployee?.id) {
         initialEmployee?.let { employee ->
             val fields=EmployeeEditEngine.fieldsFrom(employee)
-            nombre = fields.nombre;cedula = fields.cedula;telefono = fields.telefono;cargo = fields.cargo
+            codigoPin=fields.codePin;nombre = fields.nombre;cedula = fields.cedula;telefono = fields.telefono;cargo = fields.cargo
             sueldo = fields.sueldo.toString();lunchHours = fields.lunchHours.toString();profilePhotoUri = fields.profilePhotoUri
         }
     }
@@ -81,6 +85,20 @@ fun AddEmployeeScreen(
         )
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        OSINETTextField(
+            value=codigoPin,
+            onValueChange={codigoPin=EmployeeCodePolicy.sanitizeInput(it)},
+            label="Código/PIN",
+            modifier=Modifier.fillMaxWidth(),
+            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number)
+        )
+        if(!EmployeeCodePolicy.isValid(codigoPin)){
+            Spacer(modifier=Modifier.height(6.dp))
+            Text(EmployeeCodePolicy.ERROR,color=MaterialTheme.colorScheme.error)
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         OSINETTextField(
             value = nombre,
@@ -216,7 +234,7 @@ fun AddEmployeeScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text(if(isEditMode) "Código de empleado: ${initialEmployee?.employeeCode.orEmpty()}" else "Código de empleado: se asignará automáticamente en secuencia 00001, 00002, 00003...")
+        Text(if(isEditMode) "Código actual: ${initialEmployee?.employeeCode.orEmpty()}" else "El Código/PIN identifica al empleado en el kiosco.")
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -241,6 +259,8 @@ fun AddEmployeeScreen(
                 val departmentId = department?.id ?: initialEmployee?.departmentId ?: 0
 
                 val nuevoEmpleado = Employee(
+                    employeeCode = codigoPin,
+                    pin = codigoPin,
                     nombre = nombre,
                     cedula = cedula,
                     telefono = telefono,
@@ -254,15 +274,16 @@ fun AddEmployeeScreen(
                 )
 
                 if(isEditMode&&initialEmployee!=null){
-                    val fields=EmployeeEditableFields(nombre,cedula,telefono,profilePhotoUri,cargo,departmentName,branchId,departmentId,nuevoEmpleado.sueldo,nuevoEmpleado.lunchHours)
+                    val fields=EmployeeEditableFields(codigoPin,nombre,cedula,telefono,profilePhotoUri,cargo,departmentName,branchId,departmentId,nuevoEmpleado.sueldo,nuevoEmpleado.lunchHours)
                     viewModel.updateEmployee(EmployeeEditEngine.merge(initialEmployee,fields),onSaved)
                     mensaje="Cambios guardados correctamente"
                 }else{
                     viewModel.addEmployee(nuevoEmpleado)
-                    nombre = "";cedula = "";telefono = "";cargo = "";sueldo = "";lunchHours = "";profilePhotoUri = "";selectedBranch = null;selectedDepartment = null
+                    codigoPin = "";nombre = "";cedula = "";telefono = "";cargo = "";sueldo = "";lunchHours = "";profilePhotoUri = "";selectedBranch = null;selectedDepartment = null
                     mensaje = "Empleado creado correctamente. Código asignado: se mostrará abajo."
                 }
-            }
+            },
+            enabled=EmployeeCodePolicy.isValid(codigoPin)
         )
 
         if (!isEditMode && codigoGenerado.isNotBlank()) {
