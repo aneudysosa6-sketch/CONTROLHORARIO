@@ -21,6 +21,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resValue("string", "device_enrollment_url", providers.environmentVariable("CONTROLHORARIO_DEVICE_ENROLLMENT_URL").orElse("").get())
     }
 
     buildTypes {
@@ -38,6 +39,7 @@ android {
 
     buildFeatures {
         compose = true
+        resValues = true
     }
 }
 
@@ -58,6 +60,7 @@ dependencies {
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
     ksp(libs.androidx.room.compiler)
 
     implementation("androidx.biometric:biometric:1.1.0")

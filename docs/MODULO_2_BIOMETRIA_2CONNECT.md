@@ -31,3 +31,11 @@ La migración `0006_android_device_enrollment.sql` separa dispositivos, códigos
 La web permite listar, autorizar y revocar dispositivos sin mostrar credenciales, claves privadas o templates. La Edge Function se deja versionada pero no desplegada. La conexión de red Android, los desafíos firmados, la migración Room/outbox y la distribución de claves para cifrar templates quedan pendientes hasta definir sus contratos sin degradar el modo offline.
 
 Amenazas consideradas: copia del APK, extracción de preferencias, repetición de códigos, reutilización de credenciales robadas, acceso cruzado entre empresas y exposición accidental de templates. Siguen pendientes la atestación opcional, rotación automática y pruebas de revocación/sincronización con hardware real.
+
+### Implementación Android del enrolamiento
+
+Android bloquea el primer inicio en `Registrar dispositivo`. El código temporal se canjea directamente con `device-enrollment`; el APK genera ECDSA P-256 en Keystore, guarda la credencial con AES-GCM y conserva el `device_id`. La operación `employee-sync` valida la credencial exclusivamente en la Edge Function y devuelve empleados del tenant del dispositivo, sin PIN, hashes de PIN ni biometría.
+
+Room v27 agrega `remoteId`, metadatos de sincronización y el estado local del enrolamiento mediante una migración explícita 26→27. WorkManager ejecuta una descarga inmediata y otra periódica con restricción de red y backoff. Los datos ya sincronizados permanecen en Room para lectura offline; el merge conserva PIN, huella e ID locales preexistentes.
+
+El endpoint no está hardcodeado ni vive en `BuildConfig`: para compilar una instalación conectada se define `CONTROLHORARIO_DEVICE_ENROLLMENT_URL` con la URL HTTPS de la función. No es un secreto. Esta versión no despliega la función ni cambia lector, captura de huella, kiosco o jornadas.

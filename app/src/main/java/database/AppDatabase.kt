@@ -37,8 +37,9 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         SupervisorEventEntity::class,
         PendingAttendanceReviewEntity::class,
         AppEventEntity::class
+        ,DeviceEnrollmentEntity::class
     ],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -91,4 +92,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun pendingAttendanceReviewDao(): PendingAttendanceReviewDao
 
     abstract fun appEventDao(): AppEventDao
+    abstract fun deviceEnrollmentDao():DeviceEnrollmentDao
 }

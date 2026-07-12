@@ -59,6 +59,9 @@ interface EmployeeDao {
     @Query("SELECT * FROM employees WHERE pin = :pin LIMIT 1")
     suspend fun findAnyByPin(pin: String): Employee?
 
+    @Query("SELECT * FROM employees WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun findByRemoteId(remoteId: String): Employee?
+
     @Query("SELECT * FROM employees WHERE departmentId IN (:departmentIds) ORDER BY employeeCode ASC")
     fun getEmployeesByDepartments(departmentIds: List<Int>): Flow<List<Employee>>
 

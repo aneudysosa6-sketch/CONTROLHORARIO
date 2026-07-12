@@ -34,6 +34,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.controlhorario.database.DatabaseProvider
+import com.example.controlhorario.device.DeviceEnrollmentScreen
+import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.EmployeePermissionRequestEntity
 import com.example.controlhorario.repository.AttendanceRepository
@@ -162,7 +164,10 @@ import java.util.Locale
 fun AppNavigation(
     navController: NavHostController = rememberNavController()
 ) {
-    NavHost(navController = navController, startDestination = Route.ADMIN_LOGIN) {
+    val context=LocalContext.current
+    val start=remember{if(DeviceIdentityManager(context).deviceId==null)Route.DEVICE_ENROLLMENT else Route.ADMIN_LOGIN}
+    NavHost(navController = navController, startDestination = start) {
+        composable(Route.DEVICE_ENROLLMENT){DeviceEnrollmentScreen{navController.navigate(Route.ADMIN_LOGIN){popUpTo(Route.DEVICE_ENROLLMENT){inclusive=true}}}}
         composable(Route.ROLE_SELECT) {
             RoleSelectionScreen(
                 onAdministrator = { navController.navigate(Route.ADMIN_LOGIN) },
@@ -1494,6 +1499,7 @@ private fun portalNow(): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
 
 private object Route {
+    const val DEVICE_ENROLLMENT = "device_enrollment"
     const val ROLE_SELECT = "role_select"
     const val ADMIN_LOGIN = "admin_login"
     const val KIOSK_MODE = "kiosk_mode"

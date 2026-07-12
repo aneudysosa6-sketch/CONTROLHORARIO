@@ -51,6 +51,13 @@ class DeviceIdentityManager(context: Context) {
 
     fun clearCredential() = preferences.edit().remove(CREDENTIAL_IV).remove(CREDENTIAL_VALUE).apply()
 
+    val deviceId: String? get() = preferences.getString(DEVICE_ID, null)
+
+    fun completeEnrollment(deviceId: String, credential: String) {
+        storeCredential(credential)
+        preferences.edit().putString(DEVICE_ID, deviceId).apply()
+    }
+
     private fun ensureSigningKey() {
         if (keyStore.containsAlias(SIGNING_ALIAS)) return
         KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, KEYSTORE).apply {
@@ -72,6 +79,7 @@ class DeviceIdentityManager(context: Context) {
     private companion object {
         const val KEYSTORE="AndroidKeyStore"; const val PREFERENCES="secure_device_identity"
         const val INSTALLATION_ID="installation_id"; const val CREDENTIAL_IV="credential_iv"; const val CREDENTIAL_VALUE="credential_value"
+        const val DEVICE_ID="device_id"
         const val SIGNING_ALIAS="controlhorario_device_signing_v1"; const val ENCRYPTION_ALIAS="controlhorario_device_credential_v1"
     }
 }

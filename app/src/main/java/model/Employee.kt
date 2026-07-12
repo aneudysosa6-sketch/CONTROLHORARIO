@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "employees",
-    indices = [Index(value = ["employeeCode"], unique = true)]
+    indices = [Index(value = ["employeeCode"], unique = true),Index(value=["remoteId"],unique=true)]
 )
 data class Employee(
     @PrimaryKey(autoGenerate = true)
@@ -28,5 +28,9 @@ data class Employee(
     val fingerprintRegisteredBy: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val remoteId: String? = null,
+    val remoteBranchId: String? = null,
+    val remoteUpdatedAt: String? = null,
+    val lastSyncedAt: Long? = null
 )
