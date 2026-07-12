@@ -1,0 +1,6 @@
+project_id = "heiafcxsvfhinygzxsdk"
+
+# exchange es público; el handler valida JWT para administración y credenciales
+# de dispositivo para employee-sync.
+[functions.device-enrollment]
+verify_jwt = false
