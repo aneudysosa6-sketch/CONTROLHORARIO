@@ -4,6 +4,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val deviceEnrollmentUrl = providers.environmentVariable("CONTROLHORARIO_DEVICE_ENROLLMENT_URL")
+    .orElse(providers.gradleProperty("CONTROLHORARIO_DEVICE_ENROLLMENT_URL"))
+    .get()
+    .trim()
+
+require(deviceEnrollmentUrl.startsWith("https://")) {
+    "CONTROLHORARIO_DEVICE_ENROLLMENT_URL debe usar HTTPS"
+}
+require(deviceEnrollmentUrl.endsWith("/functions/v1/device-enrollment")) {
+    "CONTROLHORARIO_DEVICE_ENROLLMENT_URL debe apuntar a la Edge Function device-enrollment"
+}
+
 android {
     namespace = "com.example.controlhorario"
 
@@ -21,7 +33,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        resValue("string", "device_enrollment_url", providers.environmentVariable("CONTROLHORARIO_DEVICE_ENROLLMENT_URL").orElse("").get())
+        resValue("string", "device_enrollment_url", deviceEnrollmentUrl)
     }
 
     buildTypes {
