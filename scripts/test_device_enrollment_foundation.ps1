@@ -1,0 +1,16 @@
+$ErrorActionPreference='Stop'
+function Assert-Contains($Path,$Pattern,$Label){if(-not(Select-String -LiteralPath $Path -Pattern $Pattern -Quiet)){throw "FALLO: $Label"};Write-Host "OK: $Label"}
+$migration='supabase/migrations/0006_android_device_enrollment.sql'
+$edge='supabase/functions/device-enrollment/index.ts'
+$android='app/src/main/java/com/example/controlhorario/security/DeviceIdentityManager.kt'
+Assert-Contains $migration 'codigo_hash text not null unique' 'solo hash del codigo'
+Assert-Contains $migration 'token_hash text not null unique' 'solo hash de credencial'
+Assert-Contains $migration 'for update' 'consumo atomico'
+Assert-Contains $migration 'revoke all.+anon,authenticated' 'tablas privadas'
+Assert-Contains $edge "action==='exchange'" 'canje publico limitado'
+Assert-Contains $edge 'tiene_permiso' 'administracion con permisos'
+Assert-Contains $android 'AndroidKeyStore' 'claves en Android Keystore'
+Assert-Contains $android 'AES/GCM/NoPadding' 'credencial cifrada localmente'
+& rg -n 'SUPABASE_SERVICE_ROLE_KEY|service_role' app/src/main --glob '*.kt' --glob '*.java' --glob '*.xml'
+if($LASTEXITCODE -eq 0){throw 'FALLO: service role en APK'}
+Write-Host 'Fundacion de enrolamiento segura verificada; despliegue y hardware continuan pendientes.'

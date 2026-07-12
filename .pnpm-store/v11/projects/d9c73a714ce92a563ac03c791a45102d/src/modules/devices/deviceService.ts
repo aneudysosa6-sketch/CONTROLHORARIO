@@ -1,0 +1,4 @@
+import{getSupabaseClient}from'../../infrastructure/supabase/client';
+export type AndroidDevice={id:string;nombre:string;modelo:string;android_version:string;app_version:string;estado:string;registrado_at:string;ultima_conexion_at:string|null;revocado_at:string|null};
+async function invoke<T>(body:Record<string,unknown>):Promise<T>{const{data,error}=await getSupabaseClient().functions.invoke('device-enrollment',{body});if(data?.error)throw new Error(data.error);if(error)throw error;return data as T}
+export const deviceService={list:async()=>(await invoke<{devices:AndroidDevice[]}>({action:'list'})).devices,createCode:()=>invoke<{code:string;expires_at:string}>({action:'create-code'}),revoke:(deviceId:string)=>invoke({action:'revoke',device_id:deviceId})};
