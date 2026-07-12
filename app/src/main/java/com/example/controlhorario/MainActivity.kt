@@ -6,6 +6,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.KioskModeManager
 import com.example.controlhorario.device.DeviceSyncScheduler
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.ui.navigation.AppNavigation
@@ -17,6 +18,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
 
         UserSessionManager.init(this)
+        KioskModeManager.init(this)
         if(DeviceIdentityManager(this).deviceId!=null)DeviceSyncScheduler.start(this)
         enableEdgeToEdge()
 

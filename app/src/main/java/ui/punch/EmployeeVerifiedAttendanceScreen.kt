@@ -1,5 +1,6 @@
 package com.example.controlhorario.ui.punch
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +35,7 @@ fun EmployeeVerifiedAttendanceScreen(
     viewModel: AttendanceViewModel,
     onFinish: () -> Unit
 ) {
+    BackHandler(onBack = onFinish)
     val records by viewModel.attendanceRecords.collectAsState()
     var message by remember { mutableStateOf("Huella verificada. Seleccione la acción de asistencia.") }
     val today = currentDate()

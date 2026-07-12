@@ -112,6 +112,8 @@ import com.example.controlhorario.ui.loans.LoanViewModel
 import com.example.controlhorario.ui.loans.LoanViewModelFactory
 import com.example.controlhorario.ui.loans.LoansScreen
 import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.KioskModeManager
+import com.example.controlhorario.ui.punch.KioskExitAuthScreen
 import com.example.controlhorario.ui.permissions.PermissionsScreen
 import com.example.controlhorario.ui.permissions.PermissionsViewModel
 import com.example.controlhorario.ui.permissions.PermissionsViewModelFactory
@@ -171,7 +173,14 @@ fun AppNavigation(
     navController: NavHostController = rememberNavController()
 ) {
     val context=LocalContext.current
-    val start=remember{if(DeviceIdentityManager(context).deviceId==null)Route.DEVICE_ENROLLMENT else Route.ADMIN_LOGIN}
+    val start=remember{
+        when {
+            DeviceIdentityManager(context).deviceId == null -> Route.DEVICE_ENROLLMENT
+            KioskModeManager.isActive.value -> Route.EMPLOYEE_PUNCH
+            UserSessionManager.isLoggedIn() -> "home"
+            else -> Route.ADMIN_LOGIN
+        }
+    }
     NavHost(navController = navController, startDestination = start) {
         composable(Route.DEVICE_ENROLLMENT){DeviceEnrollmentScreen{navController.navigate(Route.ADMIN_LOGIN){popUpTo(Route.DEVICE_ENROLLMENT){inclusive=true}}}}
         composable(Route.ROLE_SELECT) {
@@ -192,10 +201,22 @@ fun AppNavigation(
                 onPin = { navController.navigate(Route.EMPLOYEE_PUNCH) },
                 onFingerprint = { navController.navigate(Route.EMPLOYEE_PUNCH) },
                 onBack = {
-                    navController.navigate(Route.ROLE_SELECT) {
-                        popUpTo(0)
-                        launchSingleTop = true
-                    }
+                    navController.navigate(Route.KIOSK_EXIT_AUTH) { launchSingleTop = true }
+                }
+            )
+        }
+
+        composable(Route.KIOSK_EXIT_AUTH) {
+            val db = DatabaseProvider.getDatabase(LocalContext.current)
+            KioskExitAuthScreen(
+                repository = AppUserRepository(db.appUserDao()),
+                onAuthenticated = { user ->
+                    KioskModeManager.deactivate()
+                    UserSessionManager.login(user)
+                    navController.navigate("home") { popUpTo(0); launchSingleTop = true }
+                },
+                onCancelled = {
+                    navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
                 }
             )
         }
@@ -320,7 +341,11 @@ fun AppNavigation(
                 onIncidents = { navController.navigate(Route.INCIDENTS_CENTER) },
                 onEmployeePortal = { navController.navigate(Route.EMPLOYEE_PORTAL) },
                 onBranchManager = { navController.navigate(Route.BRANCH_MANAGER_PANEL) },
-                onPinMode = { navController.navigate(Route.EMPLOYEE_PUNCH) },
+                onPinMode = {
+                    KioskModeManager.activate()
+                    UserSessionManager.logout()
+                    navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
+                },
                 onLogout = {
                     UserSessionManager.logout()
                     navController.navigate(Route.ADMIN_LOGIN) {
@@ -388,7 +413,11 @@ fun AppNavigation(
             )
             BranchManagerScreen(
                 viewModel = vm,
-                onPinMode = { navController.navigate(Route.EMPLOYEE_PUNCH) },
+                onPinMode = {
+                    KioskModeManager.activate()
+                    UserSessionManager.logout()
+                    navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
+                },
                 onLogout = {
                     UserSessionManager.logout()
                     navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
@@ -1542,6 +1571,7 @@ private object Route {
     const val ADMIN_LOGIN = "admin_login"
     const val KIOSK_MODE = "kiosk_mode"
     const val EMPLOYEE_PUNCH = "employee_punch"
+    const val KIOSK_EXIT_AUTH = "kiosk_exit_auth"
     const val EMPLOYEE_ASSISTANCE = "employee_assistance"
     const val EMPLOYEES_MENU = "employees_menu"
     const val EMPLOYEE_ADD = "employee_add"

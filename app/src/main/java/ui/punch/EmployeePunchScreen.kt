@@ -1,5 +1,6 @@
 package com.example.controlhorario.ui.punch
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ fun EmployeePunchScreen(
     onVerified: (employeeId: Int) -> Unit,
     onBack: () -> Unit
 ) {
+    BackHandler(onBack = onBack)
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
