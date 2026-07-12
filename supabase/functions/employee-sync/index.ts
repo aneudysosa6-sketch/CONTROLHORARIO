@@ -9,7 +9,6 @@ const text=(value:unknown)=>typeof value==='string'?value.trim():''
 const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(x=>x.toString(16).padStart(2,'0')).join('')
 const validUuid=(value:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 const afterCursor=(row:{updated_at:string,id:string},updatedAt:string,id:string)=>!updatedAt||row.updated_at>updatedAt||(row.updated_at===updatedAt&&row.id>id)
-const relationText=(value:unknown,key:string)=>{const row=Array.isArray(value)?value[0]:value;return row&&typeof row==='object'&&key in row?text((row as Record<string,unknown>)[key]):''}
 type ErrorInfo={error:string;details:string|null;hint:string|null;code:string|null;stacktrace:string|null}
 const errorInfo=(value:unknown):ErrorInfo=>{
   const record=value&&typeof value==='object'?value as Record<string,unknown>:{}
@@ -60,7 +59,7 @@ Deno.serve(async request=>{
     if(cursorUpdatedAt&&Number.isNaN(Date.parse(cursorUpdatedAt)))return json({error:'Cursor updated_at inválido'},400)
     if(cursorId&&!validUuid(cursorId))return json({error:'Cursor id inválido'},400)
 
-    let query=admin.from('empleados').select('id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,updated_at,branches!empleados_sucursal_misma_empresa_fk(name),departments!empleados_departamento_misma_empresa_fk(name),positions!empleados_puesto_misma_empresa_fk(name),supervisor:empleados!empleados_supervisor_misma_empresa_fk(nombre_completo)').eq('empresa_id',auth.empresa_id).order('updated_at').order('id').limit(1001)
+    let query=admin.from('empleados').select('id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,updated_at').eq('empresa_id',auth.empresa_id).order('updated_at').order('id').limit(1001)
     if(cursorUpdatedAt)query=query.gte('updated_at',cursorUpdatedAt)
     let employeeResult
     try{
@@ -71,12 +70,33 @@ Deno.serve(async request=>{
     const data=employeeResult.data
     const changed=(data??[]).filter(row=>afterCursor(row,cursorUpdatedAt,cursorId)),page=changed.slice(0,500),last=page.at(-1)
     console.log('EmployeeSync empleados encontrados',{request_id:requestId,company_id:auth.empresa_id,query_rows:data?.length??0,after_cursor:changed.length,page_rows:page.length})
+    const branchIds=[...new Set(page.map(row=>row.sucursal_id).filter(Boolean))] as string[]
+    const departmentIds=[...new Set(page.map(row=>row.departamento_id).filter(Boolean))] as string[]
+    const positionIds=[...new Set(page.map(row=>row.puesto_id).filter(Boolean))] as string[]
+    const supervisorIds=[...new Set(page.map(row=>row.supervisor_id).filter(Boolean))] as string[]
+    const empty={data:[] as Record<string,unknown>[],error:null,status:200,statusText:'Sin IDs'}
+    let branchResult,departmentResult,positionResult,supervisorResult
+    try{
+      ;[branchResult,departmentResult,positionResult,supervisorResult]=await Promise.all([
+        branchIds.length?admin.from('branches').select('id,name').eq('company_id',auth.empresa_id).in('id',branchIds):Promise.resolve(empty),
+        departmentIds.length?admin.from('departments').select('id,name').eq('company_id',auth.empresa_id).in('id',departmentIds):Promise.resolve(empty),
+        positionIds.length?admin.from('positions').select('id,name').eq('company_id',auth.empresa_id).in('id',positionIds):Promise.resolve(empty),
+        supervisorIds.length?admin.from('empleados').select('id,nombre_completo').eq('empresa_id',auth.empresa_id).in('id',supervisorIds):Promise.resolve(empty),
+      ])
+      console.log('EmployeeSync respuestas PostgREST catálogos',{request_id:requestId,company_id:auth.empresa_id,branches:branchResult,departments:departmentResult,positions:positionResult,supervisors:supervisorResult})
+    }catch(error){return stageFailure(requestId,'consulta_catalogos_supervisores',error,auth.empresa_id)}
+    const lookupError=branchResult.error||departmentResult.error||positionResult.error||supervisorResult.error
+    if(lookupError)return stageFailure(requestId,'consulta_catalogos_supervisores',lookupError,auth.empresa_id,500)
+    const branchNames=new Map((branchResult.data??[]).map(row=>[row.id,row.name]))
+    const departmentNames=new Map((departmentResult.data??[]).map(row=>[row.id,row.name]))
+    const positionNames=new Map((positionResult.data??[]).map(row=>[row.id,row.name]))
+    const supervisorNames=new Map((supervisorResult.data??[]).map(row=>[row.id,row.nombre_completo]))
     const employees=page.filter(row=>row.activo===true).map(row=>({
       remote_id:row.id,code:row.codigo_empleado,name:row.nombre_completo,email:row.correo??'',phone:row.telefono??'',
-      branch_id:row.sucursal_id,branch_name:relationText(row.branches,'name'),
-      department_id:row.departamento_id,department_name:relationText(row.departments,'name'),
-      position_id:row.puesto_id,position_name:relationText(row.positions,'name'),
-      supervisor_id:row.supervisor_id,supervisor_name:relationText(row.supervisor,'nombre_completo'),
+      branch_id:row.sucursal_id,branch_name:branchNames.get(row.sucursal_id)??'',
+      department_id:row.departamento_id,department_name:departmentNames.get(row.departamento_id)??'',
+      position_id:row.puesto_id,position_name:positionNames.get(row.puesto_id)??'',
+      supervisor_id:row.supervisor_id,supervisor_name:supervisorNames.get(row.supervisor_id)??'',
       status:row.estado_laboral,start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
     }))
     const inactive=page.filter(row=>row.activo!==true).map(row=>({remote_id:row.id,updated_at:row.updated_at}))
