@@ -23,6 +23,9 @@ interface EmployeeDao {
     @Query("SELECT * FROM employees WHERE id = :employeeId LIMIT 1")
     fun getEmployeeById(employeeId: Int): Flow<Employee?>
 
+    @Query("SELECT * FROM employees WHERE id = :employeeId LIMIT 1")
+    suspend fun findByLocalId(employeeId: Int): Employee?
+
     @Query("SELECT * FROM employees WHERE employeeCode = :employeeCode AND isActive = 1 LIMIT 1")
     suspend fun findByEmployeeCode(employeeCode: String): Employee?
 

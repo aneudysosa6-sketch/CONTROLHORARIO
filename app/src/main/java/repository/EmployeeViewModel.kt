@@ -25,6 +25,9 @@ class EmployeeViewModel(
     private val _lastCreatedCode = MutableStateFlow("")
     val lastCreatedCode: StateFlow<String> = _lastCreatedCode.asStateFlow()
 
+    private val _editingEmployee = MutableStateFlow<Employee?>(null)
+    val editingEmployee: StateFlow<Employee?> = _editingEmployee.asStateFlow()
+
     fun addEmployee(employee: Employee) {
         viewModelScope.launch {
             val generatedCode = repository.addEmployee(employee)
@@ -34,5 +37,13 @@ class EmployeeViewModel(
 
     fun clearLastCreatedCode() {
         _lastCreatedCode.value = ""
+    }
+
+    fun loadEmployeeForEdit(employeeKey: String) {
+        viewModelScope.launch { _editingEmployee.value = repository.findForEdit(employeeKey) }
+    }
+
+    fun updateEmployee(employee: Employee, onSaved: () -> Unit = {}) {
+        viewModelScope.launch { repository.updateEmployee(employee);_editingEmployee.value=employee;onSaved() }
     }
 }

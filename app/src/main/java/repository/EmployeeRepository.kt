@@ -11,6 +11,9 @@ class EmployeeRepository(
 
     fun getEmployeeById(employeeId: Int): Flow<Employee?> = employeeDao.getEmployeeById(employeeId)
 
+    suspend fun findForEdit(employeeKey: String): Employee? =
+        employeeDao.findByRemoteId(employeeKey) ?: employeeKey.toIntOrNull()?.let { employeeDao.findByLocalId(it) }
+
     suspend fun findByEmployeeCode(code: String): Employee? {
         val normalized = code.filter { it.isDigit() }.padStart(5, '0')
         return employeeDao.findByEmployeeCode(normalized) ?: employeeDao.findByPin(normalized)
@@ -46,6 +49,11 @@ class EmployeeRepository(
 
         employeeDao.insertEmployee(employeeToSave)
         return code
+    }
+
+    suspend fun updateEmployee(employee: Employee) {
+        require(employee.id > 0) { "No se puede editar un empleado sin id local" }
+        employeeDao.updateEmployee(employee)
     }
 
     suspend fun markFingerprintRegistered(employeeId: Int, registeredAt: String, registeredBy: String) {

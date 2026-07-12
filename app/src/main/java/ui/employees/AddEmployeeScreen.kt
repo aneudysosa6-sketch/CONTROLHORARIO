@@ -24,7 +24,10 @@ fun AddEmployeeScreen(
     viewModel: EmployeeViewModel,
     branches: List<BranchEntity>,
     departments: List<DepartmentEntity>,
+    initialEmployee: Employee? = null,
+    isEditMode: Boolean = false,
     onRegisterFingerprint: (String) -> Unit,
+    onSaved: () -> Unit = {},
     onBack: () -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
@@ -48,6 +51,20 @@ fun AddEmployeeScreen(
     var branchExpanded by remember { mutableStateOf(false) }
     var departmentExpanded by remember { mutableStateOf(false) }
 
+    LaunchedEffect(initialEmployee?.id) {
+        initialEmployee?.let { employee ->
+            val fields=EmployeeEditEngine.fieldsFrom(employee)
+            nombre = fields.nombre;cedula = fields.cedula;telefono = fields.telefono;cargo = fields.cargo
+            sueldo = fields.sueldo.toString();lunchHours = fields.lunchHours.toString();profilePhotoUri = fields.profilePhotoUri
+        }
+    }
+    LaunchedEffect(initialEmployee?.id, branches) {
+        if (isEditMode && selectedBranch == null) selectedBranch = branches.firstOrNull { it.id == initialEmployee?.branchId }
+    }
+    LaunchedEffect(initialEmployee?.id, departments) {
+        if (isEditMode && selectedDepartment == null) selectedDepartment = departments.firstOrNull { it.id == initialEmployee?.departmentId }
+    }
+
     val filteredDepartments = departments.filter {
         it.branchId == selectedBranch?.id
     }
@@ -59,7 +76,7 @@ fun AddEmployeeScreen(
             .verticalScroll(rememberScrollState())
     ) {
         Text(
-            text = "Agregar empleado",
+            text = if (isEditMode) "Editar empleado" else "Crear empleado",
             style = MaterialTheme.typography.headlineMedium
         )
 
@@ -111,7 +128,7 @@ fun AddEmployeeScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(selectedBranch?.name ?: "Seleccionar sucursal")
+            Text(selectedBranch?.name ?: initialEmployee?.remoteBranchName?.takeIf { it.isNotBlank() } ?: "Seleccionar sucursal")
         }
 
         DropdownMenu(
@@ -148,7 +165,7 @@ fun AddEmployeeScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(selectedDepartment?.name ?: "Seleccionar departamento")
+            Text(selectedDepartment?.name ?: initialEmployee?.remoteDepartmentName?.takeIf { it.isNotBlank() } ?: initialEmployee?.departamento?.takeIf { it.isNotBlank() } ?: "Seleccionar departamento")
         }
 
         DropdownMenu(
@@ -199,7 +216,7 @@ fun AddEmployeeScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text("Código de empleado: se asignará automáticamente en secuencia 00001, 00002, 00003...")
+        Text(if(isEditMode) "Código de empleado: ${initialEmployee?.employeeCode.orEmpty()}" else "Código de empleado: se asignará automáticamente en secuencia 00001, 00002, 00003...")
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -208,20 +225,20 @@ fun AddEmployeeScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        if (codigoGenerado.isNotBlank()) {
+        if (!isEditMode && codigoGenerado.isNotBlank()) {
             Text("Código numérico asignado: $codigoGenerado")
             Spacer(modifier = Modifier.height(12.dp))
         }
 
         OSINETButton(
-            text = "💾 Guardar empleado",
+            text = if(isEditMode) "Guardar cambios" else "Crear empleado",
             onClick = {
                 val branch = selectedBranch
                 val department = selectedDepartment
 
-                val departmentName = department?.name ?: "General"
-                val branchId = branch?.id ?: 0
-                val departmentId = department?.id ?: 0
+                val departmentName = department?.name ?: initialEmployee?.departamento ?: "General"
+                val branchId = branch?.id ?: initialEmployee?.branchId ?: 0
+                val departmentId = department?.id ?: initialEmployee?.departmentId ?: 0
 
                 val nuevoEmpleado = Employee(
                     nombre = nombre,
@@ -236,23 +253,19 @@ fun AddEmployeeScreen(
                     lunchHours = lunchHours.toDoubleOrNull() ?: 0.0
                 )
 
-                viewModel.addEmployee(nuevoEmpleado)
-
-                nombre = ""
-                cedula = ""
-                telefono = ""
-                cargo = ""
-                sueldo = ""
-                lunchHours = ""
-                profilePhotoUri = ""
-                selectedBranch = null
-                selectedDepartment = null
-
-                mensaje = "Empleado guardado correctamente ✅ Código asignado: se mostrará abajo."
+                if(isEditMode&&initialEmployee!=null){
+                    val fields=EmployeeEditableFields(nombre,cedula,telefono,profilePhotoUri,cargo,departmentName,branchId,departmentId,nuevoEmpleado.sueldo,nuevoEmpleado.lunchHours)
+                    viewModel.updateEmployee(EmployeeEditEngine.merge(initialEmployee,fields),onSaved)
+                    mensaje="Cambios guardados correctamente"
+                }else{
+                    viewModel.addEmployee(nuevoEmpleado)
+                    nombre = "";cedula = "";telefono = "";cargo = "";sueldo = "";lunchHours = "";profilePhotoUri = "";selectedBranch = null;selectedDepartment = null
+                    mensaje = "Empleado creado correctamente. Código asignado: se mostrará abajo."
+                }
             }
         )
 
-        if (codigoGenerado.isNotBlank()) {
+        if (!isEditMode && codigoGenerado.isNotBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             OSINETButton(
                 text = "Registrar huella a este empleado",

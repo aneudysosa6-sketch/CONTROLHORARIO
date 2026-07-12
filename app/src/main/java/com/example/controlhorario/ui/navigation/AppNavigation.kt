@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -98,6 +99,7 @@ import com.example.controlhorario.ui.employees.PayrollHistoryViewModelFactory
 import com.example.controlhorario.ui.employees.EmployeeViewModel
 import com.example.controlhorario.ui.employees.EmployeeViewModelFactory
 import com.example.controlhorario.ui.employees.EmployeesScreen
+import com.example.controlhorario.ui.employees.EmployeeEditEngine
 import com.example.controlhorario.ui.employeepermissions.EmployeePermissionRequestsScreen
 import com.example.controlhorario.ui.employeepermissions.EmployeePermissionRequestsViewModel
 import com.example.controlhorario.ui.employeepermissions.EmployeePermissionRequestsViewModelFactory
@@ -485,6 +487,28 @@ fun AppNavigation(
             )
         }
 
+        composable(
+            route = "${Route.EMPLOYEE_EDIT}/{employeeKey}",
+            arguments = listOf(navArgument("employeeKey") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val employeeKey = backStackEntry.arguments?.getString("employeeKey").orEmpty()
+            val db = DatabaseProvider.getDatabase(LocalContext.current)
+            val vm: EmployeeViewModel = viewModel(factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao())))
+            val branchVm: BranchViewModel = viewModel(factory = BranchViewModelFactory(BranchRepository(db.branchDao())))
+            val departmentVm: DepartmentViewModel = viewModel(factory = DepartmentViewModelFactory(DepartmentRepository(db.departmentDao())))
+            val employee by vm.editingEmployee.collectAsState()
+            val branches by branchVm.branches.collectAsState()
+            val departments by departmentVm.departments.collectAsState()
+            LaunchedEffect(employeeKey) { vm.loadEmployeeForEdit(employeeKey) }
+            employee?.let {
+                AddEmployeeScreen(
+                    viewModel=vm,branches=branches,departments=departments,initialEmployee=it,isEditMode=true,
+                    onRegisterFingerprint={code->navController.navigate("${Route.FINGERPRINTS}/$code")},
+                    onSaved={navController.popBackStack()},onBack={navController.popBackStack()}
+                )
+            } ?: Text("Cargando empleado…")
+        }
+
         composable(Route.EMPLOYEE_LIST) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
@@ -531,7 +555,10 @@ fun AppNavigation(
                     val code = employee?.employeeCode?.ifBlank { employee.pin } ?: employeeId.toString().padStart(5, '0')
                     navController.navigate("${Route.FINGERPRINTS}/$code")
                 },
-                onEditEmployeeClick = { navController.navigate(Route.EMPLOYEE_ADD) },
+                onEditEmployeeClick = {
+                    val employeeKey=employee?.let(EmployeeEditEngine::routeKey)?:employeeId.toString()
+                    navController.navigate("${Route.EMPLOYEE_EDIT}/$employeeKey")
+                },
                 onPermissionsClick = { navController.navigate(Route.PERMISSIONS) },
                 onWarningsClick = { navController.navigate(Route.REPORTS_MENU) },
                 onBack = { navController.popBackStack() }
@@ -1518,6 +1545,7 @@ private object Route {
     const val EMPLOYEE_ASSISTANCE = "employee_assistance"
     const val EMPLOYEES_MENU = "employees_menu"
     const val EMPLOYEE_ADD = "employee_add"
+    const val EMPLOYEE_EDIT = "employee_edit"
     const val EMPLOYEE_LIST = "employee_list"
     const val EMPLOYEE_SYNC_DASHBOARD = "employee_sync_dashboard"
     const val EMPLOYEE_PROFILE = "employee_profile"
