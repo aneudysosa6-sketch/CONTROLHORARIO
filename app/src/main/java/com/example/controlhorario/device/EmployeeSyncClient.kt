@@ -24,6 +24,8 @@ class EmployeeSyncClient(private val endpoint:String){
   require(endpoint.startsWith("https://")&&endpoint.endsWith("/functions/v1/employee-sync")){"Configura CONTROLHORARIO_EMPLOYEE_SYNC_URL con HTTPS"}
   val request=JSONObject()
   cursor?.let{request.put("cursor",JSONObject().put("updated_at",it.updatedAt).put("id",it.id))}
+  Log.d(TAG,"URL: $endpoint")
+  Log.d(TAG,"company_id: pendiente de respuesta Edge; cursor enviado: updated_at=${cursor?.updatedAt}, id=${cursor?.id}")
   val startedAt=SystemClock.elapsedRealtime();var connection:HttpURLConnection?=null;var status=-1
   try{
    connection=(URL(endpoint).openConnection() as HttpURLConnection).apply{
@@ -34,11 +36,13 @@ class EmployeeSyncClient(private val endpoint:String){
    status=connection.responseCode
    val stream=if(status in 200..299)connection.inputStream else connection.errorStream
    val response=stream?.bufferedReader()?.use{it.readText()}.orEmpty()
-   Log.d(TAG,"employee-sync HTTP $status en ${SystemClock.elapsedRealtime()-startedAt} ms")
+   Log.d(TAG,"HTTP: $status en ${SystemClock.elapsedRealtime()-startedAt} ms")
+   Log.d(TAG,"Response Body: $response")
    val json=runCatching{JSONObject(response)}.getOrElse{throw IllegalStateException("Respuesta inválida de employee-sync",it)}
+   Log.d(TAG,"company_id: ${json.optString("company_id","<no devuelto>")}; diagnostic_request_id: ${json.optString("diagnostic_request_id","<no devuelto>")}")
    if(status !in 200..299)throw DeviceEnrollmentHttpException(status,response,json.optString("error","Error de sincronización"))
-   return parse(json)
-  }catch(error:Exception){Log.e(TAG,"employee-sync falló (HTTP $status)",error);throw error}finally{connection?.disconnect()}
+   return parse(json).also{Log.d(TAG,"empleados recibidos: activos=${it.employees.size}, inactivos=${it.inactive.size}, cursor=${it.cursor}, hasMore=${it.hasMore}")}
+  }catch(error:Exception){Log.e(TAG,"excepción completa employee-sync (URL=$endpoint, HTTP=$status, cursor=$cursor)",error);throw error}finally{connection?.disconnect()}
  }
 
  private fun parse(json:JSONObject):EmployeeSyncPage{

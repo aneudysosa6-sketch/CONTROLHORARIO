@@ -1,6 +1,7 @@
 package com.example.controlhorario.device
 
 import android.content.Context
+import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -21,5 +22,6 @@ object DeviceSyncScheduler{
   val periodic=PeriodicWorkRequestBuilder<EmployeeSyncWorker>(6,TimeUnit.HOURS).setConstraints(constraints).setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS).build()
   manager.enqueueUniqueWork(IMMEDIATE_WORK,ExistingWorkPolicy.REPLACE,immediate)
   manager.enqueueUniquePeriodicWork(PERIODIC_WORK,ExistingPeriodicWorkPolicy.UPDATE,periodic)
+  Log.d("EmployeeSync","WorkManager programado: immediate_id=${immediate.id}, periodic_id=${periodic.id}, network=CONNECTED, interval=6h")
  }
 }

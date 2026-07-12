@@ -1,6 +1,7 @@
 package com.example.controlhorario.device
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.controlhorario.R
@@ -19,13 +20,17 @@ object EmployeeSyncRetryPolicy{
 
 class EmployeeSyncWorker(context:Context,params:WorkerParameters):CoroutineWorker(context,params){
  override suspend fun doWork():Result{
-  val identity=DeviceIdentityManager(applicationContext)
-  val id=identity.deviceId?:return Result.failure()
-  val credential=identity.credential()?:return Result.failure()
+ val identity=DeviceIdentityManager(applicationContext)
+  Log.d(TAG,"WorkManager inició EmployeeSyncWorker: attempt=$runAttemptCount, worker_id=$id")
+  val id=identity.deviceId?:run{Log.e(TAG,"WorkManager aborta: device_id ausente");return Result.failure()}
+  val credential=identity.credential()?:run{Log.e(TAG,"WorkManager aborta: credencial ausente para device_id=$id");return Result.failure()}
+  Log.d(TAG,"WorkManager identidad disponible: device_id=$id, credential_present=true")
   return try{
    val client=EmployeeSyncClient(applicationContext.getString(R.string.employee_sync_url))
-   EmployeeSyncRepository(DatabaseProvider.getDatabase(applicationContext)).sync(client,id,credential)
+   val summary=EmployeeSyncRepository(DatabaseProvider.getDatabase(applicationContext)).sync(client,id,credential)
+   Log.d(TAG,"WorkManager éxito: $summary")
    Result.success()
-  }catch(error:Exception){when(EmployeeSyncRetryPolicy.decide(error,runAttemptCount)){EmployeeSyncFailureDecision.RETRY->Result.retry();EmployeeSyncFailureDecision.FAILURE->Result.failure()}}
+  }catch(error:Exception){val decision=EmployeeSyncRetryPolicy.decide(error,runAttemptCount);Log.e(TAG,"WorkManager excepción completa; decision=$decision, attempt=$runAttemptCount",error);when(decision){EmployeeSyncFailureDecision.RETRY->Result.retry();EmployeeSyncFailureDecision.FAILURE->Result.failure()}}
  }
+ private companion object{const val TAG="EmployeeSync"}
 }
