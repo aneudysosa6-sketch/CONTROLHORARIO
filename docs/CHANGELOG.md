@@ -2,6 +2,7 @@
 
 ## 2026-07-11
 
+- Añadida migración idempotente `0004_admin_employee_permissions.sql`: asegura el código real `empleados.ver_todos` y asigna ver/crear/editar/desactivar con alcance empresa a roles `admin` activos, sin modificar RLS.
 - Implementado el módulo web Empleados sobre Supabase: lista con búsqueda/filtros, alta, edición, detalle, activación/desactivación, catálogos organizativos y estadísticas reales de personal en dashboard.
 - Añadida `employee-management` para mutaciones sensibles: fuerza tenant desde profile, valida permisos, código/correo únicos y PIN bcrypt único sin exponer PIN ni `service_role`; preparada la UI de huella 2Connect sin captura web.
 - Corregida la hidratación del login: PostgREST encontraba ambiguo el embed de `roles` por las FKs simple y compuesta; ahora consulta primero el profile propio por UUID Auth y después valida el rol mediante `role_id + company_id`, con errores diferenciados de RLS, fila ausente y rol inválido.
