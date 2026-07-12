@@ -16,7 +16,7 @@ $checks = [ordered]@{
   'codigo y correo unicos' = $edge -match "eq\('codigo_empleado',code\)" -and $edge -match "eq\('correo',email\)" -and ([regex]::Matches($edge,"return json\(\{error:").Count -ge 6)
   'lista busca y filtra' = $list -match 'Buscar por nombre' -and $list -match 'Todos los estados'
   'pantallas crear editar ver' = $form -match 'employeeService.save' -and $detail -match 'employeeService.get' -and $detail -match '/editar'
-  'huella preparada sin captura web' = $detail -match 'Huella 2Connect' -and $detail -match 'no captura ni almacena'
+  'huella preparada sin captura web' = $detail -match 'Huella 2Connect' -and $detail -match 'nunca recibe ni muestra el template' -and $detail -match 'Registrar huella en Android'
   'dashboard usa empleados reales' = $dashboard -match 'employeeService.list' -and $dashboard -notmatch 'employees}from.*mockData'
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
