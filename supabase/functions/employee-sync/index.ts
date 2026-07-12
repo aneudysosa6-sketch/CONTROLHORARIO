@@ -10,6 +10,17 @@ const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.di
 const validUuid=(value:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 const afterCursor=(row:{updated_at:string,id:string},updatedAt:string,id:string)=>!updatedAt||row.updated_at>updatedAt||(row.updated_at===updatedAt&&row.id>id)
 const relationText=(value:unknown,key:string)=>{const row=Array.isArray(value)?value[0]:value;return row&&typeof row==='object'&&key in row?text((row as Record<string,unknown>)[key]):''}
+type ErrorInfo={error:string;details:string|null;hint:string|null;code:string|null;stacktrace:string|null}
+const errorInfo=(value:unknown):ErrorInfo=>{
+  const record=value&&typeof value==='object'?value as Record<string,unknown>:{}
+  const message=text(record.message)||text(record.error)||(value instanceof Error?value.message:'')||String(value)
+  return{error:message,details:text(record.details)||null,hint:text(record.hint)||null,code:text(record.code)||null,stacktrace:value instanceof Error?value.stack??null:text(record.stack)||null}
+}
+const stageFailure=(requestId:string,stage:string,value:unknown,companyId:string|null,status=500)=>{
+  const info=errorInfo(value)
+  console.error('EmployeeSync etapa fallida',{request_id:requestId,stage,company_id:companyId,...info,postgrest_response:value})
+  return json({...info,stage,company_id:companyId,diagnostic_request_id:requestId},status)
+}
 
 Deno.serve(async request=>{
   const requestId=crypto.randomUUID()
@@ -23,13 +34,24 @@ Deno.serve(async request=>{
     console.log('EmployeeSync credenciales recibidas',{request_id:requestId,device_id:deviceId,credential_present:credential.length>0,credential_length:credential.length})
     if(!validUuid(deviceId)||credential.length!==64)return json({error:'Credencial de dispositivo requerida'},401)
     const admin=createClient(url,service,{auth:{persistSession:false}}),now=new Date().toISOString()
-    const{data:auth,error:authError}=await admin.from('credenciales_dispositivo').select('empresa_id,dispositivo_id').eq('dispositivo_id',deviceId).eq('token_hash',await hash(credential)).is('revocado_at',null).gt('expires_at',now).maybeSingle()
-    if(authError)throw authError
+    let authResult
+    try{
+      authResult=await admin.from('credenciales_dispositivo').select('empresa_id,dispositivo_id').eq('dispositivo_id',deviceId).eq('token_hash',await hash(credential)).is('revocado_at',null).gt('expires_at',now).maybeSingle()
+      console.log('EmployeeSync respuesta PostgREST autenticación',{request_id:requestId,data:authResult.data,error:authResult.error,status:authResult.status,statusText:authResult.statusText})
+    }catch(error){return stageFailure(requestId,'autenticacion_dispositivo',error,null)}
+    if(authResult.error)return stageFailure(requestId,'autenticacion_dispositivo',authResult.error,null,authResult.status||500)
+    const auth=authResult.data
     if(!auth)return json({error:'Dispositivo no autorizado o credencial vencida'},401)
     diagnosticCompanyId=auth.empresa_id
     console.log('EmployeeSync dispositivo autenticado',{request_id:requestId,device_id:deviceId,company_id:auth.empresa_id})
-    const{data:device,error:deviceError}=await admin.from('dispositivos_android').select('id,empresa_id').eq('id',deviceId).eq('empresa_id',auth.empresa_id).eq('estado','activo').maybeSingle()
-    if(deviceError)throw deviceError
+    console.log('EmployeeSync company_id leído',{request_id:requestId,company_id:auth.empresa_id})
+    let deviceResult
+    try{
+      deviceResult=await admin.from('dispositivos_android').select('id,empresa_id').eq('id',deviceId).eq('empresa_id',auth.empresa_id).eq('estado','activo').maybeSingle()
+      console.log('EmployeeSync respuesta PostgREST dispositivo',{request_id:requestId,data:deviceResult.data,error:deviceResult.error,status:deviceResult.status,statusText:deviceResult.statusText})
+    }catch(error){return stageFailure(requestId,'validacion_dispositivo',error,auth.empresa_id)}
+    if(deviceResult.error)return stageFailure(requestId,'validacion_dispositivo',deviceResult.error,auth.empresa_id,deviceResult.status||500)
+    const device=deviceResult.data
     if(!device)return json({error:'Dispositivo revocado o empresa incorrecta'},403)
     console.log('EmployeeSync dispositivo activo validado',{request_id:requestId,device_id:device.id,company_id:device.empresa_id})
 
@@ -40,8 +62,13 @@ Deno.serve(async request=>{
 
     let query=admin.from('empleados').select('id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,updated_at,branches!empleados_sucursal_misma_empresa_fk(name),departments!empleados_departamento_misma_empresa_fk(name),positions!empleados_puesto_misma_empresa_fk(name),supervisor:empleados!empleados_supervisor_misma_empresa_fk(nombre_completo)').eq('empresa_id',auth.empresa_id).order('updated_at').order('id').limit(1001)
     if(cursorUpdatedAt)query=query.gte('updated_at',cursorUpdatedAt)
-    const{data,error}=await query
-    if(error){console.error('EmployeeSync consulta empleados falló',{request_id:requestId,company_id:auth.empresa_id,error});throw error}
+    let employeeResult
+    try{
+      employeeResult=await query
+      console.log('EmployeeSync respuesta PostgREST consulta SQL',{request_id:requestId,company_id:auth.empresa_id,data:employeeResult.data,error:employeeResult.error,status:employeeResult.status,statusText:employeeResult.statusText})
+    }catch(error){return stageFailure(requestId,'consulta_empleados',error,auth.empresa_id)}
+    if(employeeResult.error)return stageFailure(requestId,'consulta_empleados',employeeResult.error,auth.empresa_id,employeeResult.status||500)
+    const data=employeeResult.data
     const changed=(data??[]).filter(row=>afterCursor(row,cursorUpdatedAt,cursorId)),page=changed.slice(0,500),last=page.at(-1)
     console.log('EmployeeSync empleados encontrados',{request_id:requestId,company_id:auth.empresa_id,query_rows:data?.length??0,after_cursor:changed.length,page_rows:page.length})
     const employees=page.filter(row=>row.activo===true).map(row=>({
@@ -57,8 +84,5 @@ Deno.serve(async request=>{
     await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)
     await admin.from('credenciales_dispositivo').update({ultima_uso_at:now}).eq('dispositivo_id',deviceId).eq('empresa_id',auth.empresa_id)
     return json({employees,inactive,cursor:last?{updated_at:last.updated_at,id:last.id}:{updated_at:cursorUpdatedAt,id:cursorId},has_more:changed.length>page.length,synced_at:now,company_id:auth.empresa_id,diagnostic_request_id:requestId})
-  }catch(error){
-    console.error('EmployeeSync excepción completa',{request_id:requestId,error,stack:error instanceof Error?error.stack:null})
-    return json({error:error instanceof Error?error.message:'Error inesperado',company_id:diagnosticCompanyId,diagnostic_request_id:requestId},500)
-  }
+  }catch(error){return stageFailure(requestId,'excepcion_no_controlada',error,diagnosticCompanyId)}
 })
