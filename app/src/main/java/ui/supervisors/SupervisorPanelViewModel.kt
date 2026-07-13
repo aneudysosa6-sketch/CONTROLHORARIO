@@ -115,18 +115,18 @@ class SupervisorPanelViewModel(
         }
     }
 
-    fun setEmployeeActive(active: Boolean) {
+    fun setJornadaEnabled(enabled: Boolean) {
         val employee = _selectedEmployee.value
         if (employee == null) {
             _message.value = "Primero busque un empleado."
             return
         }
         viewModelScope.launch {
-            employeeRepository.setEmployeeActive(employee.id, active)
-            val refreshed = employee.copy(isActive = active)
+            employeeRepository.setJornadaEnabled(employee.id, enabled)
+            val refreshed = employee.copy(jornadaEnabled = enabled)
             _selectedEmployee.value = refreshed
-            _message.value = if (active) "Empleado activado para registrar jornadas." else "Empleado desactivado. Se generó incidencia interna."
-            if (!active) {
+            _message.value = if (enabled) "ADMIN-ON: registro de jornada habilitado." else "ADMIN-OFF: registro de jornada deshabilitado. Se generó incidencia interna."
+            if (!enabled) {
                 eventRepository.insert(
                     SupervisorEventEntity(
                         supervisorId = supervisorId,

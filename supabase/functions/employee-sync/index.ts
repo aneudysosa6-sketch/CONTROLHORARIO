@@ -74,31 +74,37 @@ Deno.serve(async request=>{
     const departmentIds=[...new Set(page.map(row=>row.departamento_id).filter(Boolean))] as string[]
     const positionIds=[...new Set(page.map(row=>row.puesto_id).filter(Boolean))] as string[]
     const supervisorIds=[...new Set(page.map(row=>row.supervisor_id).filter(Boolean))] as string[]
+    const employeeIds=page.map(row=>row.id) as string[]
     const empty={data:[] as Record<string,unknown>[],error:null,status:200,statusText:'Sin IDs'}
-    let branchResult,departmentResult,positionResult,supervisorResult
+    let branchResult,departmentResult,positionResult,supervisorResult,scheduleResult
     try{
-      ;[branchResult,departmentResult,positionResult,supervisorResult]=await Promise.all([
+      ;[branchResult,departmentResult,positionResult,supervisorResult,scheduleResult]=await Promise.all([
         branchIds.length?admin.from('branches').select('id,name').eq('company_id',auth.empresa_id).in('id',branchIds):Promise.resolve(empty),
         departmentIds.length?admin.from('departments').select('id,name').eq('company_id',auth.empresa_id).in('id',departmentIds):Promise.resolve(empty),
         positionIds.length?admin.from('positions').select('id,name').eq('company_id',auth.empresa_id).in('id',positionIds):Promise.resolve(empty),
         supervisorIds.length?admin.from('empleados').select('id,nombre_completo').eq('empresa_id',auth.empresa_id).in('id',supervisorIds):Promise.resolve(empty),
+        employeeIds.length?admin.from('horarios_empleados').select('empleado_id,hora_entrada,hora_salida,inicio_almuerzo,duracion_almuerzo_min,dias_laborales,tolerancia_min,fecha_vigencia').eq('empresa_id',auth.empresa_id).eq('activo',true).in('empleado_id',employeeIds).order('fecha_vigencia',{ascending:false}):Promise.resolve(empty),
       ])
       console.log('EmployeeSync respuestas PostgREST catálogos',{request_id:requestId,company_id:auth.empresa_id,branches:branchResult,departments:departmentResult,positions:positionResult,supervisors:supervisorResult})
     }catch(error){return stageFailure(requestId,'consulta_catalogos_supervisores',error,auth.empresa_id)}
-    const lookupError=branchResult.error||departmentResult.error||positionResult.error||supervisorResult.error
+    const lookupError=branchResult.error||departmentResult.error||positionResult.error||supervisorResult.error||scheduleResult.error
     if(lookupError)return stageFailure(requestId,'consulta_catalogos_supervisores',lookupError,auth.empresa_id,500)
     const branchNames=new Map((branchResult.data??[]).map(row=>[row.id,row.name]))
     const departmentNames=new Map((departmentResult.data??[]).map(row=>[row.id,row.name]))
     const positionNames=new Map((positionResult.data??[]).map(row=>[row.id,row.name]))
     const supervisorNames=new Map((supervisorResult.data??[]).map(row=>[row.id,row.nombre_completo]))
-    const employees=page.filter(row=>row.activo===true).map(row=>({
+    const schedules=new Map<string,Record<string,unknown>>();for(const row of scheduleResult.data??[]){if(!schedules.has(String(row.empleado_id)))schedules.set(String(row.empleado_id),row)}
+    const employees=page.filter(row=>row.activo===true).map(row=>{const schedule=schedules.get(row.id);return({
       remote_id:row.id,code:row.codigo_empleado,name:row.nombre_completo,email:row.correo??'',phone:row.telefono??'',
       branch_id:row.sucursal_id,branch_name:branchNames.get(row.sucursal_id)??'',
       department_id:row.departamento_id,department_name:departmentNames.get(row.departamento_id)??'',
       position_id:row.puesto_id,position_name:positionNames.get(row.puesto_id)??'',
       supervisor_id:row.supervisor_id,supervisor_name:supervisorNames.get(row.supervisor_id)??'',
-      status:row.estado_laboral,jornada_enabled:row.jornada_habilitada!==false,start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
-    }))
+      status:row.estado_laboral,jornada_enabled:row.jornada_habilitada!==false,
+      schedule_start:schedule?.hora_entrada??null,schedule_end:schedule?.hora_salida??null,lunch_start:schedule?.inicio_almuerzo??null,
+      lunch_duration_minutes:schedule?.duracion_almuerzo_min??null,work_days:schedule?.dias_laborales??null,tolerance_minutes:schedule?.tolerancia_min??null,
+      start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
+    })})
     const inactive=page.filter(row=>row.activo!==true).map(row=>({remote_id:row.id,updated_at:row.updated_at}))
     console.log('EmployeeSync empleados enviados',{request_id:requestId,company_id:auth.empresa_id,active_sent:employees.length,inactive_sent:inactive.length,has_more:changed.length>page.length})
     await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)

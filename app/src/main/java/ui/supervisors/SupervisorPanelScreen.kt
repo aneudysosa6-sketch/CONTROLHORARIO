@@ -91,7 +91,7 @@ fun SupervisorJornadasScreen(
                 Text("Código: ${emp.employeeCode.ifBlank { emp.pin }}", color = OSINETColors.TextSecondary)
                 Text("Nombre: ${emp.nombre}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text("Departamento: ${emp.departamento}", color = OSINETColors.TextSecondary)
-                Text(if (emp.isActive) "Estado: Activo" else "Estado: Inactivo", color = if (emp.isActive) OSINETColors.GreenSoft else OSINETColors.Danger)
+                Text(if (emp.jornadaEnabled) "Jornada: ADMIN-ON" else "Jornada: ADMIN-OFF", color = if (emp.jornadaEnabled) OSINETColors.GreenSoft else OSINETColors.Danger)
                 OSINETTextField(start, { start = it.take(5) }, "Hora entrada (HH:mm)", Modifier.fillMaxWidth())
                 OSINETTextField(lunchOut, { lunchOut = it.take(5) }, "Salida almuerzo (HH:mm)", Modifier.fillMaxWidth())
                 OSINETTextField(lunchIn, { lunchIn = it.take(5) }, "Llegada almuerzo (HH:mm)", Modifier.fillMaxWidth())
@@ -199,10 +199,10 @@ fun SupervisorAdminOnOffScreen(
                 Text("Departamento: ${emp.departamento}", color = OSINETColors.TextSecondary)
                 Text(if (emp.isActive) "Estado: Activo" else "Estado: Inactivo", color = if (emp.isActive) OSINETColors.GreenSoft else OSINETColors.Danger)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { viewModel.setEmployeeActive(true) }) { Text("ACTIVAR") }
-                    OutlinedButton(onClick = { viewModel.setEmployeeActive(false) }) { Text("DESACTIVAR") }
+                    OutlinedButton(onClick = { viewModel.setJornadaEnabled(true) }) { Text("ADMIN-ON") }
+                    OutlinedButton(onClick = { viewModel.setJornadaEnabled(false) }) { Text("ADMIN-OFF") }
                 }
-                Text("Al desactivar se genera una incidencia interna REGISTRO_DESHABILITADO.", color = OSINETColors.TextSecondary)
+                Text("ADMIN-OFF no desactiva laboralmente al empleado y genera una incidencia interna.", color = OSINETColors.TextSecondary)
             }
         }
         Spacer(Modifier.height(18.dp))

@@ -1,5 +1,13 @@
 # CHANGELOG.md
 
+## 2026-07-12 — Fundación RC3 Supervisor
+
+- Alcance canónico por empresa, sucursal y múltiples departamentos.
+- RPC operativas sin expediente sensible, RLS reforzada y permisos RC3.
+- Dashboard, equipo, jornadas, pendientes, incidencias, horarios y auditoría Web.
+- Correcciones, aprobación, ADMIN-OFF/ON, notificaciones y horarios auditados.
+- Room v30 recibe horario operativo mediante `employee-sync`; kiosco y 2Connect permanecen intactos.
+
 ## 2026-07-12 — Fundación RC2 Jornadas
 
 - Contrato canónico v1, migración Supabase 0008, RLS, permisos y auditoría.

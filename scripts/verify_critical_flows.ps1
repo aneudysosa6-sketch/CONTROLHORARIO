@@ -3,6 +3,7 @@ $root = Split-Path -Parent $PSScriptRoot
 
 & (Join-Path $PSScriptRoot 'test_employee_sync_module.ps1')
 & (Join-Path $PSScriptRoot 'test_rc2_attendance.ps1')
+& (Join-Path $PSScriptRoot 'test_rc3_supervisor.ps1')
 
 $checks = @(
     @{ File = 'app/src/main/java/com/example/controlhorario/security/BiometricAuthManager.kt'; Pattern = 'BiometricPrompt'; Name = 'BiometricPrompt' },

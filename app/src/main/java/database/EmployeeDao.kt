@@ -74,6 +74,9 @@ interface EmployeeDao {
     @Query("UPDATE employees SET isActive = :active, updatedAt = :updatedAt WHERE id = :employeeId")
     suspend fun setEmployeeActive(employeeId: Int, active: Boolean, updatedAt: Long = System.currentTimeMillis())
 
+    @Query("UPDATE employees SET jornadaEnabled = :enabled, updatedAt = :updatedAt WHERE id = :employeeId")
+    suspend fun setJornadaEnabled(employeeId: Int, enabled: Boolean, updatedAt: Long = System.currentTimeMillis())
+
     @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL")
     fun observeSyncedTotal(): Flow<Int>
 

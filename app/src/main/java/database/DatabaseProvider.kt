@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30).build()
 
             INSTANCE = instance
 
@@ -65,4 +65,13 @@ val MIGRATION_28_29=object:Migration(28,29){override fun migrate(db:SupportSQLit
  db.execSQL("CREATE TABLE IF NOT EXISTS journey_conflicts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, journeyLocalId INTEGER NOT NULL, idempotencyKey TEXT NOT NULL, localSnapshot TEXT NOT NULL, remoteSnapshot TEXT NOT NULL, reason TEXT NOT NULL, resolutionState TEXT NOT NULL, createdAt INTEGER NOT NULL, resolvedAt INTEGER)")
  db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_conflicts_journeyLocalId ON journey_conflicts(journeyLocalId)")
  db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_conflicts_resolutionState ON journey_conflicts(resolutionState)")
+}}
+
+val MIGRATION_29_30=object:Migration(29,30){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteScheduleStart TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteScheduleEnd TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteLunchStart TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteLunchDurationMinutes INTEGER")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteWorkDays TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteToleranceMinutes INTEGER")
 }}

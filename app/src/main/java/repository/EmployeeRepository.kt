@@ -34,6 +34,10 @@ class EmployeeRepository(
         employeeDao.setEmployeeActive(employeeId, active)
     }
 
+    suspend fun setJornadaEnabled(employeeId: Int, enabled: Boolean) {
+        employeeDao.setJornadaEnabled(employeeId, enabled)
+    }
+
     suspend fun addEmployee(employee: Employee): String {
         val code = if (employee.employeeCode.isNotBlank()) {
             employee.employeeCode.filter { it.isDigit() }.padStart(5, '0')

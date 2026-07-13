@@ -11,7 +11,7 @@ data class RemoteEmployee(
  val id:String,val code:String,val name:String,val phone:String,val email:String,
  val branchId:String?,val branchName:String,val departmentId:String?,val departmentName:String,
  val positionId:String?,val positionName:String,val supervisorId:String?,val supervisorName:String,
- val status:String,val jornadaEnabled:Boolean=true,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String
+ val status:String,val jornadaEnabled:Boolean=true,val scheduleStart:String?=null,val scheduleEnd:String?=null,val lunchStart:String?=null,val lunchDurationMinutes:Int?=null,val workDays:String?=null,val toleranceMinutes:Int?=null,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String
 )
 data class RemoteInactiveEmployee(val id:String,val updatedAt:String)
 data class EmployeeSyncPage(
@@ -52,7 +52,7 @@ class EmployeeSyncClient(private val endpoint:String){
     id=row.getString("remote_id"),code=row.getString("code"),name=row.getString("name"),phone=row.optString("phone"),email=row.optString("email"),
     branchId=row.optNullableString("branch_id"),branchName=row.optString("branch_name"),departmentId=row.optNullableString("department_id"),departmentName=row.optString("department_name"),
     positionId=row.optNullableString("position_id"),positionName=row.optString("position_name"),supervisorId=row.optNullableString("supervisor_id"),supervisorName=row.optString("supervisor_name"),
-    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at")
+    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),scheduleStart=row.optNullableString("schedule_start"),scheduleEnd=row.optNullableString("schedule_end"),lunchStart=row.optNullableString("lunch_start"),lunchDurationMinutes=if(row.isNull("lunch_duration_minutes"))null else row.optInt("lunch_duration_minutes"),workDays=row.optJSONArray("work_days")?.let{days->(0 until days.length()).joinToString(","){index->days.getInt(index).toString()}},toleranceMinutes=if(row.isNull("tolerance_minutes"))null else row.optInt("tolerance_minutes"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at")
    )
   }
   val inactiveRows=json.optJSONArray("inactive")
