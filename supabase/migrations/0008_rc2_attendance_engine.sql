@@ -85,20 +85,20 @@ alter table public.jornada_conflictos enable row level security;
 alter table public.jornada_auditoria enable row level security;
 
 create or replace function public.puede_ver_jornada(p_empleado uuid) returns boolean language sql stable security definer set search_path=public,pg_temp as $$
- select p_empleado=public.current_employee_id()
+ select p_empleado=public.obtener_empleado_actual_id()
  or public.tiene_permiso('jornadas.ver_todas')
  or (public.tiene_permiso('jornadas.ver_asignadas') and exists(
-   select 1 from public.empleados e where e.id=p_empleado and e.empresa_id=public.current_company_id() and e.supervisor_id=public.current_employee_id()
+   select 1 from public.empleados e where e.id=p_empleado and e.empresa_id=public.obtener_empresa_actual() and e.supervisor_id=public.obtener_empleado_actual_id()
  ));
 $$;
 revoke all on function public.puede_ver_jornada(uuid) from public,anon;
 grant execute on function public.puede_ver_jornada(uuid) to authenticated,service_role;
 
-create policy jornadas_select_scope on public.jornadas for select to authenticated using(empresa_id=public.current_company_id() and public.puede_ver_jornada(empleado_id));
-create policy jornada_eventos_select_scope on public.jornada_eventos for select to authenticated using(empresa_id=public.current_company_id() and public.puede_ver_jornada(empleado_id));
-create policy jornada_incidencias_select_scope on public.jornada_incidencias for select to authenticated using(empresa_id=public.current_company_id() and public.puede_ver_jornada(empleado_id));
-create policy jornada_conflictos_select_scope on public.jornada_conflictos for select to authenticated using(empresa_id=public.current_company_id() and exists(select 1 from public.jornadas j where j.id=jornada_id and public.puede_ver_jornada(j.empleado_id)));
-create policy jornada_auditoria_select_scope on public.jornada_auditoria for select to authenticated using(empresa_id=public.current_company_id() and exists(select 1 from public.jornadas j where j.id=jornada_id and public.puede_ver_jornada(j.empleado_id)));
+create policy jornadas_select_scope on public.jornadas for select to authenticated using(empresa_id=public.obtener_empresa_actual() and public.puede_ver_jornada(empleado_id));
+create policy jornada_eventos_select_scope on public.jornada_eventos for select to authenticated using(empresa_id=public.obtener_empresa_actual() and public.puede_ver_jornada(empleado_id));
+create policy jornada_incidencias_select_scope on public.jornada_incidencias for select to authenticated using(empresa_id=public.obtener_empresa_actual() and public.puede_ver_jornada(empleado_id));
+create policy jornada_conflictos_select_scope on public.jornada_conflictos for select to authenticated using(empresa_id=public.obtener_empresa_actual() and exists(select 1 from public.jornadas j where j.id=jornada_id and public.puede_ver_jornada(j.empleado_id)));
+create policy jornada_auditoria_select_scope on public.jornada_auditoria for select to authenticated using(empresa_id=public.obtener_empresa_actual() and exists(select 1 from public.jornadas j where j.id=jornada_id and public.puede_ver_jornada(j.empleado_id)));
 grant select on public.jornadas,public.jornada_eventos,public.jornada_incidencias,public.jornada_conflictos,public.jornada_auditoria to authenticated;
 grant all on public.jornadas,public.jornada_eventos,public.jornada_incidencias,public.jornada_conflictos,public.jornada_auditoria to service_role;
 
@@ -195,7 +195,7 @@ grant execute on function public.evaluar_tardanza_jornada(uuid,timestamptz) to s
 
 create or replace function public.marcar_incidencia_jornada_leida(p_incidencia uuid) returns void language plpgsql security definer set search_path=public,pg_temp as $$
 begin
- update public.jornada_incidencias i set leida=true where i.id=p_incidencia and i.empresa_id=public.current_company_id() and public.puede_ver_jornada(i.empleado_id);
+ update public.jornada_incidencias i set leida=true where i.id=p_incidencia and i.empresa_id=public.obtener_empresa_actual() and public.puede_ver_jornada(i.empleado_id);
 end $$;
 revoke all on function public.marcar_incidencia_jornada_leida(uuid) from public,anon;
 grant execute on function public.marcar_incidencia_jornada_leida(uuid) to authenticated;
@@ -206,7 +206,7 @@ begin
  if not public.tiene_permiso('jornadas.aprobar_pendientes') then raise exception 'PERMISSION_DENIED'; end if;
  if btrim(coalesce(p_motivo,''))='' then raise exception 'MOTIVO_REQUERIDO'; end if;
  if p_decision not in('APROBADA','RECHAZADA','CORREGIDA') then raise exception 'DECISION_INVALIDA'; end if;
- select * into v from public.jornadas where id=p_jornada and empresa_id=public.current_company_id() for update;if not found then raise exception 'JORNADA_NO_ENCONTRADA';end if;v_antes:=to_jsonb(v);
+ select * into v from public.jornadas where id=p_jornada and empresa_id=public.obtener_empresa_actual() for update;if not found then raise exception 'JORNADA_NO_ENCONTRADA';end if;v_antes:=to_jsonb(v);
  update public.jornadas set revision_pendiente=false,actualizada_por=auth.uid(),actualizada_en=now(),version_sync=version_sync+1 where id=v.id returning * into v;
  update public.jornada_incidencias set resuelta=true,resuelta_en=now(),resuelta_por=auth.uid() where jornada_id=v.id and not resuelta;
  insert into public.jornada_auditoria(empresa_id,jornada_id,actor_id,accion,antes,despues,origen) values(v.empresa_id,v.id,auth.uid(),'RESOLVER_'||p_decision,v_antes,to_jsonb(v)||jsonb_build_object('motivo',p_motivo),'WEB');
@@ -215,7 +215,7 @@ revoke all on function public.resolver_jornada_pendiente(uuid,text,text) from pu
 grant execute on function public.resolver_jornada_pendiente(uuid,text,text) to authenticated;
 
 create or replace function public.establecer_jornada_habilitada(p_empleado uuid,p_habilitada boolean,p_motivo text) returns void language plpgsql security definer set search_path=public,pg_temp as $$
-declare v_empresa uuid:=public.current_company_id();v_fecha date;v_jornada uuid;v_tz text;
+declare v_empresa uuid:=public.obtener_empresa_actual();v_fecha date;v_jornada uuid;v_tz text;
 begin
  if not public.tiene_permiso('jornadas.admin_off_on') then raise exception 'PERMISSION_DENIED';end if;
  if btrim(coalesce(p_motivo,''))='' then raise exception 'MOTIVO_REQUERIDO';end if;

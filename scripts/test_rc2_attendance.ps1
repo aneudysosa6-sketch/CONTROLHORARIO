@@ -6,6 +6,12 @@ Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'unique\(empresa_id,emp
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'unique\(empresa_id,idempotency_key\)' 'idempotencia remota'
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'enable row level security' 'RLS habilitada'
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'jornadas\.ver_asignadas' 'alcance supervisor'
+Has 'supabase/migrations/0002_FINAL.sql' 'create or replace function public\.obtener_empresa_actual\(\)' 'helper de empresa definido antes de 0008'
+Has 'supabase/migrations/0002_FINAL.sql' 'create or replace function public\.obtener_empleado_actual_id\(\)' 'helper de empleado definido antes de 0008'
+Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'e\.empresa_id=public\.obtener_empresa_actual\(\)' 'supervisor aislado por empresa autenticada'
+Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'e\.supervisor_id=public\.obtener_empleado_actual_id\(\)' 'supervisor resuelto desde perfil autenticado'
+if(Select-String -LiteralPath 'supabase/migrations/0008_rc2_attendance_engine.sql' -Pattern 'public\.(current_company_id|current_employee_id)\(' -Quiet){throw 'FALLO: 0008 referencia helpers inexistentes'}
+Write-Host 'OK: 0008 usa exclusivamente helpers existentes'
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'cerrar_jornadas_incompletas' 'cierre diario idempotente'
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'cerrar_jornadas_vencidas' 'cierre por zona empresarial'
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'v_minutos<15' 'tolerancia 15 minutos inclusiva'
