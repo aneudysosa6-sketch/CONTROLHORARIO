@@ -71,7 +71,6 @@ app/src/main/java/com/example/controlhorario/
 ├── navigation
 ├── security
 ├── session
-├── whatsapp
 └── payroll
 ```
 

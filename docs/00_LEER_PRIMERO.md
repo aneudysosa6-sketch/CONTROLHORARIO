@@ -4,6 +4,12 @@
 
 CONTROL HORARIO IA es una app Android para control horario, ponche por PIN + huella 2Connect, empleados, jornada, incidencias, nomina, prestamos, permisos, vacaciones, reportes y administracion por roles.
 
+## Alcance definitivo de comunicaciones
+
+**CONTROLHORARIO no incluye Gmail, WhatsApp ni n8n. Las alertas y notificaciones son internas.**
+
+No se deben agregar clientes, colas, credenciales, endpoints, plantillas ni botones para mensajería externa.
+
 ## Reglas criticas
 
 - No eliminar funcionalidades existentes.

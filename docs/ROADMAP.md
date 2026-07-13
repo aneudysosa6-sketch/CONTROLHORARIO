@@ -46,8 +46,12 @@ Nómina.
 
 ## Fase 6
 
-Automatización.
+Notificaciones internas.
 
-- Comunicación interna.
-- Integración externa eliminada.
-- Cola local.
+- Centro de notificaciones y alertas del Dashboard.
+- Eventos con severidad, fecha, estado leído/no leído y alcance por rol/empresa.
+- Sin servicios ni automatizaciones externas.
+
+## Decisión definitiva
+
+CONTROLHORARIO no incluye Gmail, WhatsApp ni n8n. Las alertas y notificaciones son internas.

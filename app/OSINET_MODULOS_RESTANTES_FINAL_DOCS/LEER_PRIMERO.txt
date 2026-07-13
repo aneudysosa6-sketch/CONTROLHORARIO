@@ -1,6 +1,0 @@
-OSINET - Módulos restantes conectados sin N8N externo
-
-Reemplaza la carpeta app completa por la incluida en este ZIP.
-
-La integración base del lector 2Connect USB no fue reescrita. Se mantiene el flujo que el usuario indicó que ya funcionaba.
-La conexión externa real con N8N queda pendiente por solicitud del usuario.

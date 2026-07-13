@@ -62,4 +62,8 @@ Ejemplos:
 - PayrollEngine
 - AttendanceEngine
 - PermissionEngine
-- Comunicación internaWorkflowEngine
+- Motores internos de incidencias y notificaciones
+
+## Límite de arquitectura
+
+CONTROLHORARIO no incluye Gmail, WhatsApp ni n8n. Las alertas y notificaciones son internas. No existen adaptadores, clientes HTTP, colas de entrega ni credenciales para mensajería externa.

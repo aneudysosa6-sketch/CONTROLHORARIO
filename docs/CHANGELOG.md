@@ -1,5 +1,14 @@
 # CHANGELOG.md
 
+## 2026-07-12 — Alcance interno definitivo
+
+- Eliminado el código Android dedicado a integraciones y automatizaciones externas de mensajería.
+- Eliminadas colas, entidades, DAOs, repositorios, pantallas, ViewModels, cliente HTTP y motores exclusivos de ese alcance.
+- Nómina queda enfocada en cálculo, revisión, aprobación, historial y descargas Excel/PDF.
+- Se conserva el sistema interno `AppEvent`/`SupervisorEvent`, incluyendo el borde neón azul para eventos nuevos.
+- No se modificaron migraciones históricas: las entidades eliminadas nunca formaron parte de `AppDatabase` v28.
+- CONTROLHORARIO no incluye Gmail, WhatsApp ni n8n. Las alertas y notificaciones son internas.
+
 ## 2026-07-12
 
 - Implementado Módulo 2.2 de sincronización incremental mediante `employee-sync`, autenticación del dispositivo, aislamiento por empresa, payload activo sin PIN/biometría y tombstones mínimos para bajas.

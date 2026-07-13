@@ -34,9 +34,9 @@ $checks = [ordered]@{
   'fallo bootstrap cierra sesion' = $bootstrapPage -match 'if \(loginCompleted\) await logout'
   'secreto normalizado y comparado' = $edge -match "get\('USER_PROVISIONING_BOOTSTRAP_SECRET'\)\?\.trim" -and $edge -match "get\('x-bootstrap-secret'\)\?\.trim" -and $edge -match 'receivedSecret===expectedSecret'
   'log de secreto no expone valor' = $edge -match "console\.info\('bootstrap secret validation',\{received:[^,]+,configured:[^,]+,matches:secretMatches\}\)" -and $edge -notmatch 'console\.(log|info|warn|error)\([^\r\n]*\{[^\r\n]*(expectedSecret,|receivedSecret,)'
-  'login consulta profile por usuario Auth' = $authService -match "from\('profiles'\)" -and $authService -match "eq\('id', authSession\.user\.id\)"
+  'login consulta profile por usuario Auth' = $authService -match "from\('profiles'\)" -and $authService -match "eq\('id',\s*authSession\.user\.id\)"
   'login evita join ambiguo de roles' = $authService -notmatch 'roles\(name,code\)' -and $authService -match "from\('roles'\)"
-  'login valida rol y empresa' = $authService -match "eq\('id', profile\.role_id\)" -and $authService -match "eq\('company_id', profile\.company_id\)"
+  'login valida rol y empresa' = $authService -match "eq\('id',\s*profile\.role_id\)" -and $authService -match "eq\('company_id',\s*profile\.company_id\)"
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }

@@ -50,6 +50,6 @@ Restringidos/cifrados: cuentas bancarias, fiscalidad, salario, documentos, IP, t
 
 ## Hallazgos locales inmediatos
 
-`SupervisorEntity.password`, `AppUserEntity.password` y `Employee.pin` conservan formatos heredados en Room. No se sincronizan y no deben recibir credenciales nuevas. La contraseña dejó de duplicarse en SharedPreferences; al guardar una sesión también se elimina la clave heredada. Las entidades N8N/WhatsApp con secretos están fuera de `AppDatabase` y corresponden a integraciones obsoletas.
+`SupervisorEntity.password`, `AppUserEntity.password` y `Employee.pin` conservan formatos heredados en Room. No se sincronizan y no deben recibir credenciales nuevas. La contraseña dejó de duplicarse en SharedPreferences; al guardar una sesión también se elimina la clave heredada. Los modelos obsoletos que podían almacenar secretos de servicios externos fueron eliminados y nunca formaron parte de `AppDatabase`.
 
 La migración segura pendiente debe ser transaccional: añadir hashes con salt, migrar al validar la credencial heredada, comprobar todos los lectores, retirar columnas antiguas y destruir valores solo después de verificar respaldo y rollback. `EmployeeBiometricEntity.templateBase64` se mantiene exclusivamente para compatibilidad temporal con 2Connect: no se crean formatos nuevos, no se trata como imagen y no se sincroniza. `BiometricPrompt` permanece respaldado por el almacén seguro del sistema.

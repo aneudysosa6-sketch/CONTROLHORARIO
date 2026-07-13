@@ -28,9 +28,7 @@ Supabase es central; Room es caché/offline. Cada registro sincronizable tendrá
 | AppUserEntity | profiles/Auth | NO subir password/CSV; migración de identidad | solo transición |
 | Supervisor* | roles, alcances, horarios, auditoría | desnormalizar nombres→UUID/FK | descarga/transición |
 | EmployeeBiometricEntity | dispositivo autorizado | NO subir templateBase64; solo estado/attestation | nunca plantilla |
-| N8N*/WhatsAppOutbox | sin tabla central directa | legado; evaluar eliminación segura | no sincronizar |
-
-`N8NSettingsEntity`, `N8NOutboxEntity`, `N8NSyncLogEntity` y `WhatsAppOutboxEntity` están anotadas pero no figuran en `AppDatabase` v26; no se consideran persistencia activa sin una verificación posterior.
+Los modelos y colas exclusivos de entrega externa fueron eliminados. Nunca estuvieron registrados en `AppDatabase` ni se sincronizaron con Supabase.
 
 ## Outbox y Worker
 

@@ -10,7 +10,7 @@ Variables requeridas: `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`. Nun
 
 ## Room y seguridad local
 
-La auditoría identificó cuatro entidades anotadas fuera de `AppDatabase`: `N8NSettingsEntity`, `N8NOutboxEntity`, `N8NSyncLogEntity` y `WhatsAppOutboxEntity`. Son restos de integraciones eliminadas, por lo que registrarlas reintroduciría superficie obsoleta. `SupervisorDepartmentEntity` sí estaba registrada y es operada por `SupervisorDao`.
+Los modelos obsoletos con configuración, secretos y colas de entrega externa fueron eliminados. Nunca estuvieron registrados en `AppDatabase`. `SupervisorDepartmentEntity` permanece registrada y es operada por `SupervisorDao`.
 
 No cambió el esquema Room ni su versión. Se eliminó `fallbackToDestructiveMigration`, de modo que una migración ausente falla de forma segura en lugar de borrar datos. La sesión Android ya no escribe/restaura la contraseña y limpia el valor heredado al iniciar sesión.
 

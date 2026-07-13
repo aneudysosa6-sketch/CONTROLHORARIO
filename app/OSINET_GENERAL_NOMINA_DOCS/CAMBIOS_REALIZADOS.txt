@@ -37,6 +37,6 @@ Cambios incluidos:
 - Genera CSV compatible con Excel.
 - Columna IMPUESTOS = AFP + SFS.
 
-7. N8N
-- Se agregaron botones Enviar por Gmail y Enviar por WhatsApp.
-- Quedan preparados, pero sin conexión real con N8N, según instrucción del usuario.
+7. Alcance de distribución
+- La nómina se revisa dentro del ERP y se descarga como PDF o Excel/CSV.
+- No existen botones ni preparación para entregas externas.

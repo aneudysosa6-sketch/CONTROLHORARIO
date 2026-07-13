@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const cors = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type, x-bootstrap-secret'};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,'Content-Type':'application/json'}});
 const required=(value:unknown,name:string)=>{if(typeof value!=='string'||!value.trim())throw new Error(`${name} es obligatorio`);return value.trim()};
+const createAdminClient=(url:string,serviceKey:string)=>createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
 
 Deno.serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
@@ -12,7 +13,7 @@ Deno.serve(async(req)=>{
     const serviceKey=required(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),'SUPABASE_SERVICE_ROLE_KEY');
     const body=await req.json();
     const action=required(body.action,'action');
-    const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
+    const admin=createAdminClient(url,serviceKey);
     if(action==='bootstrap-status'){
       const{count,error}=await admin.from('profiles').select('id',{count:'exact',head:true});
       if(error)throw error;
@@ -59,7 +60,7 @@ Deno.serve(async(req)=>{
   }catch(error){return json({error:error instanceof Error?error.message:'Error inesperado'},400)}
 });
 
-async function listState(admin:ReturnType<typeof createClient>,companyId?:string){
+async function listState(admin:ReturnType<typeof createAdminClient>,companyId?:string){
   const authUsers:Array<{id:string;email?:string;user_metadata?:Record<string,unknown>;created_at:string}>=[];for(let page=1;;page++){const{data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)throw error;authUsers.push(...data.users);if(data.users.length<1000)break}
   const ids=authUsers.map(u=>u.id);const{data:profiles,error:profileError}=ids.length?await admin.from('profiles').select('id').in('id',ids):{data:[],error:null};if(profileError)throw profileError;
   const known=new Set((profiles??[]).map(p=>p.id));
@@ -73,7 +74,7 @@ async function listState(admin:ReturnType<typeof createClient>,companyId?:string
   return json({users:authUsers.filter(u=>!known.has(u.id)).map(u=>({id:u.id,email:u.email??'',full_name:typeof u.user_metadata?.full_name==='string'?u.user_metadata.full_name:u.email??'',created_at:u.created_at})),companies:companyRows??[],roles:roles??[],employees:employees??[]});
 }
 
-async function provision(admin:ReturnType<typeof createClient>,payload:Record<string,unknown>){
+async function provision(admin:ReturnType<typeof createAdminClient>,payload:Record<string,unknown>){
   required(payload.user_id,'user_id');required(payload.company_id,'company_id');required(payload.role_id,'role_id');required(payload.full_name,'full_name');
   const{data,error}=await admin.rpc('provision_user_internal',{payload});if(error)throw error;return json({profile:data});
 }

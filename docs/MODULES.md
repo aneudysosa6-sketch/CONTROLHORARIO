@@ -96,10 +96,11 @@ Funciones:
 
 Funciones:
 
-- Cola local de mensajes.
-- Preparación de payload.
-- Estados: pendiente, enviado, error.
-- Integración futura con Integración externa eliminada.
+- Centro de incidencias y eventos locales.
+- Alertas nuevas con borde neón azul.
+- Alcance por empresa, sucursal, supervisor y permisos.
+- Estado pendiente/atendido dentro del producto.
+- Sin entrega, colas ni reintentos de mensajería externa.
 
 ## 8. Reportes
 
@@ -111,3 +112,11 @@ Funciones:
 - Vacaciones.
 - Permisos.
 - Exportación futura PDF/Excel.
+
+## Módulos eliminados definitivamente
+
+- Integraciones de correo externo.
+- Integraciones de mensajería externa.
+- Automatizadores y endpoints externos de mensajería.
+
+CONTROLHORARIO no incluye Gmail, WhatsApp ni n8n. Las alertas y notificaciones son internas.

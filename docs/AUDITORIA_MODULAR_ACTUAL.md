@@ -17,13 +17,13 @@
 | Reportes | asistencia/nómina/PDF | demo | plan H/0006+ | parcial |
 | Supervisores | entidades/pantallas/permisos duplicados | no | roles/alcances 0002 | requiere reorganización |
 | Notificaciones | AppEvent; outboxes legados | icono demo | plan 0008 | parcial/legado |
-| Sincronización | N8N entities no registradas | ninguna | plan 0010 | obsoleto/pending |
+| Sincronización | sincronización interna y Supabase | ninguna | módulo 2.2 | activa |
 | Auditoría | eventos parciales | ninguna | plan 0009 | pendiente |
 
 ## Hallazgos de código
 
 - `AppNavigation.kt` concentra rutas y pantallas auxiliares: funcional pero requiere extracción gradual.
-- 28 clases `@Entity`; cinco no están registradas en `AppDatabase` v26: `SupervisorDepartmentEntity`, `N8NSettingsEntity`, `N8NOutboxEntity`, `N8NSyncLogEntity`, `WhatsAppOutboxEntity`.
+- Los modelos obsoletos de entrega externa que estaban fuera de `AppDatabase` fueron eliminados; `SupervisorDepartmentEntity` permanece como modelo funcional.
 - `Employee.pin`, `AppUserEntity.password`, `SupervisorEntity.password` y `EmployeeBiometricEntity.templateBase64` son riesgos locales; no deben llegar a Supabase.
 - La web tiene páginas operativas y botones con acción, pero servicios/datos/autenticación son simulados.
 - `0001` está reportada como ejecutada; `0002` está corregida pero no probada ni ejecutada.
