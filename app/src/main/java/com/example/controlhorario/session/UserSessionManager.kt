@@ -2,6 +2,7 @@ package com.example.controlhorario.session
 
 import android.content.Context
 import com.example.controlhorario.database.AppUserEntity
+import com.example.controlhorario.auth.AuthSessionStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -22,6 +23,7 @@ object UserSessionManager {
     private const val KEY_CREATED_AT = "created_at"
     private const val KEY_UPDATED_AT = "updated_at"
     private const val KEY_LAST_LOGIN_AT = "last_login_at"
+    private const val KEY_REMOTE_SESSION = "remote_session"
 
     private var appContext: Context? = null
 
@@ -38,11 +40,17 @@ object UserSessionManager {
 
     fun login(user: AppUserEntity) {
         _currentUser.value = user
-        saveSession(user)
+        saveSession(user, remote = false)
+    }
+
+    fun loginRemote(user: AppUserEntity) {
+        _currentUser.value = user
+        saveSession(user, remote = true)
     }
 
     fun logout() {
         _currentUser.value = null
+        AuthSessionStore.clear()
         appContext
             ?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             ?.edit()
@@ -74,7 +82,7 @@ object UserSessionManager {
         return _currentUser.value?.id ?: 0
     }
 
-    private fun saveSession(user: AppUserEntity) {
+    private fun saveSession(user: AppUserEntity, remote: Boolean) {
         appContext
             ?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             ?.edit()
@@ -92,11 +100,16 @@ object UserSessionManager {
             ?.putString(KEY_CREATED_AT, user.createdAt)
             ?.putString(KEY_UPDATED_AT, user.updatedAt)
             ?.putString(KEY_LAST_LOGIN_AT, user.lastLoginAt)
+            ?.putBoolean(KEY_REMOTE_SESSION, remote)
             ?.apply()
     }
 
     private fun restoreSession() {
         val prefs = appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return
+        if (prefs.getBoolean(KEY_REMOTE_SESSION, false)) {
+            prefs.edit().clear().apply()
+            return
+        }
         val userId = prefs.getInt(KEY_USER_ID, 0)
         if (userId == 0 || !prefs.getBoolean(KEY_IS_ACTIVE, true)) return
         _currentUser.value = AppUserEntity(

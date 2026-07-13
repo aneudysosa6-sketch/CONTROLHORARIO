@@ -2,18 +2,20 @@ package com.example.controlhorario.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
+import com.example.controlhorario.auth.AuthFlowException
+import com.example.controlhorario.auth.AuthRepository
+import com.example.controlhorario.auth.AuthSessionStore
 import com.example.controlhorario.database.AppUserEntity
-import com.example.controlhorario.database.UserRole
 import com.example.controlhorario.repository.AppUserRepository
-import com.example.controlhorario.repository.AppUserRepository.LoginIdentifier
-import com.example.controlhorario.repository.AppUserRepository.LoginResult
 import com.example.controlhorario.session.UserSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class AppUserViewModel(
-    private val repository: AppUserRepository
+    private val repository: AppUserRepository,
+    private val authRepository: AuthRepository? = null,
 ) : ViewModel() {
 
     private val _currentUser = MutableStateFlow<AppUserEntity?>(null)
@@ -22,56 +24,36 @@ class AppUserViewModel(
 
     private val _loginError = MutableStateFlow("")
     val loginError: StateFlow<String> = _loginError
-
-    fun createDefaultAdminIfNeeded() {
-        viewModelScope.launch {
-            val existingUser = repository.getUserByUsername("admin")
-
-            if (existingUser == null) {
-                repository.saveUser(
-                    AppUserEntity(
-                        fullName = "Administrador OSINET",
-                        username = "admin",
-                        password = "Rr19760707..--@",
-                        role = UserRole.ADMINISTRADOR.name,
-                        permissionsCsv = PermissionCatalog.all.joinToString(","),
-                        createdAt = System.currentTimeMillis().toString()
-                    )
-                )
-            }
-        }
-    }
+    private val _loginLoading = MutableStateFlow(false)
+    val loginLoading: StateFlow<Boolean> = _loginLoading
 
     fun login(
         username: String,
         password: String
     ) {
+        if (_loginLoading.value) return
         viewModelScope.launch {
-            val result = repository.authenticate(username, password)
-            val user = when (result) {
-                is LoginResult.Success -> result.user
-                is LoginResult.IdentifierNotFound -> {
-                    _loginError.value = if (result.kind == LoginIdentifier.Kind.EMAIL) {
-                        "No existe una cuenta vinculada a ese correo."
-                    } else {
-                        "El nombre de usuario no existe."
-                    }
-                    return@launch
-                }
-                LoginResult.IncorrectPassword -> {
-                    _loginError.value = "La contraseña es incorrecta."
-                    return@launch
-                }
-            }
-
-            repository.updateLastLogin(
-                user.id,
-                System.currentTimeMillis().toString()
-            )
-
-            UserSessionManager.login(user)
-            _currentUser.value = user
+            _loginLoading.value = true
             _loginError.value = ""
+            try {
+                val auth = authRepository ?: throw AuthFlowException("configuration", code = "AUTH_NOT_CONFIGURED", message = "Supabase Auth no está configurado en Android.")
+                val result = auth.login(username, password)
+                AuthSessionStore.start(result.principal)
+                UserSessionManager.loginRemote(result.user)
+                _currentUser.value = result.user
+                val destination = if (result.principal.roleCode == "supervisor") {
+                    if ("supervisor.dashboard" in result.principal.permissionCodes) "dashboard_supervisor_rc3" else "dashboard_supervisor_fallback"
+                } else "dashboard_administrador"
+                Log.i(TAG, "sesion_nueva=true; destino_navegacion=$destination")
+            } catch (error: AuthFlowException) {
+                _loginError.value = error.visibleMessage()
+                Log.e(TAG, "login=error; etapa=${error.stage}; codigo=${error.code}; error=${error.message}; details=${error.details}; hint=${error.hint}")
+            } catch (error: Exception) {
+                _loginError.value = error.message ?: "Error de autenticación no identificado."
+                Log.e(TAG, "login=excepcion; error=${error.message}", error)
+            } finally {
+                _loginLoading.value = false
+            }
         }
     }
 
@@ -89,4 +71,6 @@ class AppUserViewModel(
     fun clearError() {
         _loginError.value = ""
     }
+
+    companion object { private const val TAG = "AndroidAuth" }
 }

@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.controlhorario.database.DatabaseProvider
+import com.example.controlhorario.auth.AuthRepository
+import com.example.controlhorario.auth.RoomUsernameResolver
+import com.example.controlhorario.auth.SupabaseAuthApi
 import com.example.controlhorario.repository.AppUserRepository
 import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.ui.components.OSINETButton
@@ -35,20 +38,17 @@ fun LoginScreen(
 
     val appUserViewModel: AppUserViewModel = viewModel(
         factory = AppUserViewModelFactory(
-            AppUserRepository(database.appUserDao())
+            AppUserRepository(database.appUserDao()),
+            AuthRepository(RoomUsernameResolver(database.appUserDao()), SupabaseAuthApi())
         )
     )
 
     val currentUser by UserSessionManager.currentUser.collectAsState()
     val loginError by appUserViewModel.loginError.collectAsState()
+    val loginLoading by appUserViewModel.loginLoading.collectAsState()
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var submitting by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        appUserViewModel.createDefaultAdminIfNeeded()
-    }
 
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
@@ -60,15 +60,11 @@ fun LoginScreen(
         }
     }
 
-    LaunchedEffect(loginError) {
-        if (loginError.isNotBlank()) submitting = false
-    }
-
     PremiumLoginContent(
         username = username,
         password = password,
         error = loginError,
-        loading = submitting,
+        loading = loginLoading,
         onUsernameChange = {
             username = it
             appUserViewModel.clearError()
@@ -78,7 +74,6 @@ fun LoginScreen(
             appUserViewModel.clearError()
         },
         onLogin = {
-            submitting = true
             appUserViewModel.login(username = username, password = password)
         }
     )

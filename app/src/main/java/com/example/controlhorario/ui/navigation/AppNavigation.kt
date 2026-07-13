@@ -40,6 +40,14 @@ import com.example.controlhorario.device.DeviceSyncScheduler
 import com.example.controlhorario.device.EmployeeSyncDashboardScreen
 import com.example.controlhorario.device.EmployeeSyncDashboardViewModel
 import com.example.controlhorario.device.EmployeeSyncDashboardViewModelFactory
+import com.example.controlhorario.auth.AuthSessionStore
+import com.example.controlhorario.dashboard.AndroidDashboardPanel
+import com.example.controlhorario.dashboard.AndroidDashboardViewModel
+import com.example.controlhorario.dashboard.AndroidDashboardViewModelFactory
+import com.example.controlhorario.dashboard.AuthenticatedSupervisorDashboard
+import com.example.controlhorario.dashboard.DashboardDestination
+import com.example.controlhorario.dashboard.DashboardRoutePolicy
+import com.example.controlhorario.dashboard.DashboardState
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.EmployeePermissionRequestEntity
@@ -331,7 +339,35 @@ fun AppNavigation(
         }
 
         composable("home") {
+            val principal by AuthSessionStore.principal.collectAsState()
+            if (principal == null) {
+                ModuleScreen("Sesión requerida", "La sesión Supabase no está disponible. Inicia sesión nuevamente.") {
+                    UserSessionManager.logout()
+                    navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
+                }
+                return@composable
+            }
+            val authenticated = principal!!
+            val dashboardVm: AndroidDashboardViewModel = viewModel(
+                key = "dashboard-${authenticated.authUid}",
+                factory = AndroidDashboardViewModelFactory(authenticated)
+            )
+            val dashboardState by dashboardVm.state.collectAsState()
+            val destination = DashboardRoutePolicy.destination(authenticated.roleCode, authenticated.permissionCodes, loading = false)
+            val logout = {
+                UserSessionManager.logout()
+                navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
+            }
+            if (destination == DashboardDestination.SUPERVISOR_RC3 || destination == DashboardDestination.SUPERVISOR_FALLBACK) {
+                AuthenticatedSupervisorDashboard(authenticated, dashboardState, logout)
+                return@composable
+            }
+            if (destination == DashboardDestination.ERROR) {
+                ModuleScreen("Dashboard no disponible", "Rol '${authenticated.roleCode}' sin destino Android válido.", logout)
+                return@composable
+            }
             AdminHomeScreen(
+                dashboardState = dashboardState,
                 onEmployees = { navController.navigate(Route.EMPLOYEES_MENU) },
                 onAttendance = { navController.navigate(Route.ATTENDANCE) },
                 onGeneralPayroll = { navController.navigate(Route.GENERAL_PAYROLL) },
@@ -351,12 +387,7 @@ fun AppNavigation(
                     UserSessionManager.logout()
                     navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
                 },
-                onLogout = {
-                    UserSessionManager.logout()
-                    navController.navigate(Route.ADMIN_LOGIN) {
-                        popUpTo(0)
-                    }
-                }
+                onLogout = logout
             )
         }
 
@@ -1133,6 +1164,7 @@ private fun EmployeeKioskScreen(
 
 @Composable
 private fun AdminHomeScreen(
+    dashboardState: DashboardState,
     onEmployees: () -> Unit,
     onAttendance: () -> Unit,
     onGeneralPayroll: () -> Unit,
@@ -1158,6 +1190,8 @@ private fun AdminHomeScreen(
 
     OSINETScreen {
         OSINETLogo(subtitle = "Panel Administrador · Menú por permisos")
+        Spacer(Modifier.height(16.dp))
+        AndroidDashboardPanel(dashboardState)
         Spacer(Modifier.height(24.dp))
         if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Empleados", "Gestión de perfiles, huellas y datos laborales", onClick = onEmployees); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Asistencia", "Registros y control diario", onClick = onAttendance); Spacer(Modifier.height(10.dp)) }

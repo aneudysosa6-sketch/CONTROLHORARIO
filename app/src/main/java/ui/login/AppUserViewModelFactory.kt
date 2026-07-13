@@ -3,9 +3,11 @@ package com.example.controlhorario.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.controlhorario.repository.AppUserRepository
+import com.example.controlhorario.auth.AuthRepository
 
 class AppUserViewModelFactory(
-    private val repository: AppUserRepository
+    private val repository: AppUserRepository,
+    private val authRepository: AuthRepository? = null,
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -14,7 +16,7 @@ class AppUserViewModelFactory(
     ): T {
 
         if (modelClass.isAssignableFrom(AppUserViewModel::class.java)) {
-            return AppUserViewModel(repository) as T
+            return AppUserViewModel(repository, authRepository) as T
         }
 
         throw IllegalArgumentException(

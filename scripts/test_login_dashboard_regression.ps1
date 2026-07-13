@@ -1,27 +1,36 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$repository = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/repository/AppUserRepository.kt')
+$auth = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/auth/AuthRepository.kt')
+$api = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/auth/SupabaseAuthApi.kt')
+$login = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/ui/login/LoginScreen.kt')
 $viewModel = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/ui/login/AppUserViewModel.kt')
-$loginTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/repository/AppUserRepositoryTest.kt')
-$app = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/App.tsx')
-$adminDashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/Rc2DashboardPage.tsx')
-$supervisorDashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/SupervisorPages.tsx')
-$diagnostics = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/dashboard/dashboardDiagnostics.ts')
+$navigation = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt')
+$dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/dashboard/AndroidDashboard.kt')
+$authTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/auth/AuthRepositoryTest.kt')
+$dashboardTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/dashboard/DashboardRoutePolicyTest.kt')
+
 $checks = [ordered]@{
-  'correo y username toman rutas distintas' = $repository -match "'@' in trimmed" -and $repository -match 'trimmed\.lowercase\(\)'
-  'correo se resuelve separado del username' = (Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/database/AppUserDao.kt')) -match 'username = :identifier[\s\S]*email = :identifier'
-  'password no se normaliza' = $repository -match 'user\.password == password' -and $repository -notmatch 'authenticate[\s\S]{0,500}password\.trim'
-  'errores de login reales' = $viewModel -match 'cuenta vinculada a ese correo' -and $viewModel -match 'nombre de usuario no existe' -and $viewModel -match 'contrase.a es incorrecta'
-  'cinco escenarios de login' = ([regex]::Matches($loginTests, '@Test').Count -eq 5)
-  'fallback dashboard antes de migracion RC3' = $app -match "roleCode==='supervisor'&&hasPermission\('supervisor.dashboard'\)"
-  'dashboard muestra PostgREST real' = $diagnostics -match 'code' -and $diagnostics -match 'details' -and $diagnostics -match 'hint'
-  'diagnostico incluye tenant y permisos' = $diagnostics -match 'role_id' -and $diagnostics -match 'company_id' -and $diagnostics -match 'permisos_cargados'
-  'diagnostico no imprime secretos' = $diagnostics -notmatch 'token|password|credential|authorization'
-  'admin registra consulta fallida' = $adminDashboard -match 'logDashboardFailure'
-  'supervisor registra RPC fallida' = $supervisorDashboard -match "logDashboardFailure\('rpc dashboard_supervisor'"
-  'errores no se muestran como ceros' = $adminDashboard -match '!error && <section className="stats"' -and $supervisorDashboard -match 'if\(error\)return <div className="error"'
+  'correo no consulta Room antes de Auth' = $authTests -match 'errorIfResolve = true' -and $authTests -match 'resolveCalls\)'
+  'correo usa signInWithPassword' = $api -match 'signInWithPassword' -and $api -match '/auth/v1/token\?grant_type=password'
+  'username resuelve correo antes de Auth' = $auth -match 'usernameResolver\.resolveEmail' -and $auth -match 'gateway\.signInWithPassword'
+  'correo aplica trim y minusculas' = $auth -match 'rawIdentifier\.trim\(\)' -and $auth -match 'identifier\.lowercase\(\)'
+  'password no se normaliza' = $auth -match 'signInWithPassword\(email, password\)' -and $auth -notmatch 'password\.trim'
+  'carga auth uid profile rol permisos' = $api -match 'session\.authUid' -and $api -match 'table = "profiles"' -and $api -match 'table = "roles"' -and $api -match 'rol_permisos' -and $api -match 'perfil_permisos'
+  'sesion inicia despues de autorizacion' = $viewModel.IndexOf('auth.login') -lt $viewModel.IndexOf('AuthSessionStore.start')
+  'diagnostico Auth sin secretos' = $auth -match 'supabase_auth_llamado=true' -and $auth -match 'auth_uid=' -and $auth -match 'permisos_efectivos=' -and $auth -notmatch 'Log\.[^(]+\([^\r\n]*(password|accessToken)'
+  'navegacion admin supervisor y fallback' = $navigation -match 'SUPERVISOR_RC3' -and $navigation -match 'SUPERVISOR_FALLBACK' -and $navigation -match 'AdminHomeScreen'
+  'loading no redirige' = $dashboard -match 'if \(loading\) return DashboardDestination\.LOADING'
+  'fallback RC3 seguro' = $dashboard -match 'shouldFallbackFromRc3' -and $dashboard -match 'legacyDashboard'
+  'errores PostgREST visibles' = $dashboard -match 'error\.visibleMessage\(\)' -and $dashboard -match 'details=' -and $dashboard -match 'hint='
+  'metricas no se inventan en error' = $dashboard -match 'DashboardState\.Error -> OSINETCard' -and $dashboard -notmatch 'DashboardState\.Error[\s\S]{0,200}notStarted = 0'
+  'pruebas obligatorias login' = ([regex]::Matches($authTests, '@Test').Count -ge 7)
+  'pruebas obligatorias Dashboard' = ([regex]::Matches($dashboardTests, '@Test').Count -ge 5)
+  'login local previo eliminado' = $viewModel -notmatch 'repository\.authenticate' -and $login -notmatch 'createDefaultAdminIfNeeded'
 }
+
 $failed = $false
-foreach ($item in $checks.GetEnumerator()) { if ($item.Value) { Write-Host "OK: $($item.Key)" } else { Write-Host "FALLO: $($item.Key)"; $failed = $true } }
-if ($failed) { throw 'Fallaron contratos de regresión de login/dashboard.' }
-Write-Host 'Regresiones de login y Dashboard verificadas.'
+foreach ($item in $checks.GetEnumerator()) {
+  if ($item.Value) { Write-Host "OK: $($item.Key)" } else { Write-Host "FALLO: $($item.Key)"; $failed = $true }
+}
+if ($failed) { throw 'Fallaron contratos Android de login Supabase/Dashboard.' }
+Write-Host 'Login Supabase y Dashboard Android verificados contractualmente.'

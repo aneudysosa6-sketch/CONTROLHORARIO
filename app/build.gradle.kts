@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.isFile) file.inputStream().use { load(it) }
+}
+
+fun configuredValue(name: String) = providers.environmentVariable(name)
+    .orElse(providers.gradleProperty(name))
+    .orElse(providers.provider { localProperties.getProperty(name, "") })
+    .get()
+    .trim()
 
 val deviceEnrollmentUrl = providers.environmentVariable("CONTROLHORARIO_DEVICE_ENROLLMENT_URL")
     .orElse(providers.gradleProperty("CONTROLHORARIO_DEVICE_ENROLLMENT_URL"))
@@ -15,6 +28,8 @@ val employeeSyncUrl = providers.environmentVariable("CONTROLHORARIO_EMPLOYEE_SYN
 val attendanceSyncUrl = providers.environmentVariable("CONTROLHORARIO_ATTENDANCE_SYNC_URL")
     .orElse(providers.gradleProperty("CONTROLHORARIO_ATTENDANCE_SYNC_URL"))
     .get().trim()
+val supabasePublishableKey = configuredValue("CONTROLHORARIO_SUPABASE_PUBLISHABLE_KEY")
+val supabaseUrl = employeeSyncUrl.substringBefore("/functions/v1/")
 
 require(deviceEnrollmentUrl.startsWith("https://")) {
     "CONTROLHORARIO_DEVICE_ENROLLMENT_URL debe usar HTTPS"
@@ -27,6 +42,9 @@ require(employeeSyncUrl.startsWith("https://") && employeeSyncUrl.endsWith("/fun
 }
 require(attendanceSyncUrl.startsWith("https://") && attendanceSyncUrl.endsWith("/functions/v1/attendance-sync")) {
     "CONTROLHORARIO_ATTENDANCE_SYNC_URL debe apuntar por HTTPS a attendance-sync"
+}
+require(supabasePublishableKey.startsWith("sb_publishable_") || supabasePublishableKey.startsWith("eyJ")) {
+    "CONTROLHORARIO_SUPABASE_PUBLISHABLE_KEY debe contener una clave publicable de Supabase"
 }
 
 android {
@@ -49,6 +67,8 @@ android {
         resValue("string", "device_enrollment_url", deviceEnrollmentUrl)
         resValue("string", "employee_sync_url", employeeSyncUrl)
         resValue("string", "attendance_sync_url", attendanceSyncUrl)
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabasePublishableKey\"")
     }
 
     buildTypes {
@@ -67,6 +87,7 @@ android {
     buildFeatures {
         compose = true
         resValues = true
+        buildConfig = true
     }
 }
 
