@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -34,7 +35,9 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneId
 
 data class DashboardMetrics(
     val workDate: String,
@@ -47,6 +50,40 @@ data class DashboardMetrics(
     val pending: Int,
     val incidents: Int? = null,
 )
+
+data class DashboardEmployeeRow(val id: String, val active: Boolean, val journeyEnabled: Boolean)
+data class DashboardJourneyRow(val employeeId: String, val status: String, val pendingReview: Boolean)
+
+object DashboardMetricsCalculator {
+    fun calculate(
+        workDate: String,
+        employees: List<DashboardEmployeeRow>,
+        journeys: List<DashboardJourneyRow>,
+        unreadOpenIncidents: Int,
+    ): DashboardMetrics {
+        val eligibleEmployeeIds = employees.asSequence()
+            .filter { it.active && it.journeyEnabled }
+            .map { it.id }
+            .toSet()
+        val employeesWithJourney = journeys.mapTo(mutableSetOf()) { it.employeeId }
+        return DashboardMetrics(
+            workDate = workDate,
+            totalEmployees = employees.size,
+            activeEmployees = employees.count { it.active },
+            notStarted = eligibleEmployeeIds.count { it !in employeesWithJourney },
+            inProgress = journeys.count { it.status == "EN_CURSO" },
+            paused = journeys.count { it.status == "EN_PAUSA" },
+            finished = journeys.count { it.status == "FINALIZADA" },
+            pending = journeys.count { it.pendingReview },
+            incidents = unreadOpenIncidents,
+        )
+    }
+}
+
+object CompanyWorkDate {
+    fun resolve(timezone: String, clock: Clock): String =
+        LocalDate.now(clock.withZone(ZoneId.of(timezone))).toString()
+}
 
 sealed interface DashboardState {
     data object Loading : DashboardState
@@ -71,12 +108,13 @@ object DashboardRoutePolicy {
 
 interface DashboardGateway {
     suspend fun supervisorDashboard(token: String): DashboardMetrics
-    suspend fun legacyDashboard(token: String, workDate: String): DashboardMetrics
+    suspend fun scopedDashboard(token: String, companyId: String): DashboardMetrics
 }
 
 class SupabaseDashboardGateway(
     private val baseUrl: String = BuildConfig.SUPABASE_URL,
     private val publishableKey: String = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
+    private val clock: Clock = Clock.systemUTC(),
 ) : DashboardGateway {
     private val config = com.example.controlhorario.auth.SupabaseRuntimeConfig.validate(baseUrl, publishableKey)
 
@@ -95,20 +133,61 @@ class SupabaseDashboardGateway(
         )
     }
 
-    override suspend fun legacyDashboard(token: String, workDate: String): DashboardMetrics = withContext(Dispatchers.IO) {
-        val select = URLEncoder.encode("id,estado,revision_pendiente,severidad,actualizada_en,fecha_laboral", Charsets.UTF_8.name())
+    override suspend fun scopedDashboard(token: String, companyId: String): DashboardMetrics = withContext(Dispatchers.IO) {
+        val encodedCompany = encode("eq.$companyId")
+        val companyRows = JSONArray(request(
+            "GET",
+            "/rest/v1/companies?select=timezone&id=$encodedCompany&limit=1",
+            token,
+            stage = "company timezone",
+        ))
+        val timezone = companyRows.optJSONObject(0)?.optString("timezone")?.takeIf(String::isNotBlank)
+            ?: throw AuthFlowException("company timezone", "COMPANY_TIMEZONE_NOT_FOUND", "No fue posible obtener la zona horaria de la empresa.")
+        val workDate = try {
+            CompanyWorkDate.resolve(timezone, clock)
+        } catch (error: Exception) {
+            throw AuthFlowException("company timezone", "INVALID_COMPANY_TIMEZONE", "La empresa tiene una zona horaria inválida.", details = timezone, cause = error)
+        }
+
+        val employeeRows = JSONArray(request(
+            "GET",
+            "/rest/v1/empleados?select=id,activo,jornada_habilitada&empresa_id=$encodedCompany",
+            token,
+            stage = "empleados visibles",
+        ))
+        val select = encode("empleado_id,estado,revision_pendiente")
         val date = URLEncoder.encode("eq.$workDate", Charsets.UTF_8.name())
-        val rows = JSONArray(request("GET", "/rest/v1/jornadas?select=$select&fecha_laboral=$date", token, stage = "jornadas RC2"))
-        val states = buildList { repeat(rows.length()) { add(rows.getJSONObject(it)) } }
-        DashboardMetrics(
+        val journeyRows = JSONArray(request(
+            "GET",
+            "/rest/v1/jornadas?select=$select&empresa_id=$encodedCompany&fecha_laboral=$date",
+            token,
+            stage = "jornadas dashboard",
+        ))
+        val incidentRows = JSONArray(request(
+            "GET",
+            "/rest/v1/jornada_incidencias?select=id&empresa_id=$encodedCompany&resuelta=eq.false&leida=eq.false",
+            token,
+            stage = "incidencias dashboard",
+        ))
+        DashboardMetricsCalculator.calculate(
             workDate = workDate,
-            notStarted = states.count { it.optString("estado") == "SIN_INICIAR" },
-            inProgress = states.count { it.optString("estado") == "EN_CURSO" },
-            paused = states.count { it.optString("estado") == "EN_PAUSA" },
-            finished = states.count { it.optString("estado") == "FINALIZADA" },
-            pending = states.count { it.optBoolean("revision_pendiente") },
+            employees = buildList {
+                repeat(employeeRows.length()) {
+                    val row = employeeRows.getJSONObject(it)
+                    add(DashboardEmployeeRow(row.getString("id"), row.optBoolean("activo"), row.optBoolean("jornada_habilitada", true)))
+                }
+            },
+            journeys = buildList {
+                repeat(journeyRows.length()) {
+                    val row = journeyRows.getJSONObject(it)
+                    add(DashboardJourneyRow(row.getString("empleado_id"), row.optString("estado"), row.optBoolean("revision_pendiente")))
+                }
+            },
+            unreadOpenIncidents = incidentRows.length(),
         )
     }
+
+    private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name())
 
     private fun request(method: String, path: String, token: String, body: String? = null, stage: String): String {
         var connection: HttpURLConnection? = null
@@ -154,14 +233,17 @@ class AndroidDashboardViewModel(
                         DashboardState.Ready(gateway.supervisorDashboard(principal.accessToken), "RC3")
                     } catch (error: AuthFlowException) {
                         if (DashboardRoutePolicy.shouldFallbackFromRc3(error.code)) {
-                            Log.w(TAG, "rpc_rc3_no_disponible=true; fallback=RC2; codigo=${error.code}; error=${error.message}")
+                            Log.w(TAG, "rpc_rc3_no_disponible=true; fallback=consultas_rls; codigo=${error.code}; error=${error.message}")
                             if (principal.permissionCodes.none { it == "jornadas.ver_todas" || it == "jornadas.ver_asignadas" }) throw AuthFlowException("dashboard_permissions", "JOURNEYS_PERMISSION_MISSING", "La sesión no tiene permiso para consultar jornadas; no se mostrarán métricas en cero.")
-                            DashboardState.Ready(gateway.legacyDashboard(principal.accessToken, LocalDate.now().toString()), "RC2 fallback")
+                            DashboardState.Ready(gateway.scopedDashboard(principal.accessToken, principal.companyId), "Supervisor")
                         } else throw error
                     }
                     DashboardDestination.SUPERVISOR_FALLBACK, DashboardDestination.ADMIN -> {
                         if (principal.permissionCodes.none { it == "jornadas.ver_todas" || it == "jornadas.ver_asignadas" }) throw AuthFlowException("dashboard_permissions", "JOURNEYS_PERMISSION_MISSING", "La sesión no tiene permiso para consultar jornadas; no se mostrarán métricas en cero.")
-                        DashboardState.Ready(gateway.legacyDashboard(principal.accessToken, LocalDate.now().toString()), if (destination == DashboardDestination.ADMIN) "RC2 admin" else "RC2 fallback")
+                        DashboardState.Ready(
+                            gateway.scopedDashboard(principal.accessToken, principal.companyId),
+                            if (destination == DashboardDestination.ADMIN) "Administrador" else "Supervisor",
+                        )
                     }
                     DashboardDestination.ERROR -> throw AuthFlowException("dashboard_route", "INVALID_ROLE", "El rol no tiene un Dashboard Android válido.")
                     DashboardDestination.LOADING -> return@launch
@@ -191,18 +273,35 @@ fun AndroidDashboardPanel(state: DashboardState) {
         is DashboardState.Error -> OSINETCard { Text(state.message, color = OSINETColors.Danger) }
         is DashboardState.Ready -> {
             OSINETCard {
-                Text("Dashboard ${state.source}", color = OSINETColors.GreenSoft)
-                Text("Fecha laboral: ${state.metrics.workDate}", color = OSINETColors.TextSecondary)
-                state.metrics.totalEmployees?.let { Text("Empleados visibles: $it", color = OSINETColors.TextPrimary) }
-                state.metrics.activeEmployees?.let { Text("Activos: $it", color = OSINETColors.TextPrimary) }
-                Text("Sin iniciar: ${state.metrics.notStarted}", color = OSINETColors.TextPrimary)
-                Text("En curso: ${state.metrics.inProgress}", color = OSINETColors.TextPrimary)
-                Text("En pausa: ${state.metrics.paused}", color = OSINETColors.TextPrimary)
-                Text("Finalizadas: ${state.metrics.finished}", color = OSINETColors.TextPrimary)
-                Text("Pendientes: ${state.metrics.pending}", color = OSINETColors.TextPrimary)
-                state.metrics.incidents?.let { Text("Incidencias: $it", color = OSINETColors.TextPrimary) }
+                Text("Dashboard ${state.source}", color = OSINETColors.GreenSoft, fontWeight = FontWeight.SemiBold)
+                Text("Fecha laboral de la empresa · ${state.metrics.workDate}", color = OSINETColors.TextSecondary)
+                state.metrics.totalEmployees?.let {
+                    Text("$it empleados visibles · ${state.metrics.activeEmployees ?: 0} activos", color = OSINETColors.TextPrimary)
+                }
             }
+            Spacer(Modifier.height(12.dp))
+            DashboardMetricRow("Sin iniciar", state.metrics.notStarted, "En curso", state.metrics.inProgress)
+            Spacer(Modifier.height(10.dp))
+            DashboardMetricRow("En pausa", state.metrics.paused, "Finalizadas", state.metrics.finished)
+            Spacer(Modifier.height(10.dp))
+            DashboardMetricRow("Pendientes", state.metrics.pending, "Incidencias", state.metrics.incidents ?: 0, dangerSecond = (state.metrics.incidents ?: 0) > 0)
         }
+    }
+}
+
+@Composable
+private fun DashboardMetricRow(firstLabel: String, firstValue: Int, secondLabel: String, secondValue: Int, dangerSecond: Boolean = false) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        DashboardMetricCard(firstLabel, firstValue, OSINETColors.GreenSoft, Modifier.weight(1f))
+        DashboardMetricCard(secondLabel, secondValue, if (dangerSecond) OSINETColors.Danger else OSINETColors.Info, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun DashboardMetricCard(label: String, value: Int, accent: Color, modifier: Modifier) {
+    OSINETCard(modifier) {
+        Text(value.toString(), color = accent, fontWeight = FontWeight.Bold)
+        Text(label, color = OSINETColors.TextSecondary)
     }
 }
 

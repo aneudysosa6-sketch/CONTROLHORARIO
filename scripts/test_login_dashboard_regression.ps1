@@ -8,6 +8,7 @@ $navigation = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/jav
 $dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/dashboard/AndroidDashboard.kt')
 $authTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/auth/AuthRepositoryTest.kt')
 $dashboardTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/dashboard/DashboardRoutePolicyTest.kt')
+$dashboardMetricsTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/dashboard/DashboardMetricsCalculatorTest.kt')
 $network = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/auth/NetworkDiagnostics.kt')
 $networkTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/auth/NetworkDiagnosticsTest.kt')
 $manifest = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/AndroidManifest.xml')
@@ -24,11 +25,14 @@ $checks = [ordered]@{
   'diagnostico Auth sin secretos' = $auth -match 'supabase_auth_llamado=true' -and $auth -match 'auth_uid=' -and $auth -match 'permisos_efectivos=' -and $auth -notmatch 'Log\.[^(]+\([^\r\n]*(password|accessToken)'
   'navegacion admin supervisor y fallback' = $navigation -match 'SUPERVISOR_RC3' -and $navigation -match 'SUPERVISOR_FALLBACK' -and $navigation -match 'AdminHomeScreen'
   'loading no redirige' = $dashboard -match 'if \(loading\) return DashboardDestination\.LOADING'
-  'fallback RC3 seguro' = $dashboard -match 'shouldFallbackFromRc3' -and $dashboard -match 'legacyDashboard'
+  'fallback RC3 seguro' = $dashboard -match 'shouldFallbackFromRc3' -and $dashboard -match 'scopedDashboard'
+  'Dashboard admin usa empleados jornadas e incidencias reales' = $dashboard -match '/rest/v1/empleados' -and $dashboard -match '/rest/v1/jornadas' -and $dashboard -match '/rest/v1/jornada_incidencias'
+  'fecha laboral usa timezone empresarial' = $dashboard -match '/rest/v1/companies\?select=timezone' -and $dashboard -match 'CompanyWorkDate\.resolve'
+  'sin iniciar deriva de empleados sin jornada' = $dashboard -match 'eligibleEmployeeIds\.count' -and $dashboardMetricsTests -match 'sin iniciar incluye activo habilitado sin fila de jornada'
   'errores PostgREST visibles' = $dashboard -match 'error\.visibleMessage\(\)' -and $dashboard -match 'details=' -and $dashboard -match 'hint='
   'metricas no se inventan en error' = $dashboard -match 'DashboardState\.Error -> OSINETCard' -and $dashboard -notmatch 'DashboardState\.Error[\s\S]{0,200}notStarted = 0'
   'pruebas obligatorias login' = ([regex]::Matches($authTests, '@Test').Count -ge 7)
-  'pruebas obligatorias Dashboard' = ([regex]::Matches($dashboardTests, '@Test').Count -ge 5)
+  'pruebas obligatorias Dashboard' = ([regex]::Matches($dashboardTests, '@Test').Count -ge 5) -and ([regex]::Matches($dashboardMetricsTests, '@Test').Count -ge 4)
   'login local previo eliminado' = $viewModel -notmatch 'repository\.authenticate' -and $login -notmatch 'createDefaultAdminIfNeeded'
   'red fuera del hilo principal' = $api -match 'withContext\(Dispatchers\.IO\)' -and $dashboard -match 'withContext\(Dispatchers\.IO\)'
   'diagnostico separa DNS TLS timeout y rechazo' = $network -match 'DNS_ERROR' -and $network -match 'TLS_ERROR' -and $network -match 'TIMEOUT' -and $network -match 'CONNECTION_REFUSED'
