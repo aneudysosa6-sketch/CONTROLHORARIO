@@ -348,17 +348,17 @@ fun AppNavigation(
                 return@composable
             }
             val authenticated = principal!!
-            val dashboardVm: AndroidDashboardViewModel = viewModel(
-                key = "dashboard-${authenticated.authUid}",
-                factory = AndroidDashboardViewModelFactory(authenticated)
-            )
-            val dashboardState by dashboardVm.state.collectAsState()
             val destination = DashboardRoutePolicy.destination(authenticated.roleCode, authenticated.permissionCodes, loading = false)
             val logout = {
                 UserSessionManager.logout()
                 navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
             }
             if (destination == DashboardDestination.SUPERVISOR_RC3 || destination == DashboardDestination.SUPERVISOR_FALLBACK) {
+                val dashboardVm: AndroidDashboardViewModel = viewModel(
+                    key = "dashboard-${authenticated.authUid}",
+                    factory = AndroidDashboardViewModelFactory(authenticated)
+                )
+                val dashboardState by dashboardVm.state.collectAsState()
                 AuthenticatedSupervisorDashboard(authenticated, dashboardState, logout)
                 return@composable
             }
@@ -367,7 +367,7 @@ fun AppNavigation(
                 return@composable
             }
             AdminHomeScreen(
-                dashboardState = dashboardState,
+                onDashboard = { navController.navigate(Route.ADMIN_DASHBOARD) },
                 onEmployees = { navController.navigate(Route.EMPLOYEES_MENU) },
                 onAttendance = { navController.navigate(Route.ATTENDANCE) },
                 onGeneralPayroll = { navController.navigate(Route.GENERAL_PAYROLL) },
@@ -389,6 +389,27 @@ fun AppNavigation(
                 },
                 onLogout = logout
             )
+        }
+
+        composable(Route.ADMIN_DASHBOARD) {
+            val principal by AuthSessionStore.principal.collectAsState()
+            val authenticated = principal
+            if (authenticated == null || authenticated.roleCode != "admin") {
+                ModuleScreen("Dashboard no disponible", "Se requiere una sesión administrativa válida.") { navController.popBackStack() }
+                return@composable
+            }
+            val dashboardVm: AndroidDashboardViewModel = viewModel(
+                key = "dashboard-${authenticated.authUid}",
+                factory = AndroidDashboardViewModelFactory(authenticated)
+            )
+            val dashboardState by dashboardVm.state.collectAsState()
+            OSINETScreen {
+                OSINETHeader("Dashboard Administrador", authenticated.fullName)
+                Spacer(Modifier.height(16.dp))
+                AndroidDashboardPanel(dashboardState)
+                Spacer(Modifier.height(18.dp))
+                OSINETSecondaryButton("Volver al panel principal", onClick = { navController.popBackStack() })
+            }
         }
 
         composable(Route.USER_PERMISSIONS_ADMIN) {
@@ -1164,7 +1185,7 @@ private fun EmployeeKioskScreen(
 
 @Composable
 private fun AdminHomeScreen(
-    dashboardState: DashboardState,
+    onDashboard: () -> Unit,
     onEmployees: () -> Unit,
     onAttendance: () -> Unit,
     onGeneralPayroll: () -> Unit,
@@ -1191,8 +1212,7 @@ private fun AdminHomeScreen(
     OSINETScreen {
         OSINETLogo(subtitle = "Panel Administrador · Menú por permisos")
         Spacer(Modifier.height(16.dp))
-        AndroidDashboardPanel(dashboardState)
-        Spacer(Modifier.height(24.dp))
+        if (can(PermissionCatalog.DASHBOARD)) { OSINETActionCard("Dashboard", "Métricas operativas y jornadas recientes", onClick = onDashboard); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Empleados", "Gestión de perfiles, huellas y datos laborales", onClick = onEmployees); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Asistencia", "Registros y control diario", onClick = onAttendance); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.PIN_MODE)) { OSINETActionCard("Activar modo PIN", "Abrir ponchador para empleados", onClick = onPinMode); Spacer(Modifier.height(10.dp)) }
@@ -1657,4 +1677,5 @@ private object Route {
     const val USER_PERMISSIONS_ADMIN = "user_permissions_admin"
     const val EMPLOYEE_PORTAL = "employee_portal"
     const val BRANCH_MANAGER_PANEL = "branch_manager_panel"
+    const val ADMIN_DASHBOARD = "admin_dashboard"
 }

@@ -24,6 +24,8 @@ $checks = [ordered]@{
   'sesion inicia despues de autorizacion' = $viewModel.IndexOf('auth.login') -lt $viewModel.IndexOf('AuthSessionStore.start')
   'diagnostico Auth sin secretos' = $auth -match 'supabase_auth_llamado=true' -and $auth -match 'auth_uid=' -and $auth -match 'permisos_efectivos=' -and $auth -notmatch 'Log\.[^(]+\([^\r\n]*(password|accessToken)'
   'navegacion admin supervisor y fallback' = $navigation -match 'SUPERVISOR_RC3' -and $navigation -match 'SUPERVISOR_FALLBACK' -and $navigation -match 'AdminHomeScreen'
+  'login admin abre panel principal' = $viewModel -match 'panel_principal_administrativo' -and $navigation -match 'AdminHomeScreen\('
+  'Dashboard Android es opcion separada' = $navigation -match 'composable\(Route\.ADMIN_DASHBOARD\)' -and $navigation -match 'OSINETActionCard\("Dashboard"' -and $navigation -match 'onDashboard = \{ navController\.navigate\(Route\.ADMIN_DASHBOARD\) \}'
   'loading no redirige' = $dashboard -match 'if \(loading\) return DashboardDestination\.LOADING'
   'fallback RC3 seguro' = $dashboard -match 'shouldFallbackFromRc3' -and $dashboard -match 'scopedDashboard'
   'Dashboard admin usa empleados jornadas e incidencias reales' = $dashboard -match '/rest/v1/empleados' -and $dashboard -match '/rest/v1/jornadas' -and $dashboard -match '/rest/v1/jornada_incidencias'

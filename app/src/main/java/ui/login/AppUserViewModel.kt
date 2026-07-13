@@ -43,7 +43,7 @@ class AppUserViewModel(
                 _currentUser.value = result.user
                 val destination = if (result.principal.roleCode == "supervisor") {
                     if ("supervisor.dashboard" in result.principal.permissionCodes) "dashboard_supervisor_rc3" else "dashboard_supervisor_fallback"
-                } else "dashboard_administrador"
+                } else "panel_principal_administrativo"
                 Log.i(TAG, "sesion_nueva=true; destino_navegacion=$destination")
             } catch (error: AuthFlowException) {
                 _loginError.value = error.visibleMessage()

@@ -1,16 +1,22 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/DashboardPage.tsx')
+$dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/Rc2DashboardPage.tsx')
 $service = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/dashboard/dashboardService.ts')
+$diagnostics = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/dashboard/dashboardDiagnostics.ts')
+$app = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/App.tsx')
 $checks = [ordered]@{
-  'sin mockData' = $dashboard -notmatch 'mockData|Laura Martínez|Carlos Ramírez|Ana Pérez|Miguel Santos'
-  'actividad consulta Supabase' = $service -match "from\('jornadas'\)" -and $dashboard -match 'dashboardService\.recentActivity'
-  'actividad vacia exacta' = $dashboard -match 'No hay actividad reciente\.'
-  'alertas usan empleados reales' = $dashboard -match 'employeeService\.list' -and $dashboard -match 'employees\.filter'
-  'alertas vacias' = $dashboard -match 'No hay alertas importantes\.'
-  'tabla futura tolerada' = $service -match "error\.code==='PGRST205'"
+  'sin mocks' = $dashboard -notmatch 'mockData' -and $service -notmatch 'mockData'
+  'fuente unificada' = $dashboard -match 'dashboardService\.load' -and $dashboard -match 'DashboardSnapshot' -and $dashboard -notmatch 'journeyService'
+  'consultas sin joins ambiguos' = $service -match "from\('empleados'\)" -and $service -match "from\('jornadas'\)" -and $service -match "from\('jornada_incidencias'\)" -and $service -notmatch '!inner|empleados!|jornada_incidencias\('
+  'fecha laboral empresarial' = $service -match "from\('companies'\)" -and $service -match 'companyWorkDate' -and $service -match 'timeZone: timezone'
+  'sin iniciar usa empleados sin jornada' = $service -match 'employeesWithJourney' -and $service -match 'jornada_habilitada' -and $service -match 'employee\.activo'
+  'metricas y recientes mismo snapshot' = $dashboard -match 'snapshot\.notStarted' -and $dashboard -match 'snapshot\.recent' -and $dashboard -match 'snapshot\.incidents'
+  'errores no muestran ceros' = $dashboard -match 'error &&' -and $dashboard -match 'snapshot && !error'
+  'diagnostico seguro completo' = $diagnostics -match 'query' -and $diagnostics -match 'code' -and $diagnostics -match 'details' -and $diagnostics -match 'hint' -and $diagnostics -match 'company_id' -and $diagnostics -match 'role_id' -and $diagnostics -match 'permisos_cargados' -and $diagnostics -match 'fecha_laboral_usada' -and $diagnostics -notmatch 'token|secret'
+  'admin y supervisor separados' = $app -match "roleCode==='supervisor'\?<SupervisorDashboardPage" -and $app -match '<DashboardPage/>'
+  'permisos efectivos obligatorios' = $service -match 'DASHBOARD_PERMISSION_MISSING' -and $service -match 'jornadas\.ver_todas' -and $service -match 'empleados\.ver_todos'
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }
-if ($failed) { throw 'Fallaron contratos de datos reales del Dashboard.' }
-Write-Host 'El Dashboard no contiene actividad ficticia.'
+if ($failed) { throw 'Fallaron pruebas específicas del Dashboard Web.' }
+Write-Host 'Dashboard Web real y diagnóstico seguro verificados.'

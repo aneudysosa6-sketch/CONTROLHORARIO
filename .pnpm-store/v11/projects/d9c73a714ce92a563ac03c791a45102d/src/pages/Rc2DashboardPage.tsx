@@ -1,162 +1,37 @@
-import { useEffect, useState } from "react";
-import {
-  AlertTriangle,
-  Clock3,
-  Coffee,
-  TimerReset,
-  UserMinus,
-  Users,
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { Empty, PageHeader } from "../components/UI";
-import {
-  journeyService,
-  type Journey,
-} from "../modules/journeys/journeyService";
-import { dashboardErrorMessage, logDashboardFailure } from "../modules/dashboard/dashboardDiagnostics";
-const localWorkDate = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+import { useEffect, useState } from 'react';
+import { AlertTriangle, Clock3, Coffee, TimerReset, UserMinus, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Empty, PageHeader } from '../components/UI';
+import { useAuth } from '../context/AuthContext';
+import { dashboardErrorMessage, logDashboardContext, logDashboardFailure } from '../modules/dashboard/dashboardDiagnostics';
+import { DashboardQueryError, dashboardService, type DashboardSnapshot } from '../modules/dashboard/dashboardService';
+
 export function Rc2DashboardPage() {
-  const { session } = useAuth(),
-    navigate = useNavigate();
-  const [journeys, setJourneys] = useState<Journey[]>([]),
-    [loading, setLoading] = useState(true),
-    [error, setError] = useState("");
+  const { session } = useAuth();
+  const navigate = useNavigate();
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   useEffect(() => {
-    journeyService.list()
-      .then(setJourneys)
-      .catch((e) => {
-        logDashboardFailure("jornadas + empleados + jornada_incidencias", e, session);
-        setError(dashboardErrorMessage(e));
-      })
-      .finally(() => setLoading(false));
+    let active = true;
+    setLoading(true); setError(''); setSnapshot(null);
+    if (!session) { setError('No existe una sesión autenticada para cargar el Dashboard.'); setLoading(false); return () => { active = false; }; }
+    dashboardService.load(session)
+      .then((value) => { if (active) { logDashboardContext('admin scoped queries', session, value.workDate); setSnapshot(value); } })
+      .catch((failure) => { if (active) { logDashboardFailure(failure instanceof DashboardQueryError ? failure.query : 'dashboard.load', failure, session, failure instanceof DashboardQueryError ? failure.workDate : null); setError(dashboardErrorMessage(failure)); } })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [session]);
-  const today = localWorkDate(),
-    rows = journeys.filter((x) => x.workDate === today),
-    incidents = rows.flatMap((x) => x.incidents),
-    stats = [
-      [
-        "Sin iniciar",
-        rows.filter((x) => x.status === "SIN_INICIAR").length,
-        Users,
-        "gray",
-      ],
-      [
-        "En curso",
-        rows.filter((x) => x.status === "EN_CURSO").length,
-        Clock3,
-        "green",
-      ],
-      [
-        "En pausa",
-        rows.filter((x) => x.status === "EN_PAUSA").length,
-        Coffee,
-        "amber",
-      ],
-      [
-        "Finalizadas",
-        rows.filter((x) => x.status === "FINALIZADA").length,
-        TimerReset,
-        "blue",
-      ],
-      [
-        "Pendientes",
-        rows.filter((x) => x.pendingReview).length,
-        UserMinus,
-        "red",
-      ],
-      [
-        "Incidencias nuevas",
-        incidents.filter((x) => !x.read).length,
-        AlertTriangle,
-        "amber",
-      ],
-    ] as const;
-  return (
-    <>
-      <PageHeader
-        eyebrow="JORNADAS EN TIEMPO REAL"
-        title={`Buenos días, ${session?.name.split(" ")[0] ?? ""}`}
-        description="Indicadores reales según Supabase, permisos y RLS."
-      />
-      {error && <div className="error">{error}</div>}
-      {!error && <section className="stats">
-        {stats.map(([label, count, Icon, tone]) => (
-          <article className="stat" key={label}>
-            <div className={`stat-icon ${tone}`}>
-              <Icon />
-            </div>
-            <span>{label}</span>
-            <strong>{count}</strong>
-            <small>Fecha laboral actual</small>
-          </article>
-        ))}
-      </section>}
-      {!error && <div className="dashboard-grid">
-        <section className="panel">
-          <div className="panel-title">
-            <div>
-              <span className="eyebrow">ACTIVIDAD REAL</span>
-              <h2>Jornadas recientes</h2>
-            </div>
-            <button onClick={() => navigate("/jornadas")}>Ver jornadas</button>
-          </div>
-          {loading ? (
-            <Empty text="Cargando jornadas…" />
-          ) : rows.length ? (
-            rows.slice(0, 8).map((x) => (
-              <article className="employee-cell" key={x.id}>
-                <span className="avatar">
-                  {x.employee
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)}
-                </span>
-                <div>
-                  <b>{x.employee}</b>
-                  <p>
-                    {x.status} · {x.workedMinutes} minutos
-                  </p>
-                </div>
-              </article>
-            ))
-          ) : (
-            <Empty text="No hay jornadas registradas." />
-          )}
-        </section>
-        <section className="panel">
-          <div className="panel-title">
-            <div>
-              <span className="eyebrow">REQUIEREN ATENCIÓN</span>
-              <h2>Incidencias internas</h2>
-            </div>
-          </div>
-          {loading ? (
-            <Empty text="Cargando incidencias…" />
-          ) : incidents.filter((x) => !x.read).length ? (
-            incidents
-              .filter((x) => !x.read)
-              .slice(0, 6)
-              .map((x) => (
-                <article className="new-event panel" key={x.id}>
-                  <AlertTriangle />
-                  <b>
-                    {x.type} · {x.severity}
-                  </b>
-                  <p>{x.message}</p>
-                </article>
-              ))
-          ) : (
-            <Empty text="No hay incidencias nuevas." />
-          )}
-        </section>
-      </div>}
-    </>
-  );
+  const stats = snapshot ? [
+    ['Sin iniciar', snapshot.notStarted, Users, 'gray'], ['En curso', snapshot.inProgress, Clock3, 'green'], ['En pausa', snapshot.paused, Coffee, 'amber'], ['Finalizadas', snapshot.finished, TimerReset, 'blue'], ['Pendientes', snapshot.pending, UserMinus, 'red'], ['Incidencias', snapshot.incidentCount, AlertTriangle, 'amber'],
+  ] as const : [];
+  return <>
+    <PageHeader eyebrow="JORNADAS EN TIEMPO REAL" title={`Buenos días, ${session?.name.split(' ')[0] ?? ''}`} description="Indicadores reales según Supabase, permisos y RLS."/>
+    {error && <div className="error" role="alert">{error}</div>}
+    {loading && <Empty text="Cargando Dashboard protegido…"/>}
+    {snapshot && !error && <><section className="stats">{stats.map(([label,count,Icon,tone])=><article className="stat" key={label}><div className={`stat-icon ${tone}`}><Icon/></div><span>{label}</span><strong>{count}</strong><small>{snapshot.workDate}</small></article>)}</section><div className="dashboard-grid">
+      <section className="panel"><div className="panel-title"><div><span className="eyebrow">ACTIVIDAD REAL</span><h2>Jornadas recientes</h2></div><button onClick={()=>navigate('/jornadas')}>Ver jornadas</button></div>{snapshot.recent.length ? snapshot.recent.map((journey)=><article className="employee-cell" key={journey.id}><span className="avatar">{journey.employee.split(' ').map((name)=>name[0]).join('').slice(0,2)}</span><div><b>{journey.code ? `${journey.code} · ` : ''}{journey.employee}</b><p>{journey.status} · {journey.workedMinutes} minutos · {journey.severity}</p></div></article>) : <Empty text="No hay jornadas para la fecha laboral de la empresa."/>}</section>
+      <section className="panel"><div className="panel-title"><div><span className="eyebrow">REQUIEREN ATENCIÓN</span><h2>Incidencias internas</h2></div></div>{snapshot.incidents.length ? snapshot.incidents.map((incident)=><article className="new-event panel" key={incident.id}><AlertTriangle/><b>{incident.employee} · {incident.type} · {incident.severity}</b><p>{incident.message}</p></article>) : <Empty text="No hay incidencias nuevas."/>}</section>
+    </div></>}
+  </>;
 }

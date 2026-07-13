@@ -3,7 +3,7 @@ import{AlertTriangle,Clock3,Coffee,ShieldCheck,TimerReset,Users}from'lucide-reac
 import{Badge,Empty,PageHeader}from'../components/UI';
 import{useAuth}from'../context/AuthContext';
 import{supervisorService,type SupervisorAudit,type SupervisorDashboard,type SupervisorEmployee,type SupervisorIncident,type SupervisorJourney,type SupervisorSchedule}from'../modules/supervisor/supervisorService';
-import{dashboardErrorMessage,logDashboardFailure}from'../modules/dashboard/dashboardDiagnostics';
+import{dashboardErrorMessage,logDashboardContext,logDashboardFailure}from'../modules/dashboard/dashboardDiagnostics';
 const err=(e:unknown)=>dashboardErrorMessage(e);
 const ask=(label:string)=>prompt(label)?.trim()||'';
 const localInput=(value:string|null)=>value?new Date(value).toISOString().slice(0,16):'';
@@ -11,7 +11,7 @@ const useEffect=(callback:()=>unknown,deps:unknown[])=>reactUseEffect(()=>{void 
 function Load({loading,error,children}:{loading:boolean;error:string;children:ReactNode}){if(error)return <div className="error">{error}</div>;return loading?<Empty text="Cargando datos protegidos…"/>:<>{children}</>}
 export function SupervisorDashboardPage(){
  const{session}=useAuth(),[data,setData]=useState<SupervisorDashboard|null>(null),[error,setError]=useState('');
- useEffect(()=>{supervisorService.dashboard().then(setData).catch(e=>{logDashboardFailure('rpc dashboard_supervisor',e,session);setError(err(e))})},[session]);
+ useEffect(()=>{supervisorService.dashboard().then(value=>{logDashboardContext('rpc dashboard_supervisor',session,value.fecha_laboral);setData(value)}).catch(e=>{logDashboardFailure('rpc dashboard_supervisor',e,session);setError(err(e))})},[session]);
  const stats=data?[["Equipo",data.total_empleados,Users],["Activos",data.activos,Users],["Sin iniciar",data.sin_iniciar,Clock3],["En curso",data.en_curso,ShieldCheck],["En pausa",data.en_pausa,Coffee],["Finalizadas",data.finalizadas,TimerReset],["Pendientes",data.pendientes,AlertTriangle],["Incidencias",data.incidencias_nuevas,AlertTriangle],["ADMIN-OFF",data.jornadas_deshabilitadas,AlertTriangle]]as const:[];
  return <><PageHeader eyebrow="SUPERVISOR RC3" title="Dashboard de mi equipo" description="Alcance real por sucursal y departamento."/><Load loading={!data&&!error} error={error}>
   <section className="stats">{stats.map(([label,count,Icon])=><article className="stat" key={label}><div className="stat-icon blue"><Icon/></div><span>{label}</span><strong>{count}</strong><small>{data?.fecha_laboral}</small></article>)}</section>
