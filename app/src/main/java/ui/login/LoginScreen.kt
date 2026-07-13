@@ -44,6 +44,7 @@ fun LoginScreen(
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var submitting by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         appUserViewModel.createDefaultAdminIfNeeded()
@@ -59,51 +60,26 @@ fun LoginScreen(
         }
     }
 
-    OSINETScreen {
-        OSINETLogo(subtitle = "CONTROL HORARIO IA")
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        OSINETTextField(
-            value = username,
-            onValueChange = {
-                username = it
-                appUserViewModel.clearError()
-            },
-            label = "Usuario",
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OSINETTextField(
-            value = password,
-            onValueChange = {
-                password = it
-                appUserViewModel.clearError()
-            },
-            label = "Contraseña",
-            modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (loginError.isNotBlank()) {
-            Text(loginError, color = OSINETColors.Warning)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        OSINETButton(
-            text = "INICIAR SESIÓN",
-            onClick = {
-                appUserViewModel.login(
-                    username = username,
-                    password = password
-                )
-            }
-        )
-
-
+    LaunchedEffect(loginError) {
+        if (loginError.isNotBlank()) submitting = false
     }
+
+    PremiumLoginContent(
+        username = username,
+        password = password,
+        error = loginError,
+        loading = submitting,
+        onUsernameChange = {
+            username = it
+            appUserViewModel.clearError()
+        },
+        onPasswordChange = {
+            password = it
+            appUserViewModel.clearError()
+        },
+        onLogin = {
+            submitting = true
+            appUserViewModel.login(username = username, password = password)
+        }
+    )
 }

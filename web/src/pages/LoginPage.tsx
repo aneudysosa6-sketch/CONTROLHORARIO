@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userProvisioningService } from '../modules/userProvisioning/userProvisioningService';
@@ -27,7 +27,7 @@ export function LoginPage() {
     return () => { active = false; };
   }, [navigate]);
 
-  if (loading || checkingBootstrap) return <div className="empty">Verificando configuración inicial…</div>;
+  if (loading || checkingBootstrap) return <div className="premium-login-loading"><span className="premium-spinner"/><b>OSINET</b><small>Preparando acceso seguro…</small></div>;
   if (session) return <Navigate to="/dashboard" replace />;
 
   async function submit(event: React.FormEvent) {
@@ -48,8 +48,22 @@ export function LoginPage() {
     }
   }
 
-  return <div className="login-page">
-    <div className="login-art"><div className="orb" /><div className="login-copy"><span className="eyebrow">CONTROL HORARIO IA</span><h1>El tiempo de tu equipo,<br /><em>bajo control.</em></h1><p>Acceso seguro mediante Supabase Auth y autorización efectiva por perfil.</p><div className="trust">● Sesión cifrada <span>RLS · permisos · alcance empresarial</span></div></div></div>
-    <form className="login-card" onSubmit={submit}><div className="login-logo"><span className="brand-mark">O</span><div><b>OSINET</b><small>TIME ERP ENTERPRISE</small></div></div><h2>Bienvenido</h2><p>Ingresa a tu espacio administrativo</p><label>Correo<input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" /></label><label>Contraseña<div className="password"><input type={show ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" /><button type="button" onClick={() => setShow(!show)} aria-label="Mostrar contraseña">{show ? <EyeOff /> : <Eye />}</button></div></label>{(error || authError) && <div className="error">{error || authError}</div>}<button className="primary full" disabled={busy}><LockKeyhole size={18} />{busy ? 'Validando…' : 'Iniciar sesión'}</button><Link className="auth-link" to="/recuperar-password">¿Olvidaste tu contraseña?</Link></form>
+  return <div className="premium-login-page">
+    <div className="premium-login-ambient" aria-hidden="true" />
+    <section className="premium-login-shell">
+      <div className="neon-orbits" aria-hidden="true">
+        <i className="neon-orbit orbit-blue"/><i className="neon-orbit orbit-green"/><i className="neon-orbit orbit-amber"/>
+      </div>
+      <form className="premium-login-card" onSubmit={submit}>
+        <div className="premium-login-logo"><span>O</span><div><b>OSINET</b><small>CONTROLHORARIO</small></div></div>
+        <div className="premium-login-heading"><span><ShieldCheck size={14}/> ACCESO EMPRESARIAL</span><h1>Bienvenido</h1><p>Administra el tiempo de tu equipo con precisión.</p></div>
+        <label>Usuario / Correo<div className="premium-field"><Mail/><input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" placeholder="nombre@empresa.com" /></div></label>
+        <label>Contraseña<div className="premium-field"><LockKeyhole/><input type={show ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" placeholder="Tu contraseña"/><button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{show ? <EyeOff /> : <Eye />}</button></div></label>
+        {(error || authError) && <div className="premium-login-error" role="alert">{error || authError}</div>}
+        <button className="premium-login-submit" disabled={busy}>{busy ? <><span className="button-spinner"/>Validando acceso…</> : <><LockKeyhole size={18}/>Iniciar sesión</>}</button>
+        <Link className="premium-login-link" to="/recuperar-password">¿Olvidaste tu contraseña?</Link>
+        <footer><span/>Protegido por Supabase Auth<span/></footer>
+      </form>
+    </section>
   </div>;
 }
