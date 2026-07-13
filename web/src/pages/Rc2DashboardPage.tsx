@@ -13,21 +13,22 @@ import { Empty, PageHeader } from "../components/UI";
 import {
   journeyService,
   type Journey,
-  type JourneyIncident,
 } from "../modules/journeys/journeyService";
+const localWorkDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 export function Rc2DashboardPage() {
   const { session } = useAuth(),
     navigate = useNavigate();
   const [journeys, setJourneys] = useState<Journey[]>([]),
-    [incidents, setIncidents] = useState<JourneyIncident[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
   useEffect(() => {
-    Promise.all([journeyService.list(), journeyService.incidents()])
-      .then(([j, i]) => {
-        setJourneys(j);
-        setIncidents(i);
-      })
+    journeyService.list()
+      .then(setJourneys)
       .catch((e) =>
         setError(
           e instanceof Error
@@ -37,8 +38,9 @@ export function Rc2DashboardPage() {
       )
       .finally(() => setLoading(false));
   }, []);
-  const today = new Date().toISOString().slice(0, 10),
+  const today = localWorkDate(),
     rows = journeys.filter((x) => x.workDate === today),
+    incidents = rows.flatMap((x) => x.incidents),
     stats = [
       [
         "Sin iniciar",
@@ -108,8 +110,8 @@ export function Rc2DashboardPage() {
           </div>
           {loading ? (
             <Empty text="Cargando jornadas…" />
-          ) : journeys.length ? (
-            journeys.slice(0, 8).map((x) => (
+          ) : rows.length ? (
+            rows.slice(0, 8).map((x) => (
               <article className="employee-cell" key={x.id}>
                 <span className="avatar">
                   {x.employee

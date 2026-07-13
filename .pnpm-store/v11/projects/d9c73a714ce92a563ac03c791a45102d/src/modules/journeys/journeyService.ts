@@ -20,6 +20,7 @@ export type Journey = {
   pendingReview: boolean;
   severity: string;
   updatedAt: string;
+  incidents: JourneyIncident[];
 };
 export type JourneyIncident = {
   id: string;
@@ -44,7 +45,7 @@ export const journeyService = {
     const { data, error } = await getSupabaseClient()
       .from("jornadas")
       .select(
-        "id,empleado_id,fecha_laboral,estado,minutos_trabajados,minutos_pausa,revision_pendiente,severidad,actualizada_en,empleados!inner(codigo_empleado,nombre_completo,branches!empleados_sucursal_misma_empresa_fk(name),departments!empleados_departamento_misma_empresa_fk(name))",
+        "id,empleado_id,fecha_laboral,estado,minutos_trabajados,minutos_pausa,revision_pendiente,severidad,actualizada_en,empleados!inner(codigo_empleado,nombre_completo,branches!empleados_sucursal_misma_empresa_fk(name),departments!empleados_departamento_misma_empresa_fk(name)),jornada_incidencias(id,jornada_id,tipo,severidad,minutos,mensaje,leida,resuelta,creada_en)",
       )
       .order("fecha_laboral", { ascending: false });
     if (error) throw error;
@@ -62,6 +63,17 @@ export const journeyService = {
       pendingReview: row.revision_pendiente === true,
       severity: row.severidad ?? "NINGUNA",
       updatedAt: row.actualizada_en,
+      incidents: (row.jornada_incidencias ?? []).map((x: any) => ({
+        id: x.id,
+        journeyId: x.jornada_id,
+        type: x.tipo,
+        severity: x.severidad,
+        minutes: x.minutos,
+        message: x.mensaje,
+        read: x.leida,
+        resolved: x.resuelta,
+        createdAt: x.creada_en,
+      })),
     }));
   },
   async incidents(): Promise<JourneyIncident[]> {

@@ -25,6 +25,11 @@ Has 'app/src/main/java/attendance/AttendanceSyncWorker.kt' 'status in 400\.\.499
 Has 'app/src/main/java/ui/punch/Rc2EmployeeAttendanceScreen.kt' 'JourneyStateEngine.allowedActions' 'botones desde motor canonico'
 Has 'web/src/App.tsx' "from'./pages/JourneyPages'" 'rutas web reales'
 Has 'web/src/App.tsx' 'Rc2DashboardPage as DashboardPage' 'dashboard real'
+Has 'web/src/pages/Rc2DashboardPage.tsx' 'journeyService\.list\(\)' 'dashboard usa una consulta de jornadas'
+Has 'web/src/pages/Rc2DashboardPage.tsx' 'rows\.slice\(0, 8\)' 'resumen y recientes usan las mismas filas'
+Has 'web/src/pages/Rc2DashboardPage.tsx' 'rows\.flatMap\(\(x\) => x\.incidents\)' 'incidencias derivadas de la misma consulta'
+if(Select-String -LiteralPath 'web/src/pages/Rc2DashboardPage.tsx' -Pattern 'Promise\.all|toISOString\(\)' -Quiet){throw 'FALLO: dashboard conserva fuentes o fecha UTC divergentes'}
+Write-Host 'OK: dashboard usa una fuente de verdad y fecha laboral local'
 Has 'web/src/pages/JourneyPages.tsx' 'jornadas.admin_off_on' 'ADMIN-OFF ON protegido'
 if(Select-String -LiteralPath 'web/src/pages/JourneyPages.tsx' -Pattern 'mockData' -Quiet){throw 'FALLO: jornadas web usa mocks'}
 Write-Host 'Fundacion integral RC2 verificada.'
