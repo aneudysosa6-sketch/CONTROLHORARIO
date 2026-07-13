@@ -8,6 +8,10 @@ $navigation = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/jav
 $dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/dashboard/AndroidDashboard.kt')
 $authTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/auth/AuthRepositoryTest.kt')
 $dashboardTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/dashboard/DashboardRoutePolicyTest.kt')
+$network = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/java/com/example/controlhorario/auth/NetworkDiagnostics.kt')
+$networkTests = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/test/java/com/example/controlhorario/auth/NetworkDiagnosticsTest.kt')
+$manifest = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/main/AndroidManifest.xml')
+$instrumentedNetwork = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'app/src/androidTest/java/com/example/controlhorario/auth/SupabaseNetworkInstrumentedTest.kt')
 
 $checks = [ordered]@{
   'correo no consulta Room antes de Auth' = $authTests -match 'errorIfResolve = true' -and $authTests -match 'resolveCalls\)'
@@ -26,6 +30,12 @@ $checks = [ordered]@{
   'pruebas obligatorias login' = ([regex]::Matches($authTests, '@Test').Count -ge 7)
   'pruebas obligatorias Dashboard' = ([regex]::Matches($dashboardTests, '@Test').Count -ge 5)
   'login local previo eliminado' = $viewModel -notmatch 'repository\.authenticate' -and $login -notmatch 'createDefaultAdminIfNeeded'
+  'red fuera del hilo principal' = $api -match 'withContext\(Dispatchers\.IO\)' -and $dashboard -match 'withContext\(Dispatchers\.IO\)'
+  'diagnostico separa DNS TLS timeout y rechazo' = $network -match 'DNS_ERROR' -and $network -match 'TLS_ERROR' -and $network -match 'TIMEOUT' -and $network -match 'CONNECTION_REFUSED'
+  'runtime valida URL host y clave' = $network -match 'HTTPS_REQUIRED' -and $network -match 'PUBLISHABLE_KEY_EMPTY' -and $network -match 'publishable_key_present'
+  'manifest permite Internet y prohibe HTTP' = $manifest -match 'android.permission.INTERNET' -and $manifest -match 'usesCleartextTraffic="false"' -and $manifest -match 'networkSecurityConfig'
+  'pruebas especificas de red' = ([regex]::Matches($networkTests, '@Test').Count -ge 9) -and $network -match 'PUBLISHABLE_KEY_TRUNCATED'
+  'prueba de conectividad desde APK' = $instrumentedNetwork -match 'SupabaseAuthApi\(\)\.signInWithPassword' -and $instrumentedNetwork -match 'invalid_credentials'
 }
 
 $failed = $false

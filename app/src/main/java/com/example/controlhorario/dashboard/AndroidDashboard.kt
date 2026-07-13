@@ -26,6 +26,8 @@ import com.example.controlhorario.ui.components.OSINETScreen
 import com.example.controlhorario.ui.components.OSINETSecondaryButton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -76,9 +78,11 @@ class SupabaseDashboardGateway(
     private val baseUrl: String = BuildConfig.SUPABASE_URL,
     private val publishableKey: String = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
 ) : DashboardGateway {
-    override suspend fun supervisorDashboard(token: String): DashboardMetrics {
+    private val config = com.example.controlhorario.auth.SupabaseRuntimeConfig.validate(baseUrl, publishableKey)
+
+    override suspend fun supervisorDashboard(token: String): DashboardMetrics = withContext(Dispatchers.IO) {
         val json = JSONObject(request("POST", "/rest/v1/rpc/dashboard_supervisor", token, "{}", "rpc dashboard_supervisor"))
-        return DashboardMetrics(
+        DashboardMetrics(
             workDate = json.optString("fecha_laboral"),
             totalEmployees = json.optInt("total_empleados"),
             activeEmployees = json.optInt("activos"),
@@ -91,12 +95,12 @@ class SupabaseDashboardGateway(
         )
     }
 
-    override suspend fun legacyDashboard(token: String, workDate: String): DashboardMetrics {
+    override suspend fun legacyDashboard(token: String, workDate: String): DashboardMetrics = withContext(Dispatchers.IO) {
         val select = URLEncoder.encode("id,estado,revision_pendiente,severidad,actualizada_en,fecha_laboral", Charsets.UTF_8.name())
         val date = URLEncoder.encode("eq.$workDate", Charsets.UTF_8.name())
         val rows = JSONArray(request("GET", "/rest/v1/jornadas?select=$select&fecha_laboral=$date", token, stage = "jornadas RC2"))
         val states = buildList { repeat(rows.length()) { add(rows.getJSONObject(it)) } }
-        return DashboardMetrics(
+        DashboardMetrics(
             workDate = workDate,
             notStarted = states.count { it.optString("estado") == "SIN_INICIAR" },
             inProgress = states.count { it.optString("estado") == "EN_CURSO" },
@@ -109,20 +113,23 @@ class SupabaseDashboardGateway(
     private fun request(method: String, path: String, token: String, body: String? = null, stage: String): String {
         var connection: HttpURLConnection? = null
         try {
-            connection = (URL("$baseUrl$path").openConnection() as HttpURLConnection).apply {
+            val fullUrl = "${config.baseUrl}$path"
+            com.example.controlhorario.auth.SafeHttpDiagnostics.request("AndroidDashboard", method, fullUrl, config)
+            connection = (URL(fullUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = method; connectTimeout = 15_000; readTimeout = 25_000
-                setRequestProperty("apikey", publishableKey); setRequestProperty("Authorization", "Bearer $token"); setRequestProperty("Accept", "application/json")
+                setRequestProperty("apikey", config.publishableKey); setRequestProperty("Authorization", "Bearer $token"); setRequestProperty("Accept", "application/json")
                 if (body != null) { doOutput = true; setRequestProperty("Content-Type", "application/json"); outputStream.use { it.write(body.toByteArray()) } }
             }
             val status = connection.responseCode
             val response = (if (status in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+            com.example.controlhorario.auth.SafeHttpDiagnostics.response("AndroidDashboard", status, response)
             if (status !in 200..299) {
                 val json = runCatching { JSONObject(response) }.getOrNull()
                 throw AuthFlowException(stage, json?.optString("code")?.takeIf(String::isNotBlank) ?: "HTTP_$status", json?.optString("message")?.takeIf(String::isNotBlank) ?: "Dashboard devolvió HTTP $status.", json?.optString("details")?.takeIf(String::isNotBlank), json?.optString("hint")?.takeIf(String::isNotBlank))
             }
             return response
         } catch (error: AuthFlowException) { throw error }
-        catch (error: Exception) { throw AuthFlowException(stage, "NETWORK_ERROR", error.message ?: "Error de red.", cause = error) }
+        catch (error: Exception) { val classified = com.example.controlhorario.auth.SafeHttpDiagnostics.exception("AndroidDashboard", stage, error); throw AuthFlowException(stage, classified.code, classified.message, cause = error) }
         finally { connection?.disconnect() }
     }
 }

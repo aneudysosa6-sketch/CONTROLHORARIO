@@ -1,6 +1,8 @@
 package com.example.controlhorario.auth
 
 import com.example.controlhorario.BuildConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -16,7 +18,9 @@ class SupabaseAuthApi(
     private val baseUrl: String = BuildConfig.SUPABASE_URL,
     private val publishableKey: String = BuildConfig.SUPABASE_PUBLISHABLE_KEY,
 ) : SupabaseAuthGateway {
-    override suspend fun signInWithPassword(email: String, password: String): SupabaseSession {
+    private val config = SupabaseRuntimeConfig.validate(baseUrl, publishableKey)
+
+    override suspend fun signInWithPassword(email: String, password: String): SupabaseSession = withContext(Dispatchers.IO) {
         val response = request(
             method = "POST",
             path = "/auth/v1/token?grant_type=password",
@@ -29,10 +33,10 @@ class SupabaseAuthApi(
             ?: throw AuthFlowException("supabase_auth", message = "Supabase Auth no devolvió el usuario autenticado.")
         val uid = user.optString("id")
         if (token.isBlank() || uid.isBlank()) throw AuthFlowException("supabase_auth", message = "Supabase Auth no devolvió una sesión válida.")
-        return SupabaseSession(token, uid, user.optString("email", email))
+        SupabaseSession(token, uid, user.optString("email", email))
     }
 
-    override suspend fun loadAuthorization(session: SupabaseSession): AuthorizedProfile {
+    override suspend fun loadAuthorization(session: SupabaseSession): AuthorizedProfile = withContext(Dispatchers.IO) {
         val profileRows = rows(
             table = "profiles",
             select = "id,company_id,status,full_name,role_id",
@@ -74,7 +78,7 @@ class SupabaseAuthApi(
         repeat(profileAssignments.length()) { val row = profileAssignments.getJSONObject(it); codeById[row.optString("permiso_id")]?.let { effective[it] = row.optBoolean("permitido") } }
         val permissions = effective.filterValues { it }.keys
         if ("portal.acceder" !in permissions) throw AuthFlowException("permissions", code = "PORTAL_ACCESS_DENIED", message = "La cuenta no tiene permiso para acceder al portal.")
-        return AuthorizedProfile(
+        AuthorizedProfile(
             authUid = session.authUid,
             email = session.email,
             companyId = companyId,
@@ -97,30 +101,34 @@ class SupabaseAuthApi(
     private fun request(method: String, path: String, body: String? = null, token: String? = null, stage: String): String {
         var connection: HttpURLConnection? = null
         try {
-            connection = (URL("$baseUrl$path").openConnection() as HttpURLConnection).apply {
+            val fullUrl = "${config.baseUrl}$path"
+            SafeHttpDiagnostics.request("AndroidAuth", method, fullUrl, config)
+            connection = (URL(fullUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 connectTimeout = 15_000
                 readTimeout = 25_000
-                setRequestProperty("apikey", publishableKey)
+                setRequestProperty("apikey", config.publishableKey)
                 setRequestProperty("Accept", "application/json")
                 if (token != null) setRequestProperty("Authorization", "Bearer $token")
                 if (body != null) { doOutput = true; setRequestProperty("Content-Type", "application/json"); outputStream.use { it.write(body.toByteArray()) } }
             }
             val status = connection.responseCode
             val response = (if (status in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+            SafeHttpDiagnostics.response("AndroidAuth", status, response)
             if (status !in 200..299) throw parseFailure(stage, status, response)
             return response
         } catch (error: AuthFlowException) {
             throw error
         } catch (error: Exception) {
-            throw AuthFlowException(stage, code = "NETWORK_ERROR", message = error.message ?: "Error de red.", cause = error)
+            val classified = SafeHttpDiagnostics.exception("AndroidAuth", stage, error)
+            throw AuthFlowException(stage, code = classified.code, message = classified.message, cause = error)
         } finally { connection?.disconnect() }
     }
 
     private fun parseFailure(stage: String, status: Int, body: String): AuthFlowException {
         val json = runCatching { JSONObject(body) }.getOrNull()
-        val code = json?.optString("code")?.takeIf(String::isNotBlank)
-            ?: json?.optString("error_code")?.takeIf(String::isNotBlank)
+        val code = json?.optString("error_code")?.takeIf(String::isNotBlank)
+            ?: json?.optString("code")?.takeIf(String::isNotBlank)
             ?: "HTTP_$status"
         val message = listOf("msg", "message", "error_description", "error").firstNotNullOfOrNull { key -> json?.optString(key)?.takeIf(String::isNotBlank) }
             ?: "Supabase devolvió HTTP $status."
