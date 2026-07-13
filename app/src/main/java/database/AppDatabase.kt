@@ -12,6 +12,9 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         WorkScheduleTemplate::class,
         LaborCalendarDayEntity::class,
         AttendanceEntity::class,
+        JourneyEntity::class,
+        JourneyOutboxEntity::class,
+        JourneyConflictEntity::class,
         BranchEntity::class,
         DepartmentEntity::class,
         PayrollSettingsEntity::class,
@@ -39,7 +42,7 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         AppEventEntity::class
         ,DeviceEnrollmentEntity::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -53,6 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun laborCalendarDayDao(): LaborCalendarDayDao
 
     abstract fun attendanceDao(): AttendanceDao
+    abstract fun journeyDao(): JourneyDao
 
     abstract fun branchDao(): BranchDao
 

@@ -12,6 +12,9 @@ val employeeSyncUrl = providers.environmentVariable("CONTROLHORARIO_EMPLOYEE_SYN
     .orElse(providers.gradleProperty("CONTROLHORARIO_EMPLOYEE_SYNC_URL"))
     .get()
     .trim()
+val attendanceSyncUrl = providers.environmentVariable("CONTROLHORARIO_ATTENDANCE_SYNC_URL")
+    .orElse(providers.gradleProperty("CONTROLHORARIO_ATTENDANCE_SYNC_URL"))
+    .get().trim()
 
 require(deviceEnrollmentUrl.startsWith("https://")) {
     "CONTROLHORARIO_DEVICE_ENROLLMENT_URL debe usar HTTPS"
@@ -21,6 +24,9 @@ require(deviceEnrollmentUrl.endsWith("/functions/v1/device-enrollment")) {
 }
 require(employeeSyncUrl.startsWith("https://") && employeeSyncUrl.endsWith("/functions/v1/employee-sync")) {
     "CONTROLHORARIO_EMPLOYEE_SYNC_URL debe apuntar por HTTPS a employee-sync"
+}
+require(attendanceSyncUrl.startsWith("https://") && attendanceSyncUrl.endsWith("/functions/v1/attendance-sync")) {
+    "CONTROLHORARIO_ATTENDANCE_SYNC_URL debe apuntar por HTTPS a attendance-sync"
 }
 
 android {
@@ -42,6 +48,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resValue("string", "device_enrollment_url", deviceEnrollmentUrl)
         resValue("string", "employee_sync_url", employeeSyncUrl)
+        resValue("string", "attendance_sync_url", attendanceSyncUrl)
     }
 
     buildTypes {

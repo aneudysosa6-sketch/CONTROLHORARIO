@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29).build()
 
             INSTANCE = instance
 
@@ -50,4 +50,19 @@ private val MIGRATION_27_28=object:Migration(27,28){override fun migrate(db:Supp
  db.execSQL("ALTER TABLE employees ADD COLUMN payType TEXT")
  db.execSQL("ALTER TABLE device_enrollment ADD COLUMN employeeSyncCursorUpdatedAt TEXT")
  db.execSQL("ALTER TABLE device_enrollment ADD COLUMN employeeSyncCursorId TEXT")
+}}
+
+val MIGRATION_28_29=object:Migration(28,29){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN jornadaEnabled INTEGER NOT NULL DEFAULT 1")
+ db.execSQL("CREATE TABLE IF NOT EXISTS journeys (localId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, remoteId TEXT, employeeLocalId INTEGER NOT NULL, employeeRemoteId TEXT NOT NULL, deviceId TEXT NOT NULL, workDate TEXT NOT NULL, status TEXT NOT NULL, startedAt TEXT, pauseStartedAt TEXT, pauseEndedAt TEXT, finishedAt TEXT, workedMinutes INTEGER NOT NULL, breakMinutes INTEGER NOT NULL, syncStatus TEXT NOT NULL, syncVersion INTEGER NOT NULL, lastSyncedAt INTEGER, createdOffline INTEGER NOT NULL, updatedAt INTEGER NOT NULL, pendingReview INTEGER NOT NULL, severity TEXT NOT NULL, jornadaEnabledSnapshot INTEGER NOT NULL)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journeys_employeeLocalId_workDate ON journeys(employeeLocalId,workDate)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journeys_remoteId ON journeys(remoteId)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journeys_syncStatus ON journeys(syncStatus)")
+ db.execSQL("CREATE TABLE IF NOT EXISTS journey_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, journeyLocalId INTEGER NOT NULL, operation TEXT NOT NULL, idempotencyKey TEXT NOT NULL, payload TEXT NOT NULL, attempts INTEGER NOT NULL, nextRetryAt INTEGER NOT NULL, lastError TEXT NOT NULL, state TEXT NOT NULL, createdAt INTEGER NOT NULL, sentAt INTEGER)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_outbox_journeyLocalId ON journey_outbox(journeyLocalId)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journey_outbox_idempotencyKey ON journey_outbox(idempotencyKey)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_outbox_state_nextRetryAt ON journey_outbox(state,nextRetryAt)")
+ db.execSQL("CREATE TABLE IF NOT EXISTS journey_conflicts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, journeyLocalId INTEGER NOT NULL, idempotencyKey TEXT NOT NULL, localSnapshot TEXT NOT NULL, remoteSnapshot TEXT NOT NULL, reason TEXT NOT NULL, resolutionState TEXT NOT NULL, createdAt INTEGER NOT NULL, resolvedAt INTEGER)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_conflicts_journeyLocalId ON journey_conflicts(journeyLocalId)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_conflicts_resolutionState ON journey_conflicts(resolutionState)")
 }}

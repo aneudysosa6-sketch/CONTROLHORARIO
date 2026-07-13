@@ -52,7 +52,7 @@ object EmployeeSyncMapper{
    employeeCode=row.code,nombre=row.name,telefono=row.phone,email=row.email,cargo=row.positionName,departamento=row.departmentName,
    sueldo=row.salary?:0.0,isActive=true,remoteId=row.id,remoteBranchId=row.branchId,remoteBranchName=row.branchName,
    remoteDepartmentId=row.departmentId,remoteDepartmentName=row.departmentName,remotePositionId=row.positionId,remotePositionName=row.positionName,
-   remoteSupervisorId=row.supervisorId,remoteSupervisorName=row.supervisorName,employmentStatus=row.status,startDate=row.startDate,payType=row.payType,
+   remoteSupervisorId=row.supervisorId,remoteSupervisorName=row.supervisorName,employmentStatus=row.status,jornadaEnabled=row.jornadaEnabled,startDate=row.startDate,payType=row.payType,
    remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt
   )
  fun mergeInactive(current:Employee,row:RemoteInactiveEmployee,syncedAt:Long)=current.copy(isActive=false,employmentStatus="desvinculado",remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt)

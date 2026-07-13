@@ -1,0 +1,27 @@
+{
+  "contractVersion": 1,
+  "states": ["SIN_INICIAR", "EN_CURSO", "EN_PAUSA", "FINALIZADA"],
+  "actions": ["INICIAR", "PAUSAR", "REANUDAR", "FINALIZAR"],
+  "syncStates": ["PENDIENTE", "ENVIANDO", "ENVIADA", "CONFLICTO", "RECHAZADA"],
+  "reviewStates": ["NO_REQUERIDA", "PENDIENTE", "APROBADA", "CORREGIDA", "RECHAZADA"],
+  "severities": ["NINGUNA", "INFORMATIVA", "MEDIA", "ALTA", "CRITICA"],
+  "errorCodes": ["INVALID_TRANSITION", "ALREADY_FINALIZED", "EMPLOYEE_INACTIVE", "ATTENDANCE_DISABLED", "DEVICE_REVOKED", "TENANT_MISMATCH", "VERSION_CONFLICT", "WORK_DATE_MISMATCH", "INVALID_CONTRACT", "INVALID_PAYLOAD"],
+  "transitions": [
+    {"from":"SIN_INICIAR","action":"INICIAR","to":"EN_CURSO","accepted":true},
+    {"from":"SIN_INICIAR","action":"PAUSAR","to":"SIN_INICIAR","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"SIN_INICIAR","action":"REANUDAR","to":"SIN_INICIAR","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"SIN_INICIAR","action":"FINALIZAR","to":"SIN_INICIAR","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"EN_CURSO","action":"INICIAR","to":"EN_CURSO","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"EN_CURSO","action":"PAUSAR","to":"EN_PAUSA","accepted":true},
+    {"from":"EN_CURSO","action":"REANUDAR","to":"EN_CURSO","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"EN_CURSO","action":"FINALIZAR","to":"FINALIZADA","accepted":true},
+    {"from":"EN_PAUSA","action":"INICIAR","to":"EN_PAUSA","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"EN_PAUSA","action":"PAUSAR","to":"EN_PAUSA","accepted":false,"error":"INVALID_TRANSITION"},
+    {"from":"EN_PAUSA","action":"REANUDAR","to":"EN_CURSO","accepted":true},
+    {"from":"EN_PAUSA","action":"FINALIZAR","to":"FINALIZADA","accepted":true},
+    {"from":"FINALIZADA","action":"INICIAR","to":"FINALIZADA","accepted":false,"error":"ALREADY_FINALIZED"},
+    {"from":"FINALIZADA","action":"PAUSAR","to":"FINALIZADA","accepted":false,"error":"ALREADY_FINALIZED"},
+    {"from":"FINALIZADA","action":"REANUDAR","to":"FINALIZADA","accepted":false,"error":"ALREADY_FINALIZED"},
+    {"from":"FINALIZADA","action":"FINALIZAR","to":"FINALIZADA","accepted":false,"error":"ALREADY_FINALIZED"}
+  ]
+}

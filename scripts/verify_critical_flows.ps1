@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 
 & (Join-Path $PSScriptRoot 'test_employee_sync_module.ps1')
+& (Join-Path $PSScriptRoot 'test_rc2_attendance.ps1')
 
 $checks = @(
     @{ File = 'app/src/main/java/com/example/controlhorario/security/BiometricAuthManager.kt'; Pattern = 'BiometricPrompt'; Name = 'BiometricPrompt' },
@@ -11,10 +12,10 @@ $checks = @(
     @{ File = 'app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt'; Pattern = 'title = "Modo Kiosko"'; Name = 'modo kiosco' },
     @{ File = 'app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt'; Pattern = 'title = "PIN"'; Name = 'acceso PIN' },
     @{ File = 'app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt'; Pattern = 'title = "HUELLA"'; Name = 'acceso huella' },
-    @{ File = 'app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt'; Pattern = 'INICIO_JORNADA'; Name = 'inicio jornada' },
-    @{ File = 'app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt'; Pattern = 'AttendanceAction.PAUSA'; Name = 'inicio pausa' },
-    @{ File = 'app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt'; Pattern = 'AttendanceAction.REANUDAR'; Name = 'reanudar jornada' },
-    @{ File = 'app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt'; Pattern = 'FIN_JORNADA'; Name = 'fin jornada' },
+    @{ File = 'app/src/main/java/ui/punch/Rc2EmployeeAttendanceScreen.kt'; Pattern = 'JourneyAction.INICIAR'; Name = 'inicio jornada RC2' },
+    @{ File = 'app/src/main/java/ui/punch/Rc2EmployeeAttendanceScreen.kt'; Pattern = 'JourneyAction.PAUSAR'; Name = 'inicio pausa RC2' },
+    @{ File = 'app/src/main/java/ui/punch/Rc2EmployeeAttendanceScreen.kt'; Pattern = 'JourneyAction.REANUDAR'; Name = 'reanudar jornada RC2' },
+    @{ File = 'app/src/main/java/ui/punch/Rc2EmployeeAttendanceScreen.kt'; Pattern = 'JourneyAction.FINALIZAR'; Name = 'fin jornada RC2' },
     @{ File = 'app/src/main/java/database/AppDatabase.kt'; Pattern = 'abstract class AppDatabase'; Name = 'Room' }
 )
 

@@ -11,7 +11,7 @@ data class RemoteEmployee(
  val id:String,val code:String,val name:String,val phone:String,val email:String,
  val branchId:String?,val branchName:String,val departmentId:String?,val departmentName:String,
  val positionId:String?,val positionName:String,val supervisorId:String?,val supervisorName:String,
- val status:String,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String
+ val status:String,val jornadaEnabled:Boolean=true,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String
 )
 data class RemoteInactiveEmployee(val id:String,val updatedAt:String)
 data class EmployeeSyncPage(
@@ -52,7 +52,7 @@ class EmployeeSyncClient(private val endpoint:String){
     id=row.getString("remote_id"),code=row.getString("code"),name=row.getString("name"),phone=row.optString("phone"),email=row.optString("email"),
     branchId=row.optNullableString("branch_id"),branchName=row.optString("branch_name"),departmentId=row.optNullableString("department_id"),departmentName=row.optString("department_name"),
     positionId=row.optNullableString("position_id"),positionName=row.optString("position_name"),supervisorId=row.optNullableString("supervisor_id"),supervisorName=row.optString("supervisor_name"),
-    status=row.optString("status"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at")
+    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at")
    )
   }
   val inactiveRows=json.optJSONArray("inactive")

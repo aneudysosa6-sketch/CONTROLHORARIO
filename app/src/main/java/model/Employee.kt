@@ -40,6 +40,7 @@ data class Employee(
     val remoteSupervisorId: String? = null,
     val remoteSupervisorName: String = "",
     val employmentStatus: String = "activo",
+    val jornadaEnabled: Boolean = true,
     val startDate: String? = null,
     val payType: String? = null,
     val remoteUpdatedAt: String? = null,

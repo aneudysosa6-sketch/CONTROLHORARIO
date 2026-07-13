@@ -1,5 +1,14 @@
 # CHANGELOG.md
 
+## 2026-07-12 — Fundación RC2 Jornadas
+
+- Contrato canónico v1, migración Supabase 0008, RLS, permisos y auditoría.
+- Edge Function `attendance-sync` idempotente por credencial de dispositivo.
+- Room 29 con jornada consolidada, outbox, conflictos y transacción compatible con nómina.
+- Worker independiente y flujo Android offline antes de sincronizar.
+- Jornadas y Dashboard web consumen Supabase sin mocks.
+- Cierre diario e incidencias internas preparados; falta validación física completa.
+
 ## 2026-07-12 — Alcance interno definitivo
 
 - Eliminado el código Android dedicado a integraciones y automatizaciones externas de mensajería.

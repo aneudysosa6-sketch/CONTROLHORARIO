@@ -44,6 +44,7 @@ import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.EmployeePermissionRequestEntity
 import com.example.controlhorario.repository.AttendanceRepository
+import com.example.controlhorario.repository.JourneyRepository
 import com.example.controlhorario.repository.AppEventRepository
 import com.example.controlhorario.repository.BranchRepository
 import com.example.controlhorario.repository.CompanySettingsRepository
@@ -123,6 +124,9 @@ import com.example.controlhorario.ui.payroll.GeneralPayrollViewModelFactory
 import com.example.controlhorario.ui.reports.ReportsScreen
 import com.example.controlhorario.ui.punch.EmployeePunchScreen
 import com.example.controlhorario.ui.punch.EmployeeVerifiedAttendanceScreen
+import com.example.controlhorario.ui.punch.Rc2EmployeeAttendanceScreen
+import com.example.controlhorario.ui.punch.JourneyViewModel
+import com.example.controlhorario.ui.punch.JourneyViewModelFactory
 import com.example.controlhorario.ui.punch.EmployeePunchViewModel
 import com.example.controlhorario.ui.punch.EmployeePunchViewModelFactory
 import com.example.controlhorario.ui.settings.CompanyInfoScreen
@@ -167,6 +171,7 @@ import com.example.controlhorario.ui.components.OSINETNeonEventCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.time.LocalDate
 
 @Composable
 fun AppNavigation(
@@ -461,14 +466,14 @@ fun AppNavigation(
             val employeeVm: EmployeeViewModel = viewModel(
                 factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
             )
-            val attendanceVm: AttendanceViewModel = viewModel(
-                factory = AttendanceViewModelFactory(AttendanceRepository(db.attendanceDao()))
+            val journeyVm: JourneyViewModel = viewModel(
+                factory = JourneyViewModelFactory(context,JourneyRepository(db.journeyDao()),employeeId,LocalDate.now().toString())
             )
             val employees by employeeVm.employees.collectAsState()
             val employee = employees.firstOrNull { it.id == employeeId }
-            EmployeeVerifiedAttendanceScreen(
+            Rc2EmployeeAttendanceScreen(
                 employee = employee,
-                viewModel = attendanceVm,
+                viewModel = journeyVm,
                 onFinish = {
                     navController.navigate(Route.EMPLOYEE_PUNCH) {
                         popUpTo(0)

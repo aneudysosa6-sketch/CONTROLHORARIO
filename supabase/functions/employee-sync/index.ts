@@ -59,7 +59,7 @@ Deno.serve(async request=>{
     if(cursorUpdatedAt&&Number.isNaN(Date.parse(cursorUpdatedAt)))return json({error:'Cursor updated_at inválido'},400)
     if(cursorId&&!validUuid(cursorId))return json({error:'Cursor id inválido'},400)
 
-    let query=admin.from('empleados').select('id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,updated_at').eq('empresa_id',auth.empresa_id).order('updated_at').order('id').limit(1001)
+    let query=admin.from('empleados').select('id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,jornada_habilitada,updated_at').eq('empresa_id',auth.empresa_id).order('updated_at').order('id').limit(1001)
     if(cursorUpdatedAt)query=query.gte('updated_at',cursorUpdatedAt)
     let employeeResult
     try{
@@ -97,7 +97,7 @@ Deno.serve(async request=>{
       department_id:row.departamento_id,department_name:departmentNames.get(row.departamento_id)??'',
       position_id:row.puesto_id,position_name:positionNames.get(row.puesto_id)??'',
       supervisor_id:row.supervisor_id,supervisor_name:supervisorNames.get(row.supervisor_id)??'',
-      status:row.estado_laboral,start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
+      status:row.estado_laboral,jornada_enabled:row.jornada_habilitada!==false,start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
     }))
     const inactive=page.filter(row=>row.activo!==true).map(row=>({remote_id:row.id,updated_at:row.updated_at}))
     console.log('EmployeeSync empleados enviados',{request_id:requestId,company_id:auth.empresa_id,active_sent:employees.length,inactive_sent:inactive.length,has_more:changed.length>page.length})

@@ -67,6 +67,10 @@ class EmployeePunchViewModel(
             if (employee == null) {
                 _state.value = EmployeePunchState(message = "PIN incorrecto. Intente nuevamente.")
             } else {
+                if (!employee.jornadaEnabled) {
+                    _state.value = EmployeePunchState(message = "Tu registro de jornada está deshabilitado.")
+                    return@launch
+                }
                 val biometric = biometricRepository.getActiveByEmployee(employee.id)
                 val hasTemplate = biometric?.templateBase64?.isNotBlank() == true
                 _state.value = _state.value.copy(

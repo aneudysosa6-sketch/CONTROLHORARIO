@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.session.KioskModeManager
 import com.example.controlhorario.device.DeviceSyncScheduler
+import com.example.controlhorario.attendance.AttendanceSyncScheduler
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.ui.navigation.AppNavigation
 import com.example.controlhorario.ui.theme.CONTROLHORARIOTheme
@@ -19,7 +20,7 @@ class MainActivity : FragmentActivity() {
 
         UserSessionManager.init(this)
         KioskModeManager.init(this)
-        if(DeviceIdentityManager(this).deviceId!=null)DeviceSyncScheduler.start(this)
+        if(DeviceIdentityManager(this).deviceId!=null){DeviceSyncScheduler.start(this);AttendanceSyncScheduler.start(this)}
         enableEdgeToEdge()
 
         setContent {
