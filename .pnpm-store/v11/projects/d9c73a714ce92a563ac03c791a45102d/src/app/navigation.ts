@@ -13,7 +13,7 @@ export const navigationItems:NavigationItem[]=[
  {to:'/asistencia',label:'Asistencia',section:'Tiempo',permission:'asistencia.ver_todas',icon:Clock3},
  {to:'/jornadas',label:'Jornadas',section:'Tiempo',permission:'asistencia.ver_todas',icon:CalendarClock},
  {to:'/kiosco',label:'Modo kiosco',section:'Tiempo',permission:'asistencia.registrar_propia',icon:BarChart3},
- {to:'/nomina',label:'Procesamiento',section:'Nómina',permission:'nomina.procesar',icon:WalletCards},
+ {to:'/nomina',label:'Gestión de nómina',section:'Nómina',permission:'nomina.ver',icon:WalletCards},
  {to:'/reportes',label:'Reportes',section:'Reportes',permission:'reportes.ver_globales',icon:FileBarChart},
  {to:'/configuracion',label:'Configuración',section:'Administración',permission:'configuracion.administrar',icon:Settings},
  {to:'/usuarios/sincronizar',label:'Sincronizar usuarios',section:'Administración',permission:'usuarios.administrar',icon:UserCog},

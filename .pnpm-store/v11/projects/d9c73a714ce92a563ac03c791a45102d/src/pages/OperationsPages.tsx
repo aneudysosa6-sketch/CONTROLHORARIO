@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  CheckCircle2,
-  Download,
   FileDown,
   FileSpreadsheet,
   Fingerprint,
@@ -11,10 +9,9 @@ import {
   RotateCcw,
   Search,
   Square,
-  Upload,
   X,
 } from "lucide-react";
-import { employees, payroll } from "../data/mockData";
+import { employees } from "../data/mockData";
 import { Badge, PageHeader, Toast } from "../components/UI";
 
 export function ReportsPage() {
@@ -111,114 +108,6 @@ export function ReportsPage() {
           ))}
         </div>
       </section>
-      <Toast message={message} />
-    </>
-  );
-}
-
-export function PayrollPage() {
-  const [file, setFile] = useState(""),
-    [processed, setProcessed] = useState(false),
-    [message, setMessage] = useState("");
-  const total = useMemo(() => payroll.reduce((s, p) => s + p.net, 0), []);
-  function process() {
-    if (!file) {
-      setMessage("Selecciona una plantilla primero");
-      return;
-    }
-    setProcessed(true);
-    setMessage("Nómina procesada correctamente");
-  }
-  function download() {
-    const csv = [
-      "Empleado,Horas,Horas extras,Descuentos,Bruto,Neto",
-      ...payroll.map(
-        (p) =>
-          `${p.employee},${p.hours},${p.overtime},${p.deductions},${p.gross},${p.net}`,
-      ),
-    ].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = "nomina-procesada.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-  return (
-    <>
-      <PageHeader
-        eyebrow="PROCESAMIENTO"
-        title="Nómina"
-        description="Carga una plantilla, valida resultados y descarga el archivo procesado."
-      />
-      {!processed ? (
-        <section className="upload panel">
-          <Upload />
-          <h2>Cargar plantilla de nómina</h2>
-          <p>
-            Selecciona un archivo CSV o Excel. En esta versión demo se procesa
-            una muestra segura.
-          </p>
-          <label className="file-button">
-            Seleccionar archivo
-            <input
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={(e) => setFile(e.target.files?.[0]?.name || "")}
-            />
-          </label>
-          {file && <Badge tone="blue">{file}</Badge>}
-          <button className="primary" onClick={process}>
-            Procesar datos
-          </button>
-        </section>
-      ) : (
-        <>
-          <section className="process-success new-event">
-            <CheckCircle2 />
-            <div>
-              <h2>Nómina procesada</h2>
-              <p>
-                {payroll.length} empleados · Neto total RD${" "}
-                {total.toLocaleString()}
-              </p>
-            </div>
-            <button className="download" onClick={download}>
-              <Download />
-              Descargar nómina procesada
-            </button>
-          </section>
-          <section className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Empleado</th>
-                  <th>Horas</th>
-                  <th>Extras</th>
-                  <th>Descuentos</th>
-                  <th>Bruto</th>
-                  <th>Neto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payroll.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <b>{p.employee}</b>
-                    </td>
-                    <td>{p.hours}h</td>
-                    <td>{p.overtime}h</td>
-                    <td>RD$ {p.deductions.toLocaleString()}</td>
-                    <td>RD$ {p.gross.toLocaleString()}</td>
-                    <td>
-                      <b>RD$ {p.net.toLocaleString()}</b>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        </>
-      )}
       <Toast message={message} />
     </>
   );

@@ -1,5 +1,7 @@
 # PAYROLL.md
 
+La arquitectura vigente del módulo nuevo está en [RC4_PAYROLL.md](RC4_PAYROLL.md). Los componentes Android descritos aquí se conservan como legado local y no son la autoridad de cálculo RC4; la fuente de verdad es el motor SQL `RC4_SQL_V1`.
+
 # Nómina
 
 ## Objetivo

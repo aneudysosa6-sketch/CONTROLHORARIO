@@ -4,6 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 & (Join-Path $PSScriptRoot 'test_employee_sync_module.ps1')
 & (Join-Path $PSScriptRoot 'test_rc2_attendance.ps1')
 & (Join-Path $PSScriptRoot 'test_rc3_supervisor.ps1')
+& (Join-Path $PSScriptRoot 'test_rc4_payroll.ps1')
 & (Join-Path $PSScriptRoot 'test_login_dashboard_regression.ps1')
 
 $checks = @(

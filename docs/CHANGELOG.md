@@ -1,5 +1,13 @@
 # CHANGELOG.md
 
+## 2026-07-13 — RC4 nómina (preparada para prueba)
+
+- Añadido modelo multiempresa, RLS, permisos, auditoría y motor SQL versionado.
+- Añadidos períodos, ajustes, préstamos, créditos, Excel de importación/final y PDF.
+- Sustituida la pantalla demo Web por el módulo RC4 conectado a RPC reales.
+- Android permanece sin cambios funcionales de nómina.
+- Pendiente aplicar la migración y completar pruebas manuales; no se desplegó Supabase.
+
 ## 2026-07-12 — Fundación RC3 Supervisor
 
 - Alcance canónico por empresa, sucursal y múltiples departamentos.

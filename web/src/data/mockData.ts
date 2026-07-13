@@ -1,4 +1,4 @@
-import type { Attendance, Employee, PayrollRow } from "../types";
+import type { Attendance, Employee } from "../types";
 export const employees: Employee[] = [
   {
     id: "1",
@@ -115,34 +115,5 @@ export const attendance: Attendance[] = [
     date: "09 jul 2026",
     time: "17:06",
     location: "Sucursal Santiago",
-  },
-];
-export const payroll: PayrollRow[] = [
-  {
-    id: "p1",
-    employee: "Laura Martínez",
-    hours: 168,
-    overtime: 6,
-    deductions: 3850,
-    gross: 81412,
-    net: 77562,
-  },
-  {
-    id: "p2",
-    employee: "Carlos Ramírez",
-    hours: 160,
-    overtime: 2,
-    deductions: 2410,
-    gross: 52650,
-    net: 50240,
-  },
-  {
-    id: "p3",
-    employee: "Ana Pérez",
-    hours: 164,
-    overtime: 4,
-    deductions: 2180,
-    gross: 49180,
-    net: 47000,
   },
 ];
