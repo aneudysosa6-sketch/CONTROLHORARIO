@@ -14,6 +14,7 @@ import {
   journeyService,
   type Journey,
 } from "../modules/journeys/journeyService";
+import { dashboardErrorMessage, logDashboardFailure } from "../modules/dashboard/dashboardDiagnostics";
 const localWorkDate = (date = new Date()) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -29,15 +30,12 @@ export function Rc2DashboardPage() {
   useEffect(() => {
     journeyService.list()
       .then(setJourneys)
-      .catch((e) =>
-        setError(
-          e instanceof Error
-            ? e.message
-            : "No fue posible cargar el dashboard.",
-        ),
-      )
+      .catch((e) => {
+        logDashboardFailure("jornadas + empleados + jornada_incidencias", e, session);
+        setError(dashboardErrorMessage(e));
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [session]);
   const today = localWorkDate(),
     rows = journeys.filter((x) => x.workDate === today),
     incidents = rows.flatMap((x) => x.incidents),
@@ -87,7 +85,7 @@ export function Rc2DashboardPage() {
         description="Indicadores reales según Supabase, permisos y RLS."
       />
       {error && <div className="error">{error}</div>}
-      <section className="stats">
+      {!error && <section className="stats">
         {stats.map(([label, count, Icon, tone]) => (
           <article className="stat" key={label}>
             <div className={`stat-icon ${tone}`}>
@@ -98,8 +96,8 @@ export function Rc2DashboardPage() {
             <small>Fecha laboral actual</small>
           </article>
         ))}
-      </section>
-      <div className="dashboard-grid">
+      </section>}
+      {!error && <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-title">
             <div>
@@ -158,7 +156,7 @@ export function Rc2DashboardPage() {
             <Empty text="No hay incidencias nuevas." />
           )}
         </section>
-      </div>
+      </div>}
     </>
   );
 }

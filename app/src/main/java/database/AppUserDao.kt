@@ -30,6 +30,17 @@ interface AppUserDao {
     @Query("""
         SELECT *
         FROM app_users
+        WHERE (username = :identifier COLLATE NOCASE OR email = :identifier COLLATE NOCASE)
+        AND isActive = 1
+        LIMIT 1
+    """)
+    suspend fun getActiveUserByIdentifier(
+        identifier: String
+    ): AppUserEntity?
+
+    @Query("""
+        SELECT *
+        FROM app_users
         WHERE id = :userId
         LIMIT 1
     """)

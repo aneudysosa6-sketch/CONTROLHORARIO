@@ -1219,6 +1219,7 @@ private fun UserManagementScreen(
     val users by viewModel.users.collectAsState(initial = emptyList())
     var fullName by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("EMPLEADO") }
     var employeeSearch by remember { mutableStateOf("") }
@@ -1262,6 +1263,8 @@ private fun UserManagementScreen(
             Spacer(Modifier.height(8.dp))
             OSINETTextField(username, { username = it }, "Usuario", Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
+            OSINETTextField(email, { email = it }, "Correo de acceso", Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
             OSINETTextField(password, { password = it }, "Contraseña", Modifier.fillMaxWidth())
             Spacer(Modifier.height(10.dp))
             OSINETActionCard("Administrador", "Acceso total", onClick = { setRole("ADMINISTRADOR") })
@@ -1303,7 +1306,7 @@ private fun UserManagementScreen(
                 OSINETActionCard(
                     title = "${employee.employeeCode.ifBlank { employee.pin }} · ${employee.nombre}",
                     subtitle = "${employee.departamento} · ${if (selectedEmployeeId == employee.id) "Seleccionado" else "Tocar para asignar"}",
-                    onClick = { selectedEmployeeId = employee.id }
+                    onClick = { selectedEmployeeId = employee.id; email = employee.email.trim().lowercase() }
                 )
                 Spacer(Modifier.height(6.dp))
             }
@@ -1335,7 +1338,8 @@ private fun UserManagementScreen(
                     com.example.controlhorario.database.AppUserEntity(
                         fullName = fullName.trim(),
                         username = username.trim(),
-                        password = password.trim(),
+                        email = email.trim().lowercase(),
+                        password = password,
                         role = role,
                         permissionsCsv = selectedPermissions.joinToString(","),
                         employeeId = selectedEmployeeId,
@@ -1347,6 +1351,7 @@ private fun UserManagementScreen(
                 message = "Usuario guardado correctamente."
                 fullName = ""
                 username = ""
+                email = ""
                 password = ""
                 selectedEmployeeId = 0
                 selectedBranchId = 0
@@ -1362,7 +1367,7 @@ private fun UserManagementScreen(
         users.forEach { user ->
             OSINETCard {
                 Text("${user.fullName} · ${user.role}", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                Text("Usuario: ${user.username} · Empleado ID: ${if (user.employeeId == 0) "No asignado" else user.employeeId}", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
+                Text("Usuario: ${user.username} · Correo: ${user.email.ifBlank { "Sin vincular" }} · Empleado ID: ${if (user.employeeId == 0) "No asignado" else user.employeeId}", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
             }
             Spacer(Modifier.height(6.dp))
         }

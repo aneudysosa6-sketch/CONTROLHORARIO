@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.UserRole
 import com.example.controlhorario.repository.AppUserRepository
+import com.example.controlhorario.repository.AppUserRepository.LoginIdentifier
+import com.example.controlhorario.repository.AppUserRepository.LoginResult
 import com.example.controlhorario.session.UserSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,14 +47,21 @@ class AppUserViewModel(
         password: String
     ) {
         viewModelScope.launch {
-            val user = repository.login(
-                username = username,
-                password = password
-            )
-
-            if (user == null) {
-                _loginError.value = "Usuario o contraseña incorrectos."
-                return@launch
+            val result = repository.authenticate(username, password)
+            val user = when (result) {
+                is LoginResult.Success -> result.user
+                is LoginResult.IdentifierNotFound -> {
+                    _loginError.value = if (result.kind == LoginIdentifier.Kind.EMAIL) {
+                        "No existe una cuenta vinculada a ese correo."
+                    } else {
+                        "El nombre de usuario no existe."
+                    }
+                    return@launch
+                }
+                LoginResult.IncorrectPassword -> {
+                    _loginError.value = "La contraseña es incorrecta."
+                    return@launch
+                }
             }
 
             repository.updateLastLogin(

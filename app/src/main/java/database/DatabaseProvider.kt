@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31).build()
 
             INSTANCE = instance
 
@@ -74,4 +74,10 @@ val MIGRATION_29_30=object:Migration(29,30){override fun migrate(db:SupportSQLit
  db.execSQL("ALTER TABLE employees ADD COLUMN remoteLunchDurationMinutes INTEGER")
  db.execSQL("ALTER TABLE employees ADD COLUMN remoteWorkDays TEXT")
  db.execSQL("ALTER TABLE employees ADD COLUMN remoteToleranceMinutes INTEGER")
+}}
+
+val MIGRATION_30_31=object:Migration(30,31){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE app_users ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+ db.execSQL("UPDATE app_users SET email=lower(trim(username)) WHERE instr(username,'@')>0")
+ db.execSQL("UPDATE app_users SET email=lower(trim((SELECT email FROM employees WHERE employees.id=app_users.employeeId LIMIT 1))) WHERE email='' AND employeeId<>0 AND EXISTS(SELECT 1 FROM employees WHERE employees.id=app_users.employeeId AND trim(employees.email)<>'')")
 }}

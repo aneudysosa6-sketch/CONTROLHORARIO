@@ -9,6 +9,7 @@ data class AppUserEntity(
     val id: Int = 0,
     val fullName: String,
     val username: String,
+    val email: String = "",
     val password: String,
     val role: String = UserRole.ADMINISTRADOR.name,
     val permissionsCsv: String = "",

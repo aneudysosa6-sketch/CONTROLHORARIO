@@ -18,7 +18,7 @@ import{BootstrapGate}from'./pages/BootstrapGate';
 
 function Protected(){const{session,loading}=useAuth();if(loading)return <div className="empty">Restaurando sesión…</div>;return session?<Outlet/>:<Navigate to="/login" replace/>}
 function RequirePermission({permission,children}:{permission:string;children:ReactNode}){const{session,loading,hasPermission}=useAuth();console.info('[auth] evaluación de ruta',{permiso_requerido:permission,codigos_cargados:session?.permissions??[],role_id:session?.roleId??null,company_id:session?.companyId??null,loading});if(loading)return <div className="empty">Cargando permisos…</div>;return hasPermission(permission)?children:<Navigate to="/acceso-denegado" replace/>}
-function DashboardByRole(){const{session}=useAuth();return session?.roleCode==='supervisor'?<RequirePermission permission="supervisor.dashboard"><SupervisorDashboardPage/></RequirePermission>:<DashboardPage/>}
+function DashboardByRole(){const{session,hasPermission}=useAuth();return session?.roleCode==='supervisor'&&hasPermission('supervisor.dashboard')?<SupervisorDashboardPage/>:<DashboardPage/>}
 
 export default function App(){return <Routes>
  <Route path="/" element={<BootstrapGate/>}/><Route path="/login" element={<LoginPage/>}/><Route path="/bootstrap" element={<BootstrapPage/>}/>
