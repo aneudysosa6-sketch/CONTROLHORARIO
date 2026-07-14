@@ -91,13 +91,14 @@ sealed interface DashboardState {
     data class Error(val message: String) : DashboardState
 }
 
-enum class DashboardDestination { LOADING, ADMIN, SUPERVISOR_RC3, SUPERVISOR_FALLBACK, ERROR }
+enum class DashboardDestination { LOADING, ADMIN, EMPLOYEE, SUPERVISOR_RC3, SUPERVISOR_FALLBACK, ERROR }
 
 object DashboardRoutePolicy {
     fun destination(roleCode: String?, permissionCodes: Set<String>, loading: Boolean): DashboardDestination {
         if (loading) return DashboardDestination.LOADING
         return when (roleCode) {
             "admin" -> DashboardDestination.ADMIN
+            "employee", "empleado" -> if (permissionCodes.any { it.startsWith("empleado.") }) DashboardDestination.EMPLOYEE else DashboardDestination.ERROR
             "supervisor" -> if ("supervisor.dashboard" in permissionCodes) DashboardDestination.SUPERVISOR_RC3 else DashboardDestination.SUPERVISOR_FALLBACK
             else -> DashboardDestination.ERROR
         }
@@ -238,7 +239,7 @@ class AndroidDashboardViewModel(
                             DashboardState.Ready(gateway.scopedDashboard(principal.accessToken, principal.companyId), "Supervisor")
                         } else throw error
                     }
-                    DashboardDestination.SUPERVISOR_FALLBACK, DashboardDestination.ADMIN -> {
+                    DashboardDestination.SUPERVISOR_FALLBACK, DashboardDestination.ADMIN, DashboardDestination.EMPLOYEE -> {
                         if (principal.permissionCodes.none { it == "jornadas.ver_todas" || it == "jornadas.ver_asignadas" }) throw AuthFlowException("dashboard_permissions", "JOURNEYS_PERMISSION_MISSING", "La sesión no tiene permiso para consultar jornadas; no se mostrarán métricas en cero.")
                         DashboardState.Ready(
                             gateway.scopedDashboard(principal.accessToken, principal.companyId),

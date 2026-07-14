@@ -1,0 +1,18 @@
+begin;select plan(16);
+select has_table('public','prestamo_solicitudes');
+select has_table('public','prestamo_movimientos');
+select has_table('public','prestamo_solicitud_auditoria');
+select has_column('public','nomina_prestamos','solicitud_id');
+select has_function('public','obtener_portal_empleado',array[]::text[]);
+select has_function('public','crear_solicitud_prestamo',array['numeric','numeric','text','uuid','text']);
+select has_function('public','cancelar_solicitud_prestamo',array['uuid','text']);
+select has_function('public','listar_solicitudes_prestamo_admin',array['text','text']);
+select has_function('public','gestionar_solicitud_prestamo',array['uuid','text','text','text']);
+select function_privs_are('public','obtener_portal_empleado',array[]::text[],'authenticated',array['EXECUTE']);
+select function_privs_are('public','crear_solicitud_prestamo',array['numeric','numeric','text','uuid','text'],'authenticated',array['EXECUTE']);
+select ok((select relrowsecurity from pg_class where oid='public.prestamo_solicitudes'::regclass),'RLS solicitudes activo');
+select ok((select relrowsecurity from pg_class where oid='public.prestamo_movimientos'::regclass),'RLS movimientos activo');
+select ok(not has_table_privilege('anon','public.prestamo_solicitudes','SELECT'),'anon no lee solicitudes');
+select ok(not has_table_privilege('authenticated','public.prestamo_solicitudes','INSERT'),'cliente no inserta directamente');
+select ok((select count(*)=9 from public.permisos where codigo in('empleado.perfil_ver','empleado.ganancias_ver','empleado.prestamos_ver','empleado.prestamo_solicitar','prestamos.solicitudes_ver','prestamos.solicitudes_revisar','prestamos.solicitudes_aceptar','prestamos.solicitudes_denegar','prestamos.entrega_confirmar')),'catálogo completo');
+select * from finish();rollback;

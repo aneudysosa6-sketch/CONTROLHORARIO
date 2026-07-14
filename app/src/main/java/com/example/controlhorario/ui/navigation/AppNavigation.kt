@@ -46,6 +46,7 @@ import com.example.controlhorario.dashboard.AndroidDashboardViewModel
 import com.example.controlhorario.dashboard.AndroidDashboardViewModelFactory
 import com.example.controlhorario.dashboard.AuthenticatedSupervisorDashboard
 import com.example.controlhorario.dashboard.DashboardDestination
+import com.example.controlhorario.employeeportal.EmployeeSelfServiceScreen
 import com.example.controlhorario.dashboard.DashboardRoutePolicy
 import com.example.controlhorario.dashboard.DashboardState
 import com.example.controlhorario.security.DeviceIdentityManager
@@ -366,6 +367,10 @@ fun AppNavigation(
                 )
                 val dashboardState by dashboardVm.state.collectAsState()
                 AuthenticatedSupervisorDashboard(authenticated, dashboardState, logout)
+                return@composable
+            }
+            if(destination==DashboardDestination.EMPLOYEE){
+                EmployeeSelfServiceScreen(authenticated){AuthSessionStore.clear();UserSessionManager.logout();navController.navigate(Route.ADMIN_LOGIN){popUpTo(0)}}
                 return@composable
             }
             if (destination == DashboardDestination.ERROR) {

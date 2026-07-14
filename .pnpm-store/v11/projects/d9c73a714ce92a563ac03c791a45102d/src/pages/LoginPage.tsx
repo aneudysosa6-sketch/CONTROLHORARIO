@@ -28,7 +28,7 @@ export function LoginPage() {
   }, [navigate]);
 
   if (loading || checkingBootstrap) return <div className="premium-login-loading"><span className="premium-spinner"/><b>OSINET</b><small>Preparando acceso seguro…</small></div>;
-  if (session) return <Navigate to="/dashboard" replace />;
+  if (session) return <Navigate to={['employee','empleado'].includes(session.roleCode) ? '/mi-portal' : '/dashboard'} replace />;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -40,7 +40,6 @@ export function LoginPage() {
     setBusy(true);
     try {
       await login(email.trim().toLowerCase(), password);
-      navigate('/dashboard');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'No fue posible iniciar sesión.');
     } finally {

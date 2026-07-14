@@ -23,6 +23,10 @@ class DashboardRoutePolicyTest {
         assertEquals(DashboardDestination.LOADING, DashboardRoutePolicy.destination(null, emptySet(), true))
     }
 
+    @Test fun `employee abre su portal privado`() {
+        assertEquals(DashboardDestination.EMPLOYEE, DashboardRoutePolicy.destination("employee", setOf("empleado.perfil_ver"), false))
+    }
+
     @Test fun `error PostgREST conserva codigo details y hint visibles`() {
         val error = AuthFlowException("dashboard", "PGRST200", "Join ambiguo", "No relationship", "Use una FK explícita")
         val visible = error.visibleMessage()
