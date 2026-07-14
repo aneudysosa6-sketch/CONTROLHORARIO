@@ -253,12 +253,34 @@ begin
   work as(
    select e.*,coalesce(w.days,0)::numeric days,coalesce(w.hours,0)::numeric hours,coalesce(w.night_hours,0)::numeric night_hours
    from eligible e left join lateral(
-    select count(*) days,coalesce(sum(j.minutos_trabajados),0)::numeric/60 hours,
-     coalesce(sum(least(j.minutos_trabajados::numeric,
-      greatest(0,extract(epoch from(least(j.finalizado_en at time zone coalesce(v_tz,'America/Santo_Domingo'),j.fecha_laboral::timestamp+interval '7 hour')-greatest(j.iniciado_en at time zone coalesce(v_tz,'America/Santo_Domingo'),j.fecha_laboral::timestamp))/60)
-      +greatest(0,extract(epoch from(least(j.finalizado_en at time zone coalesce(v_tz,'America/Santo_Domingo'),j.fecha_laboral::timestamp+interval '1 day 7 hour')-greatest(j.iniciado_en at time zone coalesce(v_tz,'America/Santo_Domingo'),j.fecha_laboral::timestamp+interval '21 hour'))/60)
-     )),0)::numeric/60 night_hours
-    from public.jornadas j where j.empresa_id=e.empresa_id and j.empleado_id=e.id and j.fecha_laboral between v_p.fecha_inicio and v_p.fecha_fin and j.estado='FINALIZADA' and not j.revision_pendiente
+    with local_journeys as(
+     select
+      j.minutos_trabajados::numeric worked_minutes,
+      j.fecha_laboral::timestamp work_date,
+      j.iniciado_en at time zone coalesce(v_tz,'America/Santo_Domingo') started_local,
+      j.finalizado_en at time zone coalesce(v_tz,'America/Santo_Domingo') finished_local
+     from public.jornadas j
+     where j.empresa_id=e.empresa_id and j.empleado_id=e.id
+      and j.fecha_laboral between v_p.fecha_inicio and v_p.fecha_fin
+      and j.estado='FINALIZADA' and not j.revision_pendiente
+    ),night_windows as(
+     select
+      worked_minutes,
+      greatest(0,extract(epoch from(
+       least(finished_local,work_date+interval '7 hour')
+       -greatest(started_local,work_date)
+      ))/60) early_night_minutes,
+      greatest(0,extract(epoch from(
+       least(finished_local,work_date+interval '1 day 7 hour')
+       -greatest(started_local,work_date+interval '21 hour')
+      ))/60) late_night_minutes
+     from local_journeys
+    )
+    select
+     count(*) days,
+     coalesce(sum(worked_minutes),0)::numeric/60 hours,
+     coalesce(sum(least(worked_minutes,early_night_minutes+late_night_minutes)),0)::numeric/60 night_hours
+    from night_windows
    )w on true
   )
   select * from work order by codigo_empleado
