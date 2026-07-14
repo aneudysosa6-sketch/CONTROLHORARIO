@@ -1,5 +1,11 @@
 # CHANGELOG.md
 
+## 2026-07-13 — Navegación Web RC4
+
+- Añadida la sección lateral `NÓMINA` con Procesamiento, Períodos, Préstamos, Créditos e Historial sobre la única `PayrollPage` existente.
+- Todos los accesos requieren `nomina.ver`; la ruta directa `/nomina` conserva el guard y muestra 403 sin permiso.
+- Las vistas se restauran desde la URL sin duplicar el motor ni sus pantallas.
+
 ## 2026-07-13 — RC3.5 Administración del sistema
 
 - Unificadas las diez categorías administrativas en Web y Android, con rutas independientes y datos reales de la empresa autenticada.
