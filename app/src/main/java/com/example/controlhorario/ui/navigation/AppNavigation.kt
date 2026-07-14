@@ -77,6 +77,12 @@ import com.example.controlhorario.repository.AppUserRepository
 import com.example.controlhorario.ui.attendance.AttendanceScreen
 import com.example.controlhorario.ui.attendance.AttendanceViewModel
 import com.example.controlhorario.ui.attendance.AttendanceViewModelFactory
+import com.example.controlhorario.ui.administration.AdministrationSection
+import com.example.controlhorario.ui.administration.AdministrationState
+import com.example.controlhorario.ui.administration.SystemAdministrationDetailScreen
+import com.example.controlhorario.ui.administration.SystemAdministrationScreen
+import com.example.controlhorario.ui.administration.SystemAdministrationViewModel
+import com.example.controlhorario.ui.administration.SystemAdministrationViewModelFactory
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationScreen
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModel
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModelFactory
@@ -958,15 +964,37 @@ fun AppNavigation(
         }
 
         composable(Route.SETTINGS_MENU) {
-            SettingsMenuScreen(
-                onBranches = { navController.navigate(Route.BRANCHES) },
-                onDepartments = { navController.navigate(Route.DEPARTMENTS) },
-                onCompany = { navController.navigate(Route.COMPANY_SETTINGS) },
-                onLaborCalendar = { navController.navigate(Route.LABOR_CALENDAR) },
-                onUsers = { navController.navigate(Route.USER_PERMISSIONS_ADMIN) },
-                onBack = { navController.popBackStack() }
+            SystemAdministrationRoute(
+                onSection = { section ->
+                    navController.navigate(
+                        when (section) {
+                            AdministrationSection.COMPANY -> Route.ADMIN_EMPRESA
+                            AdministrationSection.BRANCHES -> Route.ADMIN_SUCURSALES
+                            AdministrationSection.DEPARTMENTS -> Route.ADMIN_DEPARTAMENTOS
+                            AdministrationSection.POSITIONS -> Route.ADMIN_CARGOS
+                            AdministrationSection.USERS -> Route.ADMIN_USUARIOS
+                            AdministrationSection.SCHEDULES -> Route.ADMIN_HORARIOS
+                            AdministrationSection.JOURNEYS -> Route.ADMIN_JORNADAS
+                            AdministrationSection.DEVICES -> Route.ADMIN_DISPOSITIVOS
+                            AdministrationSection.SECURITY -> Route.ADMIN_SEGURIDAD
+                            AdministrationSection.APPEARANCE -> Route.ADMIN_APARIENCIA
+                        }
+                    )
+                },
+                onBack = { navController.popBackStack() },
             )
         }
+
+        composable(Route.ADMIN_EMPRESA) { SystemAdministrationDetailRoute(AdministrationSection.COMPANY) { navController.popBackStack() } }
+        composable(Route.ADMIN_SUCURSALES) { SystemAdministrationDetailRoute(AdministrationSection.BRANCHES) { navController.popBackStack() } }
+        composable(Route.ADMIN_DEPARTAMENTOS) { SystemAdministrationDetailRoute(AdministrationSection.DEPARTMENTS) { navController.popBackStack() } }
+        composable(Route.ADMIN_CARGOS) { SystemAdministrationDetailRoute(AdministrationSection.POSITIONS) { navController.popBackStack() } }
+        composable(Route.ADMIN_USUARIOS) { SystemAdministrationDetailRoute(AdministrationSection.USERS) { navController.popBackStack() } }
+        composable(Route.ADMIN_HORARIOS) { SystemAdministrationDetailRoute(AdministrationSection.SCHEDULES) { navController.popBackStack() } }
+        composable(Route.ADMIN_JORNADAS) { SystemAdministrationDetailRoute(AdministrationSection.JOURNEYS) { navController.popBackStack() } }
+        composable(Route.ADMIN_DISPOSITIVOS) { SystemAdministrationDetailRoute(AdministrationSection.DEVICES) { navController.popBackStack() } }
+        composable(Route.ADMIN_SEGURIDAD) { SystemAdministrationDetailRoute(AdministrationSection.SECURITY) { navController.popBackStack() } }
+        composable(Route.ADMIN_APARIENCIA) { SystemAdministrationDetailRoute(AdministrationSection.APPEARANCE) { navController.popBackStack() } }
 
         composable(Route.BRANCHES) {
             val context = LocalContext.current
@@ -1220,7 +1248,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.BRANCH_MANAGER)) { OSINETActionCard("Panel Encargado", "Eventos y empleados de mi sucursal", onClick = onBranchManager); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.PAYROLL)) { OSINETActionCard("GENERAL NÓMINA", "Generación, plantillas y exportación", onClick = onGeneralPayroll); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.REPORTS)) { OSINETActionCard("Reportes", "Consultas generales del sistema", onClick = onReports); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Configuración", "Sucursales, departamentos y empresa", onClick = onSettings); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Administración del sistema", "Empresa, organización, usuarios, seguridad y apariencia", onClick = onSettings); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Vacaciones", "Solicitudes y seguimiento", onClick = onVacations); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.LOANS)) { OSINETActionCard("Préstamos", "Solicitudes, aprobación, entrega y balance", onClick = onLoans); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)) { OSINETActionCard("Permisos Empleados", "Solicitudes, archivos, aprobación y rechazo", onClick = onEmployeePermissions); Spacer(Modifier.height(10.dp)) }
@@ -1233,32 +1261,49 @@ private fun AdminHomeScreen(
 }
 
 @Composable
-private fun SettingsMenuScreen(
-    onBranches: () -> Unit,
-    onDepartments: () -> Unit,
-    onCompany: () -> Unit,
-    onLaborCalendar: () -> Unit,
-    onUsers: () -> Unit,
-    onBack: () -> Unit
+private fun SystemAdministrationRoute(
+    onSection: (AdministrationSection) -> Unit,
+    onBack: () -> Unit,
 ) {
-    OSINETScreen {
-        OSINETHeader(
-            title = "Configuración",
-            subtitle = "Ajustes generales del ERP"
+    val principal by AuthSessionStore.principal.collectAsState()
+    val current = principal
+    if (current == null) {
+        SystemAdministrationScreen(
+            state = AdministrationState.Error("La sesión administrativa no está disponible."),
+            onSection = onSection,
+            onBack = onBack,
         )
-        Spacer(Modifier.height(24.dp))
-        OSINETActionCard("Sucursales", "Crear y administrar ubicaciones", onClick = onBranches)
-        Spacer(Modifier.height(10.dp))
-        OSINETActionCard("Departamentos", "Departamentos por sucursal", onClick = onDepartments)
-        Spacer(Modifier.height(10.dp))
-        OSINETActionCard("Datos de empresa", "Correo, RNC y datos para reportes", onClick = onCompany)
-        Spacer(Modifier.height(10.dp))
-        OSINETActionCard("Calendario laboral", "Días festivos y calendario operativo", onClick = onLaborCalendar)
-        Spacer(Modifier.height(10.dp))
-        OSINETActionCard("Usuarios", "Crear administradores, encargados y permisos", onClick = onUsers)
-        Spacer(Modifier.height(18.dp))
-        OSINETSecondaryButton("Volver", onBack)
+        return
     }
+    val vm: SystemAdministrationViewModel = viewModel(
+        key = "system-administration-${current.authUid}",
+        factory = SystemAdministrationViewModelFactory(current),
+    )
+    val state by vm.state.collectAsState()
+    SystemAdministrationScreen(state = state, onSection = onSection, onBack = onBack)
+}
+
+@Composable
+private fun SystemAdministrationDetailRoute(
+    section: AdministrationSection,
+    onBack: () -> Unit,
+) {
+    val principal by AuthSessionStore.principal.collectAsState()
+    val current = principal
+    if (current == null) {
+        SystemAdministrationDetailScreen(
+            section = section,
+            state = AdministrationState.Error("La sesión administrativa no está disponible."),
+            onBack = onBack,
+        )
+        return
+    }
+    val vm: SystemAdministrationViewModel = viewModel(
+        key = "system-administration-${current.authUid}",
+        factory = SystemAdministrationViewModelFactory(current),
+    )
+    val state by vm.state.collectAsState()
+    SystemAdministrationDetailScreen(section = section, state = state, onBack = onBack)
 }
 
 
@@ -1654,6 +1699,16 @@ private object Route {
     const val PAYROLL_MENU = "payroll_menu"
     const val REPORTS_MENU = "reports_menu"
     const val SETTINGS_MENU = "settings_menu"
+    const val ADMIN_EMPRESA = "admin_empresa"
+    const val ADMIN_SUCURSALES = "admin_sucursales"
+    const val ADMIN_DEPARTAMENTOS = "admin_departamentos"
+    const val ADMIN_CARGOS = "admin_cargos"
+    const val ADMIN_USUARIOS = "admin_usuarios"
+    const val ADMIN_HORARIOS = "admin_horarios"
+    const val ADMIN_JORNADAS = "admin_jornadas"
+    const val ADMIN_DISPOSITIVOS = "admin_dispositivos"
+    const val ADMIN_SEGURIDAD = "admin_seguridad"
+    const val ADMIN_APARIENCIA = "admin_apariencia"
     const val VACATIONS_MENU = "vacations_menu"
     const val LOANS_MENU = "loans_menu"
     const val FINGERPRINTS = "fingerprints"

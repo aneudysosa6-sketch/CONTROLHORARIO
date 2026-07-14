@@ -1,5 +1,13 @@
 # CHANGELOG.md
 
+## 2026-07-13 — RC3.5 Administración del sistema
+
+- Unificadas las diez categorías administrativas en Web y Android, con rutas independientes y datos reales de la empresa autenticada.
+- Añadidos permisos granulares, aislamiento multiempresa, RPC seguras y auditoría obligatoria de cambios.
+- Sustituida la configuración Web ficticia y el menú Android genérico; Android conserva una UI Material 3 de solo contexto sin duplicar las mutaciones Web.
+- Ampliado Dispositivos con última conexión y última sincronización.
+- Migración y Edge Function preparadas sin desplegar; no se hizo push.
+
 ## 2026-07-13 — RC4 nómina (preparada para prueba)
 
 - Añadido modelo multiempresa, RLS, permisos, auditoría y motor SQL versionado.

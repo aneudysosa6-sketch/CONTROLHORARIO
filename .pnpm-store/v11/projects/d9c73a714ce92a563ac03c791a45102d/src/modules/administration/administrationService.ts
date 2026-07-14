@@ -1,0 +1,39 @@
+import type{PostgrestError}from'@supabase/supabase-js';
+import{getSupabaseClient}from'../../infrastructure/supabase/client';
+
+export type AdminSection='empresa'|'sucursales'|'departamentos'|'cargos'|'usuarios'|'horarios'|'jornadas'|'dispositivos'|'seguridad'|'apariencia';
+export type Company={id:string;name:string;legal_name:string|null;slug:string;tax_id:string|null;logo_url:string|null;address:string|null;email:string|null;phone:string|null;timezone:string;status:string;ui_preferences:Appearance};
+export type Appearance={theme:'dark'|'system';density:'comfortable'|'compact';primary:string;accent:string};
+export type AdministrationOverview={company:Company;sections:Record<AdminSection,boolean>;counts:{branches:number;departments:number;positions:number;profiles:number;schedules:number;pending_journeys:number;devices:number;audit_events:number};session:{auth_uid:string;company_id:string;role:string}};
+export type Branch={id:string;company_id:string;name:string;code:string;address:string|null;phone:string|null;email:string|null;timezone:string|null;is_main:boolean;status:'active'|'inactive'};
+export type Department={id:string;company_id:string;branch_id:string|null;name:string;code:string;description:string|null;is_active:boolean};
+export type Position={id:string;company_id:string;department_id:string|null;name:string;code:string;description:string|null;level:number;is_active:boolean};
+export type Role={id:string;company_id:string;name:string;code:string;description:string|null;is_active:boolean};
+export type Profile={id:string;company_id:string;role_id:string;branch_id:string|null;department_id:string|null;full_name:string;phone:string|null;status:string};
+export type Permission={id:string;codigo:string;nombre:string;modulo:string;activo:boolean};
+export type Schedule={id:string;empleado_id:string;fecha_vigencia:string;fecha_fin:string|null;hora_entrada:string;hora_salida:string;inicio_almuerzo:string|null;duracion_almuerzo_min:number;dias_laborales:number[];tolerancia_min:number;activo:boolean};
+export type AuditEvent={id:number;actor_id:string|null;seccion:string;accion:string;entidad:string;entidad_id:string|null;motivo:string|null;fecha:string};
+export type OrganizationData={branches:Branch[];departments:Department[];positions:Position[];profiles:Profile[];employees:{id:string;nombre_completo:string;codigo_empleado:string}[];roles:Role[];permissions:Permission[];departmentAssignments:{perfil_id:string;departamento_id:string}[];rolePermissions:{rol_id:string;permiso_id:string;permitido:boolean;alcance:string}[]};
+
+export class AdministrationError extends Error{constructor(readonly query:string,readonly code:string,message:string,readonly details:string='',readonly hint:string=''){super(message);this.name='AdministrationError'}visible(){return[this.code,this.message,this.details,this.hint].filter(Boolean).join(' · ')}}
+const fail=(query:string,error:PostgrestError):never=>{throw new AdministrationError(query,error.code,error.message,error.details,error.hint)};
+async function rpc<T>(name:string,args:Record<string,unknown>={}){const{data,error}=await getSupabaseClient().rpc(name,args);if(error)fail(`rpc:${name}`,error);return data as T}
+async function rows<T>(table:string,columns:string,order?:string){let query=getSupabaseClient().from(table).select(columns);if(order)query=query.order(order);const{data,error}=await query;if(error)fail(`${table}.select`,error);return(data??[])as T[]}
+
+export const administrationService={
+ overview:()=>rpc<AdministrationOverview>('obtener_administracion_sistema'),
+ async organization():Promise<OrganizationData>{const[branches,departments,positions,profiles,employees,roles,permissions,departmentAssignments,rolePermissions]=await Promise.all([
+  rows<Branch>('branches','id,company_id,name,code,address,phone,email,timezone,is_main,status','name'),rows<Department>('departments','id,company_id,branch_id,name,code,description,is_active','name'),rows<Position>('positions','id,company_id,department_id,name,code,description,level,is_active','name'),rows<Profile>('profiles','id,company_id,role_id,branch_id,department_id,full_name,phone,status','full_name'),rows<{id:string;nombre_completo:string;codigo_empleado:string}>('empleados','id,nombre_completo,codigo_empleado','nombre_completo'),rows<Role>('roles','id,company_id,name,code,description,is_active','name'),rows<Permission>('permisos','id,codigo,nombre,modulo,activo','codigo'),rows<{perfil_id:string;departamento_id:string}>('perfil_departamentos','perfil_id,departamento_id'),rows<{rol_id:string;permiso_id:string;permitido:boolean;alcance:string}>('rol_permisos','rol_id,permiso_id,permitido,alcance'),
+ ]);return{branches,departments,positions,profiles,employees,roles,permissions,departmentAssignments,rolePermissions}},
+ updateCompany:(data:Record<string,unknown>,reason:string)=>rpc<Company>('actualizar_empresa_administracion',{p_datos:data,p_motivo:reason}),
+ saveBranch:(id:string|null,data:Record<string,unknown>,reason:string)=>rpc<string>('guardar_sucursal_administracion',{p_id:id,p_datos:data,p_motivo:reason}),
+ saveDepartment:(id:string|null,data:Record<string,unknown>,supervisor:string|null,reason:string)=>rpc<string>('guardar_departamento_administracion',{p_id:id,p_datos:data,p_supervisor:supervisor,p_motivo:reason}),
+ savePosition:(id:string|null,data:Record<string,unknown>,reason:string)=>rpc<string>('guardar_cargo_administracion',{p_id:id,p_datos:data,p_motivo:reason}),
+ updateUserStatus:(id:string,status:string,reason:string)=>rpc<void>('actualizar_estado_usuario_administracion',{p_perfil:id,p_estado:status,p_motivo:reason}),
+ saveRole:(id:string|null,name:string,code:string,description:string,active:boolean,reason:string)=>rpc<string>('guardar_rol_administracion',{p_id:id,p_nombre:name,p_codigo:code,p_descripcion:description,p_activo:active,p_motivo:reason}),
+ setRolePermission:(roleId:string,permissionId:string,allowed:boolean,reason:string)=>rpc<void>('asignar_permiso_rol_administracion',{p_rol:roleId,p_permiso:permissionId,p_permitido:allowed,p_motivo:reason}),
+ updateUserRole:(profileId:string,roleId:string,reason:string)=>rpc<void>('actualizar_rol_usuario_administracion',{p_perfil:profileId,p_rol:roleId,p_motivo:reason}),
+ updateAppearance:(data:Appearance,reason:string)=>rpc<Appearance>('actualizar_apariencia_administracion',{p_preferencias:data,p_motivo:reason}),
+ schedules:()=>rows<Schedule>('horarios_empleados','id,empleado_id,fecha_vigencia,fecha_fin,hora_entrada,hora_salida,inicio_almuerzo,duracion_almuerzo_min,dias_laborales,tolerancia_min,activo','fecha_vigencia'),
+ audit:()=>rows<AuditEvent>('administracion_auditoria','id,actor_id,seccion,accion,entidad,entidad_id,motivo,fecha','fecha'),
+};

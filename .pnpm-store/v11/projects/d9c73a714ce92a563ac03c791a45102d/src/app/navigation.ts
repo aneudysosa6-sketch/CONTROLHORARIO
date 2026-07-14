@@ -15,7 +15,7 @@ export const navigationItems:NavigationItem[]=[
  {to:'/kiosco',label:'Modo kiosco',section:'Tiempo',permission:'asistencia.registrar_propia',icon:BarChart3},
  {to:'/nomina',label:'Gestión de nómina',section:'Nómina',permission:'nomina.ver',icon:WalletCards},
  {to:'/reportes',label:'Reportes',section:'Reportes',permission:'reportes.ver_globales',icon:FileBarChart},
- {to:'/configuracion',label:'Configuración',section:'Administración',permission:'configuracion.administrar',icon:Settings},
+ {to:'/administracion',label:'Administración del sistema',section:'Administración',permission:'configuracion.ver',icon:Settings},
  {to:'/usuarios/sincronizar',label:'Sincronizar usuarios',section:'Administración',permission:'usuarios.administrar',icon:UserCog},
  {to:'/dispositivos',label:'Dispositivos Android',section:'Administración',permission:'dispositivos.ver',icon:Smartphone},
 ];

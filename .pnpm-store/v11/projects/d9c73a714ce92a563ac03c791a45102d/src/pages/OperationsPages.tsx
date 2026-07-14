@@ -113,56 +113,6 @@ export function ReportsPage() {
   );
 }
 
-export function SettingsPage() {
-  const [saved, setSaved] = useState("");
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaved("Configuración guardada localmente");
-    setTimeout(() => setSaved(""), 2200);
-  }
-  return (
-    <>
-      <PageHeader
-        eyebrow="ADMINISTRACIÓN"
-        title="Configuración"
-        description="Personaliza empresa, reglas laborales, catálogos y preferencias del sistema."
-      />
-      <form className="settings-grid" onSubmit={submit}>
-        {[
-          ["Datos de la empresa", "Razón social, RNC, sucursales y contacto"],
-          ["Horarios", "Turnos, días laborables y descansos"],
-          ["Reglas laborales", "Tolerancia de tardanza y horas extras"],
-          ["Organización", "Departamentos y cargos"],
-          ["Usuarios administradores", "Roles, permisos y accesos"],
-          ["Apariencia", "Tema, densidad y preferencias"],
-        ].map(([title, desc], i) => (
-          <section className="panel" key={title}>
-            <span className="setting-index">0{i + 1}</span>
-            <h2>{title}</h2>
-            <p>{desc}</p>
-            <label>
-              {i === 0 ? "Nombre / valor principal" : "Configuración"}
-              <input
-                defaultValue={
-                  i === 0
-                    ? "ACME Dominicana"
-                    : i === 1
-                      ? "L-V · 8:00–17:00"
-                      : i === 2
-                        ? "15 minutos"
-                        : "Configuración predeterminada"
-                }
-              />
-            </label>
-          </section>
-        ))}
-        <button className="primary save-settings">Guardar preferencias</button>
-      </form>
-      <Toast message={saved} />
-    </>
-  );
-}
-
 export function KioskPage() {
   const [mode, setMode] = useState<"home" | "pin" | "finger">("home"),
     [pin, setPin] = useState(""),
