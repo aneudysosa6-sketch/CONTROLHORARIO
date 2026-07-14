@@ -1,0 +1,15 @@
+begin;select plan(13);
+select has_column('public','nomina_reglas_empleado','valor_hora_extra');
+select has_column('public','nomina_reglas_empleado','descuento_fijo_quincenal');
+select has_column('public','nomina_reglas_empleado','descuento_fijo_motivo');
+select has_column('public','nomina_reglas_empleado','descuento_fijo_activo');
+select has_column('public','nomina_reglas_empleado','otros_descuentos_fijos');
+select has_column('public','nomina_reglas_empleado','nomina_activa');
+select has_column('public','nomina_detalles','pago_normal');
+select has_column('public','nomina_detalles','valor_hora_extra');
+select has_column('public','nomina_detalles','descuento_fijo');
+select has_function('public','obtener_ficha_pago_empleado',array['uuid']);
+select has_function('public','guardar_ficha_pago_empleado',array['uuid','jsonb','text']);
+select function_privs_are('public','guardar_ficha_pago_empleado',array['uuid','jsonb','text'],'authenticated',array['EXECUTE']);
+select ok((select relrowsecurity from pg_class where oid='public.nomina_reglas_empleado'::regclass),'RLS permanece activo');
+select * from finish();rollback;

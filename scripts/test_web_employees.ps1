@@ -6,6 +6,7 @@ $list = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/Employee
 $form = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/EmployeeFormPage.tsx')
 $detail = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/EmployeeDetailPage.tsx')
 $dashboard = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/pages/DashboardPage.tsx')
+$dashboardService = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/dashboard/dashboardService.ts')
 $codePolicy = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'web/src/modules/employees/employeeCodePolicy.ts')
 $checks = [ordered]@{
   'lecturas Supabase con RLS' = $service -match "from\('empleados'\)" -and $service -notmatch 'localStorage'
@@ -19,7 +20,7 @@ $checks = [ordered]@{
   'lista busca y filtra' = $list -match 'Buscar por nombre' -and $list -match 'Todos los estados'
   'pantallas crear editar ver' = $form -match 'employeeService.save' -and $detail -match 'employeeService.get' -and $detail -match '/editar'
   'huella preparada sin captura web' = $detail -match 'Huella 2Connect' -and $detail -match 'nunca recibe ni muestra el template' -and $detail -match 'Registrar huella en Android'
-  'dashboard usa empleados reales' = $dashboard -match 'employeeService.list' -and $dashboard -notmatch 'employees}from.*mockData'
+  'dashboard usa empleados reales' = ($dashboard -match 'Rc2DashboardPage') -and ($dashboardService -match "from\('empleados'\)") -and ($dashboardService -notmatch 'mockData')
 }
 $failed = $checks.GetEnumerator() | Where-Object { -not $_.Value }
 $checks.GetEnumerator() | ForEach-Object { if ($_.Value) { Write-Host "OK: $($_.Key)" } else { Write-Host "ERROR: $($_.Key)" } }

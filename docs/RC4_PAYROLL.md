@@ -55,3 +55,11 @@ Antes de declarar RC4 terminada se debe:
 7. Cambiar una jornada calculada y confirmar desactualización/auditoría.
 
 No se despliega Supabase ni se hace push como parte de RC4.
+
+## Corrección definitiva: configuración dentro del empleado
+
+La migración `0012_rc4_employee_pay_alignment.sql` corrige la desviación original. El sueldo mensual permanece en `empleados.salario` y la ficha Crear/Editar/Ver empleado concentra divisor 30, horas diarias, hora extra manual, AFP/SFS/impuestos manuales, incentivo y descuentos fijos. Préstamos y créditos se muestran con total, pagado/descontado, pendiente, cuota y estado.
+
+El motor `RC4_WORKED_MINUTES_V2` no paga una base completa: suma por jornada RC2 elegible hasta `horas_dia × 60` minutos normales y clasifica el excedente como extra. El pago normal usa `salario mensual / divisor / horas_dia`; las extras usan exclusivamente el valor manual del empleado. Los porcentajes y recargos automáticos dejan de participar.
+
+La plantilla conserva exactamente Código, Nombre, DESCU-PRES, DESCU-CRED y ROTUR/FALT. RC4 sigue pendiente de pgTAP y pruebas manuales con datos reales; esta corrección no despliega Supabase.
