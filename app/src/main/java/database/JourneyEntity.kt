@@ -11,6 +11,8 @@ data class JourneyEntity(
     val employeeLocalId:Int,
     val employeeRemoteId:String,
     val deviceId:String,
+    val startBranchId:String?=null,
+    val endBranchId:String?=null,
     val workDate:String,
     val status:String="SIN_INICIAR",
     val startedAt:String?=null,

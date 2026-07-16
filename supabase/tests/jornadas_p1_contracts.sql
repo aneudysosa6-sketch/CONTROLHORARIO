@@ -1,0 +1,15 @@
+begin;
+create extension if not exists pgtap;
+select plan(10);
+select has_table('public','jornada_ganancias','daily earnings table exists');
+select has_column('public','jornadas','sucursal_inicio_id','start branch is persisted');
+select has_column('public','jornadas','sucursal_fin_id','end branch is persisted');
+select has_column('public','jornada_eventos','sucursal_id','event branch is persisted');
+select has_column('public','jornada_eventos','comprobante_biometrico_id','biometric proof id is persisted');
+select has_function('public','corregir_jornada_30_dias',array['uuid','jsonb','text'],'server correction RPC exists');
+select has_function('public','calcular_ganancia_jornada',array['uuid'],'immediate earnings function exists');
+select has_trigger('public','jornadas','jornadas_ganancias_al_finalizar','finish trigger calculates earnings');
+select has_trigger('public','jornada_eventos','jornada_eventos_completar_p1','event trigger persists proof and branch');
+select function_privs_are('public','corregir_jornada_30_dias',array['uuid','jsonb','text'],'authenticated',array['EXECUTE'],'correction RPC is authenticated only');
+select * from finish();
+rollback;

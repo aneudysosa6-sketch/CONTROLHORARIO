@@ -1,5 +1,6 @@
 -- Ejecutar solo en Supabase local después de FINAL + seed. Nunca contra producción.
 begin;
+select plan(1);
 do $$
 declare v_missing text;
 begin
@@ -13,4 +14,6 @@ begin
   if exists(select 1 from information_schema.role_table_grants where grantee='authenticated' and table_name='profiles' and privilege_type in('INSERT','UPDATE','DELETE')) then raise exception 'authenticated conserva DML de profiles'; end if;
   if exists(select 1 from pg_class where relnamespace='public'::regnamespace and relkind='r' and relname in('companies','roles','branches','departments','positions','profiles','empleados','permisos','rol_permisos','perfil_permisos','perfil_sucursales','perfil_departamentos','user_provisioning_audit') and not relrowsecurity) then raise exception 'Tabla sin RLS'; end if;
 end $$;
+select pass('Contratos de arquitectura base disponibles y protegidos');
+select * from finish();
 rollback;

@@ -1,13 +1,13 @@
 begin;
 select plan(17);
 
-select has_column('public','companies','logo_url');
-select has_column('public','companies','address');
-select has_column('public','companies','email');
-select has_column('public','companies','phone');
-select has_column('public','companies','ui_preferences');
-select has_column('public','branches','timezone');
-select has_table('public','administracion_auditoria');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='companies' and column_name='logo_url'),'logo_url');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='companies' and column_name='address'),'address');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='companies' and column_name='email'),'email');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='companies' and column_name='phone'),'phone');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='companies' and column_name='ui_preferences'),'ui_preferences');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='branches' and column_name='timezone'),'timezone');
+select ok(to_regclass('public.administracion_auditoria') is not null,'administracion_auditoria');
 select has_function('public','obtener_administracion_sistema',array[]::text[]);
 select has_function('public','actualizar_empresa_administracion',array['jsonb','text']);
 select has_function('public','guardar_sucursal_administracion',array['uuid','jsonb','text']);

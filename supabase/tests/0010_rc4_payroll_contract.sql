@@ -1,15 +1,15 @@
 begin;
 select plan(30);
 
-select has_table('public','nomina_periodos');
-select has_table('public','nominas');
-select has_table('public','nomina_detalles');
-select has_table('public','nomina_descuentos');
-select has_table('public','nomina_prestamos');
-select has_table('public','nomina_creditos');
-select has_table('public','nomina_ajustes');
-select has_table('public','nomina_auditoria');
-select has_table('public','nomina_archivos');
+select ok(to_regclass('public.nomina_periodos') is not null,'nomina_periodos');
+select ok(to_regclass('public.nominas') is not null,'nominas');
+select ok(to_regclass('public.nomina_detalles') is not null,'nomina_detalles');
+select ok(to_regclass('public.nomina_descuentos') is not null,'nomina_descuentos');
+select ok(to_regclass('public.nomina_prestamos') is not null,'nomina_prestamos');
+select ok(to_regclass('public.nomina_creditos') is not null,'nomina_creditos');
+select ok(to_regclass('public.nomina_ajustes') is not null,'nomina_ajustes');
+select ok(to_regclass('public.nomina_auditoria') is not null,'nomina_auditoria');
+select ok(to_regclass('public.nomina_archivos') is not null,'nomina_archivos');
 select has_function('public','crear_periodo_nomina',array['date','date','text']);
 select has_function('public','configurar_regla_nomina',array['uuid','jsonb','text']);
 select has_function('public','calcular_nomina',array['uuid']);
@@ -32,7 +32,7 @@ select is((select count(*)::integer from public.rol_permisos rp join public.role
 select col_is_unique('public','nomina_periodos',array['empresa_id','fecha_inicio','fecha_fin','tipo_periodo']);
 select col_is_unique('public','nominas',array['empresa_id','periodo_id']);
 select col_is_unique('public','nomina_detalles',array['empresa_id','nomina_id','empleado_id']);
-select has_trigger('public','jornadas','jornadas_dirty_payroll_rc4');
+select ok(exists(select 1 from pg_trigger where tgrelid='public.jornadas'::regclass and tgname='jornadas_dirty_payroll_rc4' and not tgisinternal),'jornadas_dirty_payroll_rc4');
 
 select * from finish();
 rollback;

@@ -1,5 +1,28 @@
 project_id = "heiafcxsvfhinygzxsdk"
 
+# Puertos exclusivos del stack local. No afectan el proyecto Supabase remoto.
+[db]
+shadow_port = 55420
+port = 55422
+
+[api]
+port = 55421
+
+[studio]
+port = 55423
+
+[local_smtp]
+port = 55424
+smtp_port = 55425
+pop3_port = 55426
+
+[analytics]
+port = 55427
+vector_port = 55428
+
+[db.pooler]
+port = 55429
+
 # exchange es público; el handler valida JWT para administración y credenciales
 # de dispositivo para employee-sync.
 [functions.device-enrollment]

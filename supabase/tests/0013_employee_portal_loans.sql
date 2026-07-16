@@ -1,8 +1,8 @@
 begin;select plan(16);
-select has_table('public','prestamo_solicitudes');
-select has_table('public','prestamo_movimientos');
-select has_table('public','prestamo_solicitud_auditoria');
-select has_column('public','nomina_prestamos','solicitud_id');
+select ok(to_regclass('public.prestamo_solicitudes') is not null,'prestamo_solicitudes');
+select ok(to_regclass('public.prestamo_movimientos') is not null,'prestamo_movimientos');
+select ok(to_regclass('public.prestamo_solicitud_auditoria') is not null,'prestamo_solicitud_auditoria');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_prestamos' and column_name='solicitud_id'),'solicitud_id');
 select has_function('public','obtener_portal_empleado',array[]::text[]);
 select has_function('public','crear_solicitud_prestamo',array['numeric','numeric','text','uuid','text']);
 select has_function('public','cancelar_solicitud_prestamo',array['uuid','text']);

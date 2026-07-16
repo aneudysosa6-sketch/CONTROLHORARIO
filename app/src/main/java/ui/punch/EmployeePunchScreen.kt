@@ -96,7 +96,13 @@ fun EmployeePunchScreen(
             busy = false
             if (score > 0) {
                 viewModel.markFingerprintVerified(score)
-                onVerified(employee.id)
+                val deviceId = com.example.controlhorario.security.DeviceIdentityManager(context).deviceId
+                if (deviceId.isNullOrBlank()) {
+                    viewModel.clearAfterFailure("Dispositivo no enrolado.")
+                } else {
+                    JourneyBiometricGate.open(employee.id, deviceId)
+                    onVerified(employee.id)
+                }
             } else {
                 viewModel.clearAfterFailure("Huella incorrecta. Intente nuevamente.")
             }

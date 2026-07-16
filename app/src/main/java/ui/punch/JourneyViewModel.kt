@@ -21,9 +21,11 @@ class JourneyViewModel(private val context:Context,private val repository:Journe
  val journey:StateFlow<JourneyEntity?> = repository.observe(employeeId,workDate).stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),null)
  val busy=MutableStateFlow(false);val error=MutableStateFlow("")
  fun record(employee:Employee,workDate:String,action:JourneyAction,onSaved:()->Unit){if(busy.value)return;busy.value=true;error.value="";viewModelScope.launch{runCatching{
-   val remoteId=requireNotNull(employee.remoteId){"Empleado pendiente de sincronización remota."};val deviceId=requireNotNull(DeviceIdentityManager(context).deviceId){"Dispositivo no enrolado."}
-   repository.recordAction(employee.id,remoteId,employee.nombre,deviceId,workDate,Instant.now().toString(),action,employee.jornadaEnabled)
-  }.onSuccess{AttendanceSyncScheduler.enqueue(context);onSaved()}.onFailure{error.value=when(it.message){"ATTENDANCE_DISABLED"->"Tu registro de jornada está deshabilitado.";"ALREADY_FINALIZED"->"La jornada de hoy ya fue finalizada.";else->it.message?:"No fue posible registrar la jornada."}};busy.value=false}}
+   val remoteId=requireNotNull(employee.remoteId){"Empleado pendiente de sincronizacion remota."};val identity=DeviceIdentityManager(context);val deviceId=requireNotNull(identity.deviceId){"Dispositivo no enrolado."}
+   val proof=requireNotNull(JourneyBiometricGate.consume(employee.id,deviceId,action)){"BIOMETRIC_PROOF_REQUIRED"}
+   val signature=identity.sign("${proof.id}|$remoteId|$deviceId|${action.name}|${proof.issuedAt}|${proof.expiresAt}".toByteArray())
+   repository.recordAction(employee.id,remoteId,employee.nombre,deviceId,employee.remoteBranchId,workDate,Instant.now().toString(),action,employee.jornadaEnabled,proof,signature)
+  }.onSuccess{AttendanceSyncScheduler.enqueue(context);onSaved()}.onFailure{error.value=when(it.message){"ATTENDANCE_DISABLED"->"Tu registro de jornada esta deshabilitado.";"ALREADY_FINALIZED"->"La jornada de hoy ya fue finalizada.";"BIOMETRIC_PROOF_REQUIRED"->"Debe verificar PIN y huella 2Connect antes de cada accion.";else->it.message?:"No fue posible registrar la jornada."}};busy.value=false}}
 }
 
 class JourneyViewModelFactory(private val context:Context,private val repository:JourneyRepository,private val employeeId:Int,private val workDate:String):ViewModelProvider.Factory{

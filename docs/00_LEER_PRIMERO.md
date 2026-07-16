@@ -1,47 +1,11 @@
-# 00_LEER_PRIMERO.md
+# LEER PRIMERO
 
-## Objetivo del proyecto
+Esta carpeta contiene la documentación oficial del proyecto CONTROLHORARIO.
 
-CONTROL HORARIO IA es una app Android para control horario, ponche por PIN + huella 2Connect, empleados, jornada, incidencias, nomina, prestamos, permisos, vacaciones, reportes y administracion por roles.
+Orden de lectura:
+1. 01_MASTER_PROJECT_RULES.md
+2. 02_ARQUITECTURA.md
+3. 03_REGLAS_NEGOCIO.md
+4. Resto de módulos.
 
-## Alcance definitivo de comunicaciones
-
-**CONTROLHORARIO no incluye Gmail, WhatsApp ni n8n. Las alertas y notificaciones son internas.**
-
-No se deben agregar clientes, colas, credenciales, endpoints, plantillas ni botones para mensajería externa.
-
-## Reglas criticas
-
-- No eliminar funcionalidades existentes.
-- El ponche operativo debe mantenerse con PIN + huella.
-- El modo kiosko debe ofrecer PIN y HUELLA como accesos visibles.
-- La busqueda por nombre o PIN es solo interna; no cambia la logica de ponche.
-- Toda pantalla visible debe tener destino real.
-- Todo cambio debe compilar.
-
-## Modulos principales
-
-- Empleados.
-- Asistencia y ponche.
-- Modo kiosko.
-- Huellas 2Connect.
-- Nomina general.
-- Centro de incidencias.
-- Permisos de empleados.
-- Prestamos.
-- Vacaciones.
-- Encargado de sucursal.
-- Supervisores.
-- Configuracion.
-- Reportes.
-
-## Continuidad
-
-Antes de modificar, revisar:
-
-- `docs/PROJECT_RULES.md`
-- `docs/MODULES.md`
-- `docs/DATABASE.md`
-- `docs/CHANGELOG.md`
-- `app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt`
-- `app/src/main/java/database/AppDatabase.kt`
+Ninguna implementación debe apartarse de estas reglas.

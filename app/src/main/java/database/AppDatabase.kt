@@ -42,7 +42,7 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         AppEventEntity::class
         ,DeviceEnrollmentEntity::class
     ],
-    version = 31,
+    version = 32,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
