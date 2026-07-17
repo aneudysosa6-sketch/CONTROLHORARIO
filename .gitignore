@@ -13,3 +13,16 @@
 .externalNativeBuild
 .cxx
 local.properties
+# PNPM
+.pnpm-store/
+
+# Dependencias
+node_modules/
+
+# Build web
+web/node_modules/
+web/dist/
+dist/
+
+# TypeScript
+*.tsbuildinfo
