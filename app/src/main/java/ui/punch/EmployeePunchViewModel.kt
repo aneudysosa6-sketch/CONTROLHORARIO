@@ -1,8 +1,12 @@
 package com.example.controlhorario.ui.punch
 
+import android.util.Base64
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.controlhorario.BuildConfig
 import com.example.controlhorario.database.AttendanceEntity
+import com.example.controlhorario.fingerprint.external.FingerprintTemplateDiagnostics
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.repository.AttendanceRepository
@@ -89,9 +93,49 @@ class EmployeePunchViewModel(
         }
     }
 
-    suspend fun getStoredTemplateBase64(): String? {
+    suspend fun getStoredFingerprintTemplate(): StoredFingerprintTemplate? {
         val employee = _state.value.employee ?: return null
-        return biometricRepository.getActiveByEmployee(employee.id)?.templateBase64?.takeIf { it.isNotBlank() }
+        val biometricLookup = biometricRepository.getActiveByEmployeeWithMetadata(employee.id)
+        val biometric = biometricLookup.record ?: return null
+        if (
+            biometric.employeeId != employee.id ||
+            biometric.biometricType != com.example.controlhorario.database.EmployeeBiometricEntity.TYPE_2CONNECT_USB ||
+            biometric.templateBase64.isBlank() ||
+            biometric.templateSize <= 0
+        ) {
+            return null
+        }
+        if (BuildConfig.DEBUG) {
+            val decoded = runCatching {
+                Base64.decode(biometric.templateBase64, Base64.NO_WRAP)
+            }.getOrNull()
+            val decodedBytes = decoded?.size ?: -1
+            val selectedSha = decoded
+                ?.let { FingerprintTemplateDiagnostics.summarize(it).sha256 }
+                ?: "INVALID"
+            decoded?.let { bytes ->
+                FingerprintTemplateDiagnostics.log("D_AFTER_ROOM_READ", employee.id, bytes)
+            }
+            Log.d(
+                "FINGERPRINT_DB",
+                "employeeId=${employee.id} rowsFound=${biometricLookup.rowsFound} " +
+                    "selectedRecordId=${biometric.id} selectedUpdatedAt=${biometric.updatedAt} " +
+                    "selectedSha256=$selectedSha"
+            )
+            Log.d(
+                "FINGERPRINT_VERIFY",
+                "employeeId=${employee.id} storedEmployeeId=${biometric.employeeId} " +
+                    "biometricType=${biometric.biometricType} " +
+                    "biometricRecordId=${biometric.id} updatedAt=${biometric.updatedAt} " +
+                    "base64LengthRead=${biometric.templateBase64.length} " +
+                    "decodedBytes=$decodedBytes storedSizeColumn=${biometric.templateSize}"
+            )
+        }
+        return StoredFingerprintTemplate(
+            employeeId = employee.id,
+            templateBase64 = biometric.templateBase64,
+            templateSize = biometric.templateSize
+        )
     }
 
     fun markFingerprintVerified(score: Int) {
@@ -103,6 +147,24 @@ class EmployeePunchViewModel(
 
     fun setMessage(message: String) {
         _state.value = _state.value.copy(message = message, identifying = false)
+    }
+
+    fun keepEmployeeForFingerprintRetry(message: String) {
+        val current = _state.value
+        if (current.employee == null) {
+            _state.value = EmployeePunchState(message = message)
+            return
+        }
+
+        _state.value = current.copy(
+            biometricVerified = false,
+            identifying = false,
+            message = message
+        )
+    }
+
+    fun clearEmployeeAndCancelFingerprint() {
+        _state.value = EmployeePunchState()
     }
 
     fun clearAfterFailure(message: String) {
@@ -153,4 +215,10 @@ data class EmployeePunchState(
     val hasTwoConnectTemplate: Boolean = false,
     val identifying: Boolean = false,
     val message: String = ""
+)
+
+data class StoredFingerprintTemplate(
+    val employeeId: Int,
+    val templateBase64: String,
+    val templateSize: Int
 )

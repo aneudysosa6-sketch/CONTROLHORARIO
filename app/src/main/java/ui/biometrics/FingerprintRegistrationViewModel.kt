@@ -1,8 +1,12 @@
 package com.example.controlhorario.ui.biometrics
 
+import android.util.Base64
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.controlhorario.BuildConfig
 import com.example.controlhorario.database.EmployeeBiometricEntity
+import com.example.controlhorario.fingerprint.external.FingerprintTemplateDiagnostics
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.repository.EmployeeBiometricRepository
 import com.example.controlhorario.repository.EmployeeRepository
@@ -72,37 +76,104 @@ class FingerprintRegistrationViewModel(
         viewModelScope.launch {
             val now = nowDateTime()
             val registeredByValue = registeredBy.ifBlank { "ADMIN" }
-            biometricRepository.deactivateByEmployee(employee.id, now)
-            biometricRepository.save(
-                EmployeeBiometricEntity(
-                    employeeId = employee.id,
-                    employeeName = employee.nombre,
-                    biometricType = EmployeeBiometricEntity.TYPE_2CONNECT_USB,
-                    deviceName = "2Connect USB Fingerprint Scanner",
-                    templateBase64 = templateBase64,
-                    templateSize = templateSize,
-                    sdkProvider = "fplib-reader-v3.jar",
-                    registeredBy = registeredByValue,
-                    registeredAt = now,
-                    updatedAt = now,
-                    isActive = true
+            val templateBytes = runCatching {
+                Base64.decode(templateBase64, Base64.NO_WRAP).size
+            }.getOrDefault(-1)
+            if (BuildConfig.DEBUG) {
+                Log.d(
+                    "FINGERPRINT_ENROLL",
+                    "employeeId=${employee.id} templateBytes=$templateBytes " +
+                        "templateBase64Length=${templateBase64.length} saveSuccess=false"
                 )
-            )
-            employeeRepository.markFingerprintRegistered(
+            }
+            val template = EmployeeBiometricEntity(
                 employeeId = employee.id,
+                employeeName = employee.nombre,
+                biometricType = EmployeeBiometricEntity.TYPE_2CONNECT_USB,
+                deviceName = "2Connect USB Fingerprint Scanner",
+                templateBase64 = templateBase64,
+                templateSize = templateSize,
+                sdkProvider = "fplib-reader-v3.jar",
+                registeredBy = registeredByValue,
                 registeredAt = now,
-                registeredBy = registeredByValue
+                updatedAt = now,
+                isActive = true
             )
-            _state.value = _state.value.copy(
-                selectedEmployee = employee.copy(
-                    fingerprintRegistered = true,
-                    fingerprintRegisteredAt = now,
-                    fingerprintRegisteredBy = registeredByValue
-                ),
-                registeredTemplateSize = templateSize,
-                message = "Huella 2Connect registrada correctamente para ${employee.nombre}."
+            try {
+                val replacement = biometricRepository.replaceForEmployee(template)
+                val lookup = biometricRepository.getActiveByEmployeeWithMetadata(employee.id)
+                val persisted = lookup.record
+                val inputSha = FingerprintTemplateDiagnostics.summarize(
+                    Base64.decode(templateBase64, Base64.NO_WRAP)
+                ).sha256
+                val persistedSha = persisted?.templateBase64?.let { encoded ->
+                    runCatching {
+                        FingerprintTemplateDiagnostics.summarize(
+                            Base64.decode(encoded, Base64.NO_WRAP)
+                        ).sha256
+                    }.getOrNull()
+                }
+                if (persisted == null || lookup.rowsFound != 1 || persisted.id.toLong() != replacement.insertedId || inputSha != persistedSha) {
+                    throw IllegalStateException("La plantilla recién registrada no pudo verificarse en Room.")
+                }
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        "FINGERPRINT_DB",
+                        "employeeId=${employee.id} deletedRows=${replacement.deletedRows} " +
+                            "insertedId=${replacement.insertedId} sha256=$inputSha updatedAt=${persisted.updatedAt}"
+                    )
+                }
+                saveAndReportSuccess(employee, templateSize, registeredByValue, now, persisted)
+            } catch (error: Exception) {
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        "FINGERPRINT_ENROLL",
+                        "employeeId=${employee.id} templateBytes=$templateBytes " +
+                            "templateBase64Length=${templateBase64.length} saveSuccess=false",
+                        error
+                    )
+                }
+                throw error
+            }
+        }
+    }
+
+    private suspend fun saveAndReportSuccess(
+        employee: Employee,
+        templateSize: Int,
+        registeredByValue: String,
+        now: String,
+        persisted: EmployeeBiometricEntity
+    ) {
+        val persistedBytes = runCatching {
+            Base64.decode(persisted.templateBase64, Base64.NO_WRAP)
+        }.getOrNull()
+        persistedBytes?.let { bytes ->
+            FingerprintTemplateDiagnostics.log("C_AFTER_ROOM_SAVE", employee.id, bytes)
+        }
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                "FINGERPRINT_ENROLL",
+                "employeeId=${employee.id} templateBytes=${persistedBytes?.size ?: -1} " +
+                    "templateBase64Length=${persisted.templateBase64.length} " +
+                    "persistedBase64Length=${persisted.templateBase64.length} " +
+                    "persistedBytes=${persistedBytes?.size ?: -1} saveSuccess=true"
             )
         }
+        employeeRepository.markFingerprintRegistered(
+            employeeId = employee.id,
+            registeredAt = now,
+            registeredBy = registeredByValue
+        )
+        _state.value = _state.value.copy(
+            selectedEmployee = employee.copy(
+                fingerprintRegistered = true,
+                fingerprintRegisteredAt = now,
+                fingerprintRegisteredBy = registeredByValue
+            ),
+            registeredTemplateSize = templateSize,
+            message = "Huella 2Connect registrada correctamente para ${employee.nombre}."
+        )
     }
 
     fun setMessage(message: String) {

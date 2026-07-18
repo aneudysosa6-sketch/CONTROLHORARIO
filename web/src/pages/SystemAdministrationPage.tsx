@@ -59,13 +59,75 @@ function UsersSection({
   hasPermission: (permission: string) => boolean;
 }) {
   const [reason, setReason] = useState('');
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [roleForm, setRoleForm] = useState({
     name: '',
     code: '',
     description: '',
+    isActive: true,
   });
-  const [selectedRole, setSelectedRole] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+
+  const canManageRoles = hasPermission('roles.administrar');
+  const canManagePermissions = hasPermission('permisos.administrar');
+  const editingRole = organization.roles.find(
+    (role) => role.id === editingRoleId,
+  );
+
+  function isAdministratorRole(role: { code: string; name: string }) {
+    const normalized = `${role.code} ${role.name}`
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z]/g, '');
+
+    return (
+      normalized.includes('ADMIN') ||
+      normalized.includes('ADMINISTRADOR') ||
+      normalized.includes('ADMINISTRATOR')
+    );
+  }
+
+  function rolePermissionIds(roleId: string) {
+    return organization.rolePermissions
+      .filter(
+        (rolePermission) =>
+          rolePermission.rol_id === roleId && rolePermission.permitido,
+      )
+      .map((rolePermission) => rolePermission.permiso_id);
+  }
+
+  function assignedUsers(roleId: string) {
+    return organization.profiles.filter((profile) => profile.role_id === roleId);
+  }
+
+  function resetRoleForm() {
+    setEditingRoleId(null);
+    setRoleForm({
+      name: '',
+      code: '',
+      description: '',
+      isActive: true,
+    });
+    setSelectedPermissions([]);
+  }
+
+  function editRole(role: {
+    id: string;
+    name: string;
+    code: string;
+    description: string | null;
+    is_active: boolean;
+  }) {
+    setEditingRoleId(role.id);
+    setRoleForm({
+      name: role.name,
+      code: role.code,
+      description: role.description ?? '',
+      isActive: role.is_active,
+    });
+    setSelectedPermissions(rolePermissionIds(role.id));
+  }
 
   async function status(id: string, value: string) {
     if (!reason.trim()) return;
@@ -76,38 +138,95 @@ function UsersSection({
     );
   }
 
-  async function createRole(event: FormEvent) {
+  async function saveRole(event: FormEvent) {
     event.preventDefault();
 
-    if (busy || !roleForm.name.trim() || !roleForm.code.trim()) return;
+    if (
+      busy ||
+      !roleForm.name.trim() ||
+      !roleForm.code.trim() ||
+      (editingRoleId !== null && !reason.trim())
+    ) {
+      return;
+    }
 
-    const created = await run(async () => {
+    const created = editingRoleId === null;
+    const saved = await run(async () => {
       const roleId = await administrationService.saveRole(
-        null,
+        editingRoleId,
         roleForm.name,
         roleForm.code,
         roleForm.description,
-        true,
-        '',
+        roleForm.isActive,
+        created ? '' : reason,
       );
+      const previousPermissions = new Set(
+        editingRoleId ? rolePermissionIds(editingRoleId) : [],
+      );
+      const nextPermissions = new Set(selectedPermissions);
+      const permissionReason = created
+        ? 'Creación inicial de usuario'
+        : reason;
 
-      for (const permissionId of selectedPermissions) {
-        await administrationService.setRolePermission(
-          roleId,
-          permissionId,
-          true,
-          'Creación inicial de usuario',
-        );
+      for (const permission of organization.permissions) {
+        const wasAssigned = previousPermissions.has(permission.id);
+        const isAssigned = nextPermissions.has(permission.id);
+
+        if (wasAssigned !== isAssigned) {
+          await administrationService.setRolePermission(
+            roleId,
+            permission.id,
+            isAssigned,
+            permissionReason,
+          );
+        }
       }
-    }, 'Rol creado');
+    }, created ? 'Rol creado' : 'Rol actualizado');
 
-    if (created) {
-      setRoleForm({ name: '', code: '', description: '' });
-      setSelectedPermissions([]);
+    if (saved) {
+      resetRoleForm();
     }
   }
 
-  function toggleNewPermission(permissionId: string, checked: boolean) {
+  async function toggleRoleStatus(role: {
+    id: string;
+    name: string;
+    code: string;
+    description: string | null;
+    is_active: boolean;
+  }) {
+    if (!reason.trim()) return;
+
+    const users = assignedUsers(role.id);
+    const deactivating = role.is_active;
+
+    if (deactivating && isAdministratorRole(role)) return;
+    if (deactivating && users.length > 0) return;
+
+    const action = deactivating ? 'desactivar' : 'activar';
+    if (
+      !window.confirm(
+        `¿Confirmas ${action} el rol "${role.name}"? Esta acción quedará auditada.`,
+      )
+    ) {
+      return;
+    }
+
+    await run(
+      () =>
+        administrationService.saveRole(
+          role.id,
+          role.name,
+          role.code,
+          role.description ?? '',
+          !deactivating,
+          reason,
+        ),
+      deactivating ? 'Rol desactivado' : 'Rol activado',
+    );
+  }
+
+  function togglePermission(permissionId: string, checked: boolean) {
     setSelectedPermissions((current) =>
       checked
         ? [...current, permissionId]
@@ -129,188 +248,243 @@ function UsersSection({
           <input
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Obligatorio"
+            placeholder="Obligatorio para editar, permisos y estado"
           />
         </label>
       </div>
 
       <SimpleTable
         headers={['Usuario', 'Rol', 'Estado', 'Acciones']}
-        rows={organization.profiles.map((profile) => {
-          return [
-            <b key={`${profile.id}-name`}>{profile.full_name}</b>,
-            <select
-              key={`${profile.id}-role`}
-              value={profile.role_id}
-              disabled={
-                profile.id === currentId ||
-                !hasPermission('usuarios.administrar') ||
-                !reason
-              }
-              onChange={(event) =>
-                void run(
-                  () =>
-                    administrationService.updateUserRole(
-                      profile.id,
-                      event.target.value,
-                      reason,
-                    ),
-                  'Rol actualizado',
+        rows={organization.profiles.map((profile) => [
+          <b key={`${profile.id}-name`}>{profile.full_name}</b>,
+          <select
+            key={`${profile.id}-role`}
+            value={profile.role_id}
+            disabled={
+              profile.id === currentId ||
+              !hasPermission('usuarios.administrar') ||
+              !reason
+            }
+            onChange={(event) =>
+              void run(
+                () =>
+                  administrationService.updateUserRole(
+                    profile.id,
+                    event.target.value,
+                    reason,
+                  ),
+                'Rol actualizado',
+              )
+            }
+          >
+            {organization.roles
+              .filter((role) => role.is_active)
+              .map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
+          </select>,
+          <Badge
+            key={`${profile.id}-status`}
+            tone={profile.status === 'active' ? 'green' : 'gray'}
+          >
+            {profile.status}
+          </Badge>,
+          profile.id === currentId ? (
+            'Sesión actual'
+          ) : (
+            <button
+              key={`${profile.id}-action`}
+              className="secondary"
+              disabled={!reason || busy}
+              onClick={() =>
+                void status(
+                  profile.id,
+                  profile.status === 'active' ? 'inactive' : 'active',
                 )
               }
             >
-              {organization.roles
-                .filter((item) => item.is_active)
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-            </select>,
-            <Badge
-              key={`${profile.id}-status`}
-              tone={profile.status === 'active' ? 'green' : 'gray'}
-            >
-              {profile.status}
-            </Badge>,
-            profile.id === currentId ? (
-              'Sesión actual'
-            ) : (
-              <button
-                key={`${profile.id}-action`}
-                className="secondary"
-                disabled={!reason || busy}
-                onClick={() =>
-                  void status(
-                    profile.id,
-                    profile.status === 'active' ? 'inactive' : 'active',
-                  )
-                }
-              >
-                {profile.status === 'active' ? 'Desactivar' : 'Activar'}
-              </button>
-            ),
-          ];
-        })}
+              {profile.status === 'active' ? 'Desactivar' : 'Activar'}
+            </button>
+          ),
+        ])}
       />
 
-      {hasPermission('roles.administrar') && (
-        <section className="panel admin-role-panel">
-          <form
-            className="admin-inline-form"
-            onSubmit={(event) => void createRole(event)}
-          >
-            <h2>Roles</h2>
-
-            <input
-              placeholder="Nombre"
-              value={roleForm.name}
-              onChange={(event) =>
-                setRoleForm((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-              required
-            />
-            <input
-              placeholder="Código"
-              value={roleForm.code}
-              onChange={(event) =>
-                setRoleForm((current) => ({
-                  ...current,
-                  code: event.target.value,
-                }))
-              }
-              required
-            />
-            <input
-              placeholder="Descripción"
-              value={roleForm.description}
-              onChange={(event) =>
-                setRoleForm((current) => ({
-                  ...current,
-                  description: event.target.value,
-                }))
-              }
-            />
-
-            <button
-              className="primary"
-              disabled={
-                busy ||
-                !roleForm.name.trim() ||
-                !roleForm.code.trim()
-              }
+      {canManageRoles && (
+        <>
+          <section className="panel admin-role-panel">
+            <form
+              className="admin-inline-form"
+              onSubmit={(event) => void saveRole(event)}
             >
-              {busy ? 'Creando…' : 'Crear rol'}
-            </button>
-          </form>
+              <h2>{editingRoleId ? 'Editar rol' : 'Nuevo rol'}</h2>
 
-          {hasPermission('permisos.administrar') && (
-            <div className="admin-permission-grid">
-              <h3>Permisos iniciales</h3>
-              {organization.permissions.map((permission) => (
-                <label key={`new-${permission.id}`}>
-                  <input
-                    type="checkbox"
-                    checked={selectedPermissions.includes(permission.id)}
-                    disabled={busy}
-                    onChange={(event) =>
-                      toggleNewPermission(permission.id, event.target.checked)
-                    }
-                  />
-                  {permission.codigo}
-                </label>
-              ))}
+              <input
+                placeholder="Nombre"
+                value={roleForm.name}
+                onChange={(event) =>
+                  setRoleForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                required
+              />
+              <input
+                placeholder="Código"
+                value={roleForm.code}
+                onChange={(event) =>
+                  setRoleForm((current) => ({
+                    ...current,
+                    code: event.target.value,
+                  }))
+                }
+                required
+                readOnly={editingRoleId !== null}
+                title={
+                  editingRoleId
+                    ? 'El código técnico del rol no se modifica.'
+                    : undefined
+                }
+              />
+              <input
+                placeholder="Descripción"
+                value={roleForm.description}
+                onChange={(event) =>
+                  setRoleForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+              />
 
-              <h3>Permisos de rol existente</h3>
-              <select
-                value={selectedRole}
-                onChange={(event) => setSelectedRole(event.target.value)}
+              <button
+                className="primary"
+                disabled={
+                  busy ||
+                  !roleForm.name.trim() ||
+                  !roleForm.code.trim() ||
+                  (editingRoleId !== null && !reason.trim())
+                }
               >
-                <option value="">Selecciona rol</option>
-                {organization.roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
+                {busy
+                  ? 'Guardando…'
+                  : editingRoleId
+                    ? 'Guardar cambios'
+                    : 'Crear rol'}
+              </button>
+              {editingRoleId && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={resetRoleForm}
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </form>
 
-              {organization.permissions.map((permission) => {
-                const assigned =
-                  organization.rolePermissions.find(
-                    (rolePermission) =>
-                      rolePermission.rol_id === selectedRole &&
-                      rolePermission.permiso_id === permission.id,
-                  )?.permitido === true;
-
-                return (
+            {canManagePermissions && (
+              <div className="admin-permission-grid">
+                <h3>
+                  {editingRoleId
+                    ? 'Permisos del rol'
+                    : 'Permisos iniciales del rol'}
+                </h3>
+                {organization.permissions.map((permission) => (
                   <label key={permission.id}>
                     <input
                       type="checkbox"
-                      checked={assigned}
-                      disabled={!selectedRole || !reason || busy}
+                      checked={selectedPermissions.includes(permission.id)}
+                      disabled={busy || (editingRoleId !== null && !reason)}
                       onChange={(event) =>
-                        void run(
-                          () =>
-                            administrationService.setRolePermission(
-                              selectedRole,
-                              permission.id,
-                              event.target.checked,
-                              reason,
-                            ),
-                          'Permiso de rol actualizado',
-                        )
+                        togglePermission(permission.id, event.target.checked)
                       }
                     />
-                    {permission.codigo}
+                    {permission.nombre || permission.codigo}
                   </label>
-                );
+                ))}
+                {editingRoleId && !reason.trim() && (
+                  <small>
+                    Escribe el motivo para modificar los permisos del rol.
+                  </small>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="panel admin-role-panel">
+            <h2>Roles existentes</h2>
+            <SimpleTable
+              headers={[
+                'Nombre',
+                'Código',
+                'Descripción',
+                'Estado',
+                'Permisos',
+                'Acciones',
+              ]}
+              rows={organization.roles.map((role) => {
+                const users = assignedUsers(role.id);
+                const isPrimaryAdministrator = isAdministratorRole(role);
+                const canDeactivate =
+                  role.is_active &&
+                  !isPrimaryAdministrator &&
+                  users.length === 0;
+                const actionDisabled =
+                  busy ||
+                  !reason.trim() ||
+                  (role.is_active && !canDeactivate);
+
+                return [
+                  role.name,
+                  <code key={`${role.id}-code`}>{role.code}</code>,
+                  role.description || '—',
+                  <Badge
+                    key={`${role.id}-status`}
+                    tone={role.is_active ? 'green' : 'gray'}
+                  >
+                    {role.is_active ? 'Activo' : 'Inactivo'}
+                  </Badge>,
+                  `${rolePermissionIds(role.id).length} permiso(s)`,
+                  <div key={`${role.id}-actions`} className="button-row">
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => editRole(role)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={actionDisabled}
+                      title={
+                        isPrimaryAdministrator && role.is_active
+                          ? 'El rol Administrador principal no se puede desactivar.'
+                          : users.length > 0 && role.is_active
+                            ? `Reasigna los ${users.length} usuario(s) antes de desactivar.`
+                            : !reason.trim()
+                              ? 'Escribe el motivo para cambiar el estado.'
+                              : undefined
+                      }
+                      onClick={() => void toggleRoleStatus(role)}
+                    >
+                      {role.is_active ? 'Desactivar' : 'Activar'}
+                    </button>
+                    {users.length > 0 && (
+                      <small>
+                        {users.length} usuario(s) asignado(s): reasignación
+                        requerida
+                      </small>
+                    )}
+                  </div>,
+                ];
               })}
-            </div>
-          )}
-        </section>
+            />
+          </section>
+        </>
       )}
     </AdminShell>
   );

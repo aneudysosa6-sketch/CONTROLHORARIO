@@ -1,5 +1,6 @@
 package com.example.controlhorario.ui.biometrics
 
+import android.util.Log
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -88,10 +89,18 @@ fun FingerprintRegistrationScreen(
                 text = if (employee.fingerprintRegistered) "Actualizar huella 2Connect" else "Registrar huella 2Connect",
                 onClick = {
                     if (busy) return@OSINETButton
+                    Log.i(
+                        "FINGERPRINT_UI_TRACE",
+                        "screen=FingerprintRegistrationScreen " +
+                            "button=${if (employee.fingerprintRegistered) "UPDATE_FINGERPRINT" else "CREATE_FINGERPRINT"} " +
+                            "employeeId=${employee.id} action=CLICK " +
+                            "managerClass=${twoConnectManager::class.java.name} " +
+                            "methodRequested=enrollFingerprint timestamp=${System.currentTimeMillis()}"
+                    )
                     busy = true
                     viewModel.setMessage("Iniciando captura con lector 2Connect...")
                     coroutineScope.launch {
-                        val capture = twoConnectManager.enrollFingerprint()
+                        val capture = twoConnectManager.enrollFingerprint(debugEmployeeId = employee.id)
                         busy = false
                         if (capture.success) {
                             viewModel.registerTwoConnectFingerprint(
