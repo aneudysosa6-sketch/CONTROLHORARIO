@@ -48,7 +48,273 @@ function DepartmentsSection({organization,busy,run}:Common){const[editing,setEdi
 
 function PositionsSection({organization,busy,run}:Common){const[editing,setEditing]=useState<string|null>(null),[form,setForm]=useState(defaultPosition),[reason,setReason]=useState('');function edit(x:Position){setEditing(x.id);setForm({name:x.name,code:x.code,department_id:x.department_id??'',description:x.description??'',level:x.level,is_active:x.is_active})}async function save(e:FormEvent){e.preventDefault();if(await run(()=>administrationService.savePosition(editing,form,reason),editing?'Cargo actualizado':'Cargo creado')){setEditing(null);setForm(defaultPosition);setReason('')}}return <AdminShell title="Cargos"><CrudLayout form={<form className="panel admin-form single" onSubmit={save}><h2>{editing?'Editar cargo':'Nuevo cargo'}</h2><label>Nombre<input value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))} required/></label><label>Código<input value={form.code} onChange={e=>setForm(v=>({...v,code:e.target.value}))} required/></label><label>Departamento<select value={form.department_id} onChange={e=>setForm(v=>({...v,department_id:e.target.value}))}><option value="">General</option>{organization.departments.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label><label>Nivel<input type="number" min="1" max="20" value={form.level} onChange={e=>setForm(v=>({...v,level:Number(e.target.value)}))}/></label><label>Descripción<input value={form.description} onChange={e=>setForm(v=>({...v,description:e.target.value}))}/></label><label><input type="checkbox" checked={form.is_active} onChange={e=>setForm(v=>({...v,is_active:e.target.checked}))}/> Activo</label><label>Motivo<input value={reason} onChange={e=>setReason(e.target.value)} required/></label><button className="primary" disabled={busy}>Guardar</button></form>} table={<SimpleTable headers={['Código','Cargo','Departamento','Estado','']} rows={organization.positions.map(x=>[x.code,x.name,organization.departments.find(d=>d.id===x.department_id)?.name??'General',<Badge tone={x.is_active?'green':'gray'}>{x.is_active?'Activo':'Inactivo'}</Badge>,<button className="secondary" onClick={()=>edit(x)}>Editar</button>])}/>}/></AdminShell>}
 
-function UsersSection({organization,busy,run,currentId,hasPermission}:Common&{currentId:string;hasPermission:(p:string)=>boolean}){const[reason,setReason]=useState(''),[roleForm,setRoleForm]=useState({name:'',code:'',description:''}),[selectedRole,setSelectedRole]=useState('');async function status(id:string,value:string){if(!reason.trim())return;await run(()=>administrationService.updateUserStatus(id,value,reason),'Estado de usuario actualizado')}return <AdminShell title="Usuarios"><div className="admin-users-actions">{hasPermission('usuarios.administrar')&&<Link className="primary" to="/usuarios/sincronizar">Crear o sincronizar usuario</Link>}<label>Motivo para cambios<input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Obligatorio"/></label></div><SimpleTable headers={['Usuario','Rol','Estado','Acciones']} rows={organization.profiles.map(p=>{const role=organization.roles.find(r=>r.id===p.role_id);return[<b>{p.full_name}</b>,<select value={p.role_id} disabled={p.id===currentId||!hasPermission('usuarios.administrar')||!reason} onChange={e=>void run(()=>administrationService.updateUserRole(p.id,e.target.value,reason),'Rol actualizado')}>{organization.roles.filter(r=>r.is_active).map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select>,<Badge tone={p.status==='active'?'green':'gray'}>{p.status}</Badge>,p.id===currentId?'Sesión actual':<button className="secondary" disabled={!reason||busy} onClick={()=>void status(p.id,p.status==='active'?'inactive':'active')}>{p.status==='active'?'Desactivar':'Activar'}</button>]})}/>{hasPermission('roles.administrar')&&<section className="panel admin-role-panel"><form className="admin-inline-form" onSubmit={e=>{e.preventDefault();void run(()=>administrationService.saveRole(null,roleForm.name,roleForm.code,roleForm.description,true,reason),'Rol creado')}}><h2>Roles</h2><input placeholder="Nombre" value={roleForm.name} onChange={e=>setRoleForm(v=>({...v,name:e.target.value}))} required/><input placeholder="Código" value={roleForm.code} onChange={e=>setRoleForm(v=>({...v,code:e.target.value}))} required/><input placeholder="Descripción" value={roleForm.description} onChange={e=>setRoleForm(v=>({...v,description:e.target.value}))}/><button className="primary" disabled={!reason||busy}>Crear rol</button></form>{hasPermission('permisos.administrar')&&<div className="admin-permission-grid"><select value={selectedRole} onChange={e=>setSelectedRole(e.target.value)}><option value="">Selecciona rol</option>{organization.roles.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select>{organization.permissions.map(p=>{const assigned=organization.rolePermissions.find(x=>x.rol_id===selectedRole&&x.permiso_id===p.id)?.permitido===true;return <label key={p.id}><input type="checkbox" checked={assigned} disabled={!selectedRole||!reason} onChange={e=>void run(()=>administrationService.setRolePermission(selectedRole,p.id,e.target.checked,reason),'Permiso de rol actualizado')}/>{p.codigo}</label>})}</div>}</section>}</AdminShell>}
+function UsersSection({
+  organization,
+  busy,
+  run,
+  currentId,
+  hasPermission,
+}: Common & {
+  currentId: string;
+  hasPermission: (permission: string) => boolean;
+}) {
+  const [reason, setReason] = useState('');
+  const [roleForm, setRoleForm] = useState({
+    name: '',
+    code: '',
+    description: '',
+  });
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+
+  async function status(id: string, value: string) {
+    if (!reason.trim()) return;
+
+    await run(
+      () => administrationService.updateUserStatus(id, value, reason),
+      'Estado de usuario actualizado',
+    );
+  }
+
+  async function createRole(event: FormEvent) {
+    event.preventDefault();
+
+    if (busy || !roleForm.name.trim() || !roleForm.code.trim()) return;
+
+    const created = await run(async () => {
+      const roleId = await administrationService.saveRole(
+        null,
+        roleForm.name,
+        roleForm.code,
+        roleForm.description,
+        true,
+        '',
+      );
+
+      for (const permissionId of selectedPermissions) {
+        await administrationService.setRolePermission(
+          roleId,
+          permissionId,
+          true,
+          'Creación inicial de usuario',
+        );
+      }
+    }, 'Rol creado');
+
+    if (created) {
+      setRoleForm({ name: '', code: '', description: '' });
+      setSelectedPermissions([]);
+    }
+  }
+
+  function toggleNewPermission(permissionId: string, checked: boolean) {
+    setSelectedPermissions((current) =>
+      checked
+        ? [...current, permissionId]
+        : current.filter((id) => id !== permissionId),
+    );
+  }
+
+  return (
+    <AdminShell title="Usuarios">
+      <div className="admin-users-actions">
+        {hasPermission('usuarios.administrar') && (
+          <Link className="primary" to="/usuarios/sincronizar">
+            Crear o sincronizar usuario
+          </Link>
+        )}
+
+        <label>
+          Motivo para cambios
+          <input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Obligatorio"
+          />
+        </label>
+      </div>
+
+      <SimpleTable
+        headers={['Usuario', 'Rol', 'Estado', 'Acciones']}
+        rows={organization.profiles.map((profile) => {
+          return [
+            <b key={`${profile.id}-name`}>{profile.full_name}</b>,
+            <select
+              key={`${profile.id}-role`}
+              value={profile.role_id}
+              disabled={
+                profile.id === currentId ||
+                !hasPermission('usuarios.administrar') ||
+                !reason
+              }
+              onChange={(event) =>
+                void run(
+                  () =>
+                    administrationService.updateUserRole(
+                      profile.id,
+                      event.target.value,
+                      reason,
+                    ),
+                  'Rol actualizado',
+                )
+              }
+            >
+              {organization.roles
+                .filter((item) => item.is_active)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+            </select>,
+            <Badge
+              key={`${profile.id}-status`}
+              tone={profile.status === 'active' ? 'green' : 'gray'}
+            >
+              {profile.status}
+            </Badge>,
+            profile.id === currentId ? (
+              'Sesión actual'
+            ) : (
+              <button
+                key={`${profile.id}-action`}
+                className="secondary"
+                disabled={!reason || busy}
+                onClick={() =>
+                  void status(
+                    profile.id,
+                    profile.status === 'active' ? 'inactive' : 'active',
+                  )
+                }
+              >
+                {profile.status === 'active' ? 'Desactivar' : 'Activar'}
+              </button>
+            ),
+          ];
+        })}
+      />
+
+      {hasPermission('roles.administrar') && (
+        <section className="panel admin-role-panel">
+          <form
+            className="admin-inline-form"
+            onSubmit={(event) => void createRole(event)}
+          >
+            <h2>Roles</h2>
+
+            <input
+              placeholder="Nombre"
+              value={roleForm.name}
+              onChange={(event) =>
+                setRoleForm((current) => ({
+                  ...current,
+                  name: event.target.value,
+                }))
+              }
+              required
+            />
+            <input
+              placeholder="Código"
+              value={roleForm.code}
+              onChange={(event) =>
+                setRoleForm((current) => ({
+                  ...current,
+                  code: event.target.value,
+                }))
+              }
+              required
+            />
+            <input
+              placeholder="Descripción"
+              value={roleForm.description}
+              onChange={(event) =>
+                setRoleForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+            />
+
+            <button
+              className="primary"
+              disabled={
+                busy ||
+                !roleForm.name.trim() ||
+                !roleForm.code.trim()
+              }
+            >
+              {busy ? 'Creando…' : 'Crear rol'}
+            </button>
+          </form>
+
+          {hasPermission('permisos.administrar') && (
+            <div className="admin-permission-grid">
+              <h3>Permisos iniciales</h3>
+              {organization.permissions.map((permission) => (
+                <label key={`new-${permission.id}`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedPermissions.includes(permission.id)}
+                    disabled={busy}
+                    onChange={(event) =>
+                      toggleNewPermission(permission.id, event.target.checked)
+                    }
+                  />
+                  {permission.codigo}
+                </label>
+              ))}
+
+              <h3>Permisos de rol existente</h3>
+              <select
+                value={selectedRole}
+                onChange={(event) => setSelectedRole(event.target.value)}
+              >
+                <option value="">Selecciona rol</option>
+                {organization.roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+
+              {organization.permissions.map((permission) => {
+                const assigned =
+                  organization.rolePermissions.find(
+                    (rolePermission) =>
+                      rolePermission.rol_id === selectedRole &&
+                      rolePermission.permiso_id === permission.id,
+                  )?.permitido === true;
+
+                return (
+                  <label key={permission.id}>
+                    <input
+                      type="checkbox"
+                      checked={assigned}
+                      disabled={!selectedRole || !reason || busy}
+                      onChange={(event) =>
+                        void run(
+                          () =>
+                            administrationService.setRolePermission(
+                              selectedRole,
+                              permission.id,
+                              event.target.checked,
+                              reason,
+                            ),
+                          'Permiso de rol actualizado',
+                        )
+                      }
+                    />
+                    {permission.codigo}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+    </AdminShell>
+  );
+}
 
 function SchedulesSection({schedules,organization}:{schedules:Schedule[];organization:OrganizationData}){return <AdminShell title="Horarios" action={<Link className="primary" to="/supervisor/horarios">Gestionar horarios permitidos</Link>}><section className="stats admin-mini-stats"><article className="stat"><span>Turnos activos</span><strong>{schedules.filter(x=>x.activo).length}</strong></article><article className="stat"><span>Tolerancia configurada</span><strong>{schedules.length?`${Math.round(schedules.reduce((a,x)=>a+x.tolerancia_min,0)/schedules.length)} min`:'—'}</strong></article><article className="stat"><span>Almuerzo promedio</span><strong>{schedules.length?`${Math.round(schedules.reduce((a,x)=>a+x.duracion_almuerzo_min,0)/schedules.length)} min`:'—'}</strong></article></section><SimpleTable headers={['Empleado','Vigencia','Turno','Días','Tolerancia/almuerzo']} rows={schedules.map(x=>{const employee=organization.employees.find(e=>e.id===x.empleado_id);return[employee?`${employee.codigo_empleado} · ${employee.nombre_completo}`:x.empleado_id,`${x.fecha_vigencia}${x.fecha_fin?` → ${x.fecha_fin}`:''}`,`${x.hora_entrada}–${x.hora_salida}`,x.dias_laborales.join(', '),`${x.tolerancia_min} min / ${x.duracion_almuerzo_min} min`]})}/></AdminShell>}
 function JourneysSection({overview}:{overview:AdministrationOverview}){return <AdminShell title="Jornadas" action={<Link className="primary" to="/jornadas">Abrir jornadas</Link>}><section className="stats admin-mini-stats"><article className="stat"><span>Pendientes de revisión</span><strong>{overview.counts.pending_journeys}</strong></article><article className="stat"><span>Reglas</span><strong>RC2</strong><small>Cierre e incidencias centralizados</small></article><article className="stat"><span>ADMIN-OFF/ON</span><strong>Protegido</strong><small>Requiere permiso explícito</small></article></section><div className="panel"><h2>Operación segura</h2><p>Las reglas, cierres automáticos, incidencias y pendientes se administran en el módulo real de Jornadas. Esta pantalla no duplica ni altera el motor RC2/RC3.</p><div className="button-row"><Link className="secondary" to="/supervisor/pendientes">Revisión de pendientes</Link><Link className="secondary" to="/supervisor/incidencias">Incidencias</Link></div></div></AdminShell>}
