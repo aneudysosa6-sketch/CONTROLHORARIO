@@ -275,7 +275,10 @@ fun EmployeePunchScreen(
                     return@launch
                 }
 
-                val capture = twoConnectManager.captureTemplateForVerification(employee.id)
+                val capture = twoConnectManager.captureTemplateForVerification(
+                    debugEmployeeId = employee.id,
+                    attemptId = attemptId
+                )
                 if (!isCurrentAttempt()) return@launch
 
                 val result = twoConnectManager.verifyCapturedTemplate(
@@ -362,7 +365,11 @@ fun EmployeePunchScreen(
                             }
                         )
                         logVerification(result, viewModel.state.value.message)
-                        retry = readerReady
+                        // A reader/capture error has no captured finger to wait for. Retrying
+                        // automatically produced repeated OpenDevice calls against the same SDK
+                        // session; wait for a new explicit attempt instead.
+                        fingerprintAttemptState = FingerprintAttemptState.IDLE
+                        retry = false
                     }
 
                     is FingerprintVerificationResult.DeviceError -> {
