@@ -3,6 +3,8 @@ package com.example.controlhorario.device
 import androidx.room.withTransaction
 import android.util.Log
 import com.example.controlhorario.database.AppDatabase
+import com.example.controlhorario.database.EmployeeFaceBiometricEntity
+import com.example.controlhorario.face.FaceEmbeddingCipher
 import com.example.controlhorario.model.Employee
 
 data class EmployeeSyncSummary(val downloaded:Int,val activated:Int,val deactivated:Int,val syncedAt:Long)
@@ -22,7 +24,11 @@ class EmployeeSyncRepository(private val database:AppDatabase){
      val remoteMatch=dao.findByRemoteId(row.id);val codeMatch=if(remoteMatch==null)dao.findAnyByEmployeeCode(row.code)else null;val current=remoteMatch?:codeMatch
      if(current?.remoteUpdatedAt==null||current.remoteUpdatedAt<=row.updatedAt){
       val value=EmployeeSyncMapper.merge(current,row,syncedAt)
-      if(current==null){dao.insertEmployee(value);inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${row.code}")}else{dao.updateEmployee(value);updated++;Log.d(TAG,"actualizado remote_id=${row.id}, local_id=${current.id}, match=${if(remoteMatch!=null)"remote_id" else "code"}")}
+      val localId=if(current==null){dao.insertEmployee(value).toInt().also{inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${row.code}")}}else{dao.updateEmployee(value);updated++;current.id}
+      row.faceEmbedding?.let { embedding ->
+       database.employeeFaceBiometricDao().replaceForEmployee(EmployeeFaceBiometricEntity(employeeId=localId,encryptedEmbedding=FaceEmbeddingCipher().encrypt(embedding),embeddingVersion=1,modelName="FaceNet-128",embeddingDimension=128,registeredAt=row.updatedAt,registeredBy="SUPABASE",updatedAt=row.updatedAt))
+       Log.d(TAG,"face embedding actualizado localEmployeeId=$localId dimension=${embedding.size}")
+      }
       if(current?.isActive!=true)activated++
      }else{discarded++;Log.w(TAG,"descartado remote_id=${row.id}: updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}")}
     }

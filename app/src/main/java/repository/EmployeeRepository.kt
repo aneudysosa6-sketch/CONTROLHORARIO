@@ -107,4 +107,17 @@ class EmployeeRepository(
         outbox.insert(EmployeeSyncOutboxEntity(employeeLocalId=employee.id,operation=operation,payloadJson=payload,idempotencyKey=key))
         Log.d("EMPLOYEE_OUTBOX","employeeId=${employee.id} remoteId=${employee.remoteId} code=${employee.employeeCode} operation=$operation syncStatus=PENDING idempotencyKey=$key")
     }
+
+    suspend fun enqueueFaceEmbedding(employee: Employee, embedding: FloatArray) {
+        require(embedding.size == 128 && embedding.all { it.isFinite() })
+        val outbox = outboxDao ?: return
+        val key = UUID.randomUUID().toString()
+        val payload = JSONObject().put("idempotency_key", key).put("operation", "UPDATE")
+            .put("local_employee_id", employee.id).put("remote_id", employee.remoteId)
+            .put("employee_code", employee.employeeCode).put("name", employee.nombre)
+            .put("phone", employee.telefono).put("email", employee.email).put("active", employee.isActive)
+            .put("updated_at", System.currentTimeMillis()).put("face_embedding", org.json.JSONArray(embedding.toList())).toString()
+        outbox.insert(EmployeeSyncOutboxEntity(employeeLocalId = employee.id, operation = "UPDATE", payloadJson = payload, idempotencyKey = key))
+        Log.d("EMPLOYEE_OUTBOX", "employeeId=${employee.id} operation=UPDATE faceEmbedding=present")
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.controlhorario.ui.face
 
 import android.util.Log
+import android.content.Context
 import com.example.controlhorario.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.example.controlhorario.face.FaceEmbeddingEngine
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.repository.EmployeeFaceBiometricRepository
 import com.example.controlhorario.repository.EmployeeRepository
+import com.example.controlhorario.device.EmployeeUploadScheduler
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,6 +33,7 @@ data class FaceRegistrationState(
 )
 
 class FaceRegistrationViewModel(
+    private val context: Context,
     private val employees: EmployeeRepository,
     private val faces: EmployeeFaceBiometricRepository,
     private val cipher: FaceEmbeddingCipher = FaceEmbeddingCipher()
@@ -175,6 +178,8 @@ class FaceRegistrationViewModel(
             val stored = requireNotNull(faces.activeForEmployee(employee.id))
             require(stored.embeddingDimension == FaceEmbeddingEngine.EMBEDDING_DIMENSION)
             require(cipher.decrypt(stored.encryptedEmbedding, stored.embeddingDimension)?.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION)
+            employees.enqueueFaceEmbedding(employee, embedding)
+            EmployeeUploadScheduler.enqueueImmediate(context)
             }.onSuccess {
             _state.value = _state.value.copy(registered = true, samples = 5, capturing = false, saving = false, registrationCompleted = true, message = "Rostro registrado correctamente.")
             }.onFailure { error ->

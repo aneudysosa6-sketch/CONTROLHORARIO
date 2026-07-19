@@ -578,7 +578,8 @@ fun AppNavigation(
             val db = DatabaseProvider.getDatabase(context)
             val vm: FaceRegistrationViewModel = viewModel(
                 factory = FaceRegistrationViewModelFactory(
-                    EmployeeRepository(db.employeeDao()),
+                    context,
+                    EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao()),
                     EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
                 )
             )
@@ -943,7 +944,7 @@ fun AppNavigation(
         composable(Route.FINGERPRINTS) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val vm: FaceRegistrationViewModel = viewModel(factory = FaceRegistrationViewModelFactory(EmployeeRepository(db.employeeDao()), EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())))
+            val vm: FaceRegistrationViewModel = viewModel(factory = FaceRegistrationViewModelFactory(context, EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao()), EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())))
             FaceRegistrationScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
 
@@ -954,7 +955,7 @@ fun AppNavigation(
             val employeeCode = backStackEntry.arguments?.getString("employeeCode").orEmpty()
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val vm: FaceRegistrationViewModel = viewModel(factory = FaceRegistrationViewModelFactory(EmployeeRepository(db.employeeDao()), EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())))
+            val vm: FaceRegistrationViewModel = viewModel(factory = FaceRegistrationViewModelFactory(context, EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao()), EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())))
             FaceRegistrationScreen(viewModel = vm, onBack = { navController.popBackStack() }, initialEmployeeCode = employeeCode)
         }
 
