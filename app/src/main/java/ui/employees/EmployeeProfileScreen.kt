@@ -148,7 +148,7 @@ fun EmployeeProfileScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         OSINETButton(
-            text = "👆 Registrar huella",
+            text = "Registrar rostro",
             onClick = onFingerprintClick
         )
 

@@ -49,9 +49,9 @@ class FingerprintRegistrationViewModel(
                     selectedEmployee = employee,
                     registeredTemplateSize = currentBiometric?.templateSize ?: 0,
                     message = if (currentBiometric?.templateBase64?.isNotBlank() == true) {
-                        "Empleado encontrado: ${employee.nombre}. Tiene huella 2Connect activa."
+                        "Empleado encontrado: ${employee.nombre}. Tiene biometría facial activa."
                     } else {
-                        "Empleado encontrado: ${employee.nombre}. Ahora puede registrar la huella con el lector 2Connect."
+                        "Empleado encontrado: ${employee.nombre}. Ahora puede registrar el rostro."
                     }
                 )
             }
@@ -172,7 +172,7 @@ class FingerprintRegistrationViewModel(
                 fingerprintRegisteredBy = registeredByValue
             ),
             registeredTemplateSize = templateSize,
-            message = "Huella 2Connect registrada correctamente para ${employee.nombre}."
+            message = "Rostro registrado correctamente para ${employee.nombre}."
         )
     }
 

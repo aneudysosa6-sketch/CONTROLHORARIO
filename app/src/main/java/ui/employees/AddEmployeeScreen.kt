@@ -289,7 +289,7 @@ fun AddEmployeeScreen(
         if (!isEditMode && codigoGenerado.isNotBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             OSINETButton(
-                text = "Registrar huella a este empleado",
+                text = "Registrar rostro a este empleado",
                 onClick = { onRegisterFingerprint(codigoGenerado) }
             )
         }

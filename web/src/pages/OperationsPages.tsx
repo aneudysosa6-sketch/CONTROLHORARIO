@@ -175,7 +175,7 @@ export function KioskPage() {
             </button>
             <button onClick={() => setMode("finger")}>
               <Fingerprint />
-              <b>Usar huella</b>
+              <b>Usar rostro</b>
               <small>Requiere app Android / dispositivo compatible</small>
             </button>
           </div>
@@ -184,10 +184,10 @@ export function KioskPage() {
       {mode === "finger" && (
         <div className="finger-info">
           <Fingerprint />
-          <h2>Verificación biométrica</h2>
+          <h2>Verificación facial</h2>
           <p>
-            La huella real es responsabilidad de la aplicación Android y el
-            lector 2Connect. El navegador no simula ni registra biometría.
+            La validación facial es responsabilidad de la aplicación Android.
+            El navegador no simula ni registra biometría facial.
           </p>
           <button className="primary" onClick={() => setMode("home")}>
             Volver

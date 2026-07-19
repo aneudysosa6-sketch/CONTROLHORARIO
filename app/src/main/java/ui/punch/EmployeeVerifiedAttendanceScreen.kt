@@ -37,7 +37,7 @@ fun EmployeeVerifiedAttendanceScreen(
 ) {
     BackHandler(onBack = onFinish)
     val records by viewModel.attendanceRecords.collectAsState()
-    var message by remember { mutableStateOf("Huella verificada. Seleccione la acción de asistencia.") }
+    var message by remember { mutableStateOf("Rostro validado. Seleccione la acción de asistencia.") }
     val today = currentDate()
     val todayRecords = records
         .filter { it.employeeId == employee?.id && it.date == today }
@@ -145,8 +145,8 @@ private fun EmployeeAttendanceActionButton(
                 time = currentTime(),
                 actionType = action.name,
                 biometricVerified = true,
-                deviceName = "2Connect USB Fingerprint Scanner",
-                notes = "Asistencia registrada después de validar huella 2Connect",
+                deviceName = "Verificación facial Android",
+                notes = "Asistencia registrada después de validar el rostro",
                 onSaved = onRegistered
             )
             onMessage("Asistencia registrada correctamente: ${action.name}")

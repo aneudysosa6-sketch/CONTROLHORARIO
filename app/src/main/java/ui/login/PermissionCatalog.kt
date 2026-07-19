@@ -18,7 +18,7 @@ object PermissionCatalog {
     const val EMPLOYEE_PORTAL = "Portal del Empleado"
     const val INCIDENTS = "Incidencias"
     const val PIN_MODE = "Activar Modo PIN"
-    const val FINGERPRINTS = "Registro de Huellas"
+    const val FINGERPRINTS = "Registro facial"
     const val EXPORT_PDF = "Exportar PDF"
     const val EXPORT_EXCEL = "Exportar Excel"
     const val EDIT_ATTENDANCE = "Editar Jornadas"

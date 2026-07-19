@@ -1,0 +1,15 @@
+package com.example.controlhorario.ui.face
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.controlhorario.repository.EmployeeFaceBiometricRepository
+import com.example.controlhorario.repository.EmployeeRepository
+
+class FaceRegistrationViewModelFactory(
+    private val employees: EmployeeRepository,
+    private val faces: EmployeeFaceBiometricRepository
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        FaceRegistrationViewModel(employees, faces) as T
+}

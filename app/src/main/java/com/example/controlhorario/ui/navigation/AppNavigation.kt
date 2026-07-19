@@ -1,5 +1,6 @@
 package com.example.controlhorario.ui.navigation
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.controlhorario.database.DatabaseProvider
+import com.example.controlhorario.BuildConfig
 import com.example.controlhorario.device.DeviceEnrollmentScreen
 import com.example.controlhorario.device.DeviceSyncScheduler
 import com.example.controlhorario.device.EmployeeSyncDashboardScreen
@@ -67,7 +69,7 @@ import com.example.controlhorario.repository.LoanRepository
 import com.example.controlhorario.repository.VacationRepository
 import com.example.controlhorario.repository.WorkScheduleTemplateRepository
 import com.example.controlhorario.repository.DepartmentRepository
-import com.example.controlhorario.repository.EmployeeBiometricRepository
+import com.example.controlhorario.repository.EmployeeFaceBiometricRepository
 import com.example.controlhorario.repository.EmployeeRepository
 import com.example.controlhorario.repository.SupervisorPermissionRepository
 import com.example.controlhorario.repository.SupervisorRepository
@@ -87,6 +89,12 @@ import com.example.controlhorario.ui.administration.SystemAdministrationViewMode
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationScreen
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModel
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModelFactory
+import com.example.controlhorario.ui.face.FaceRegistrationScreen
+import com.example.controlhorario.ui.face.FaceRegistrationViewModel
+import com.example.controlhorario.ui.face.FaceRegistrationViewModelFactory
+import com.example.controlhorario.ui.face.FaceVerificationScreen
+import com.example.controlhorario.ui.face.FaceVerificationViewModel
+import com.example.controlhorario.ui.face.FaceVerificationViewModelFactory
 import com.example.controlhorario.ui.branchmanager.BranchManagerScreen
 import com.example.controlhorario.ui.branchmanager.BranchManagerViewModel
 import com.example.controlhorario.ui.branchmanager.BranchManagerViewModelFactory
@@ -142,6 +150,7 @@ import com.example.controlhorario.ui.punch.EmployeeVerifiedAttendanceScreen
 import com.example.controlhorario.ui.punch.Rc2EmployeeAttendanceScreen
 import com.example.controlhorario.ui.punch.JourneyViewModel
 import com.example.controlhorario.ui.punch.JourneyViewModelFactory
+import com.example.controlhorario.ui.punch.JourneyBiometricGate
 import com.example.controlhorario.ui.punch.EmployeePunchViewModel
 import com.example.controlhorario.ui.punch.EmployeePunchViewModelFactory
 import com.example.controlhorario.ui.settings.CompanyInfoScreen
@@ -499,15 +508,22 @@ fun AppNavigation(
             val vm: EmployeePunchViewModel = viewModel(
                 factory = EmployeePunchViewModelFactory(
                     employeeRepository = EmployeeRepository(db.employeeDao()),
-                    attendanceRepository = AttendanceRepository(db.attendanceDao()),
-                    biometricRepository = EmployeeBiometricRepository(db.employeeBiometricDao())
+                    faceRepository = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
                 )
             )
             EmployeePunchScreen(
                 viewModel = vm,
                 onVerified = { employeeId ->
-                    navController.navigate("${Route.EMPLOYEE_ASSISTANCE}/$employeeId") {
-                        popUpTo(Route.EMPLOYEE_PUNCH) { inclusive = true }
+                    vm.clear()
+                    navController.navigate("${Route.FACE_VERIFICATION}/$employeeId") {
+                        launchSingleTop = true
+                    }
+                },
+                onRegisterFace = { employeeId ->
+                    if (BuildConfig.DEBUG) Log.d("FACE_REG_NAV_START", "employeeId=$employeeId")
+                    vm.clear()
+                    navController.navigate("${Route.FACE_KIOSK_REGISTRATION}/$employeeId") {
+                        launchSingleTop = true
                     }
                 },
                 onBack = {
@@ -516,6 +532,65 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 }
+            )
+        }
+
+        composable(
+            route = "${Route.FACE_VERIFICATION}/{employeeId}",
+            arguments = listOf(navArgument("employeeId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val employeeId = backStackEntry.arguments?.getInt("employeeId") ?: 0
+            val context = LocalContext.current
+            val db = DatabaseProvider.getDatabase(context)
+            val vm: FaceVerificationViewModel = viewModel(
+                factory = FaceVerificationViewModelFactory(
+                    employeeId = employeeId,
+                    faces = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
+                )
+            )
+            FaceVerificationScreen(
+                viewModel = vm,
+                onRecognized = {
+                    val deviceId = DeviceIdentityManager(context).deviceId
+                    if (deviceId == null) {
+                        if (BuildConfig.DEBUG) Log.d("PUNCH_AUTH", "employeeId=$employeeId faceVerified=true authorizationIssued=false reason=device_not_enrolled")
+                        navController.popBackStack(Route.EMPLOYEE_PUNCH, false)
+                        return@FaceVerificationScreen
+                    }
+                    JourneyBiometricGate.open(employeeId, deviceId)
+                    if (BuildConfig.DEBUG) Log.d("PUNCH_AUTH", "employeeId=$employeeId pinVerified=true faceVerified=true authorizedEmployeeId=$employeeId authorizationConsumed=false isPunchAuthorized=true")
+                    navController.navigate("${Route.EMPLOYEE_ASSISTANCE}/$employeeId") {
+                        popUpTo(Route.FACE_VERIFICATION) { inclusive = true }
+                    }
+                },
+                onCancel = {
+                    navController.popBackStack(Route.EMPLOYEE_PUNCH, false)
+                }
+            )
+        }
+
+        composable(
+            route = "${Route.FACE_KIOSK_REGISTRATION}/{employeeId}",
+            arguments = listOf(navArgument("employeeId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val employeeId = backStackEntry.arguments?.getInt("employeeId") ?: 0
+            val context = LocalContext.current
+            val db = DatabaseProvider.getDatabase(context)
+            val vm: FaceRegistrationViewModel = viewModel(
+                factory = FaceRegistrationViewModelFactory(
+                    EmployeeRepository(db.employeeDao()),
+                    EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
+                )
+            )
+            FaceRegistrationScreen(
+                viewModel = vm,
+                initialEmployeeId = employeeId,
+                onRegistered = { employeeId ->
+                    navController.navigate("${Route.FACE_VERIFICATION}/$employeeId") {
+                        popUpTo(Route.FACE_KIOSK_REGISTRATION) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack(Route.EMPLOYEE_PUNCH, false) }
             )
         }
 
@@ -538,6 +613,7 @@ fun AppNavigation(
                 employee = employee,
                 viewModel = journeyVm,
                 onFinish = {
+                    JourneyBiometricGate.clear()
                     navController.navigate(Route.EMPLOYEE_PUNCH) {
                         popUpTo(0)
                         launchSingleTop = true
@@ -867,16 +943,8 @@ fun AppNavigation(
         composable(Route.FINGERPRINTS) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val vm: FingerprintRegistrationViewModel = viewModel(
-                factory = FingerprintRegistrationViewModelFactory(
-                    biometricRepository = EmployeeBiometricRepository(db.employeeBiometricDao()),
-                    employeeRepository = EmployeeRepository(db.employeeDao())
-                )
-            )
-            FingerprintRegistrationScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() }
-            )
+            val vm: FaceRegistrationViewModel = viewModel(factory = FaceRegistrationViewModelFactory(EmployeeRepository(db.employeeDao()), EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())))
+            FaceRegistrationScreen(viewModel = vm, onBack = { navController.popBackStack() })
         }
 
         composable(
@@ -886,17 +954,8 @@ fun AppNavigation(
             val employeeCode = backStackEntry.arguments?.getString("employeeCode").orEmpty()
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val vm: FingerprintRegistrationViewModel = viewModel(
-                factory = FingerprintRegistrationViewModelFactory(
-                    biometricRepository = EmployeeBiometricRepository(db.employeeBiometricDao()),
-                    employeeRepository = EmployeeRepository(db.employeeDao())
-                )
-            )
-            FingerprintRegistrationScreen(
-                viewModel = vm,
-                onBack = { navController.popBackStack() },
-                initialEmployeeCode = employeeCode
-            )
+            val vm: FaceRegistrationViewModel = viewModel(factory = FaceRegistrationViewModelFactory(EmployeeRepository(db.employeeDao()), EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())))
+            FaceRegistrationScreen(viewModel = vm, onBack = { navController.popBackStack() }, initialEmployeeCode = employeeCode)
         }
 
         composable(Route.PERMISSIONS) {
@@ -1202,12 +1261,12 @@ private fun EmployeeKioskScreen(
         Spacer(Modifier.height(28.dp))
         OSINETActionCard(
             title = "PIN",
-            subtitle = "Ingresar código de empleado y validar huella",
+            subtitle = "Ingresar código de empleado y validar rostro",
             onClick = onPin
         )
         Spacer(Modifier.height(14.dp))
         OSINETActionCard(
-            title = "HUELLA",
+            title = "ROSTRO",
             subtitle = "Abrir registro de jornada con validación biométrica",
             onClick = onFingerprint
         )
@@ -1246,7 +1305,7 @@ private fun AdminHomeScreen(
         OSINETLogo(subtitle = "Panel Administrador · Menú por permisos")
         Spacer(Modifier.height(16.dp))
         if (can(PermissionCatalog.DASHBOARD)) { OSINETActionCard("Dashboard", "Métricas operativas y jornadas recientes", onClick = onDashboard); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Empleados", "Gestión de perfiles, huellas y datos laborales", onClick = onEmployees); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Empleados", "Gestión de perfiles, rostros y datos laborales", onClick = onEmployees); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Asistencia", "Registros y control diario", onClick = onAttendance); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.PIN_MODE)) { OSINETActionCard("Activar modo PIN", "Abrir ponchador para empleados", onClick = onPinMode); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.INCIDENTS)) { OSINETActionCard("Centro de Incidencias", "Jornadas pendientes y eventos nuevos", onClick = onIncidents); Spacer(Modifier.height(10.dp)) }
@@ -1257,7 +1316,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Vacaciones", "Solicitudes y seguimiento", onClick = onVacations); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.LOANS)) { OSINETActionCard("Préstamos", "Solicitudes, aprobación, entrega y balance", onClick = onLoans); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)) { OSINETActionCard("Permisos Empleados", "Solicitudes, archivos, aprobación y rechazo", onClick = onEmployeePermissions); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Registro de Huellas", "Registrar huella 2Connect", onClick = onFingerprint); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Registro facial", "Registrar rostro", onClick = onFingerprint); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.PIN_MODE)) { OSINETActionCard("Permisos Supervisores", "Solicitudes preparadas para aprobación", onClick = onPermissions); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PORTAL)) { OSINETNeonEventCard("Portal del Empleado", "Pagos, préstamos, historial y solicitudes", isNew = !portalEventOpened, onOpen = { portalEventOpened = true; onEmployeePortal() }); Spacer(Modifier.height(10.dp)) }
         Spacer(Modifier.height(8.dp))
@@ -1402,7 +1461,7 @@ private fun UserManagementScreen(
         }
         OSINETCard {
             Text("Asignar empleado registrado", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-            Text("La búsqueda interna permite código, PIN o nombre. El ponchador sigue usando solo PIN + huella.", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
+            Text("La búsqueda interna permite código, PIN o nombre. El ponchador usa PIN + rostro.", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
             Spacer(Modifier.height(8.dp))
             OSINETTextField(employeeSearch, { employeeSearch = it }, "Buscar empleado por código, PIN o nombre", Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
@@ -1685,6 +1744,8 @@ private object Route {
     const val ADMIN_LOGIN = "admin_login"
     const val KIOSK_MODE = "kiosk_mode"
     const val EMPLOYEE_PUNCH = "employee_punch"
+    const val FACE_VERIFICATION = "face_verification"
+    const val FACE_KIOSK_REGISTRATION = "face_kiosk_registration"
     const val KIOSK_EXIT_AUTH = "kiosk_exit_auth"
     const val EMPLOYEE_ASSISTANCE = "employee_assistance"
     const val EMPLOYEES_MENU = "employees_menu"

@@ -1,5 +1,6 @@
 package com.example.controlhorario.repository
 
+import android.util.Log
 import com.example.controlhorario.database.EmployeeDao
 import com.example.controlhorario.model.Employee
 import kotlinx.coroutines.flow.Flow
@@ -11,12 +12,27 @@ class EmployeeRepository(
 
     fun getEmployeeById(employeeId: Int): Flow<Employee?> = employeeDao.getEmployeeById(employeeId)
 
+    suspend fun findActiveByLocalId(employeeId: Int): Employee? =
+        employeeDao.findByLocalId(employeeId)?.takeIf { it.isActive }
+
     suspend fun findForEdit(employeeKey: String): Employee? =
         employeeDao.findByRemoteId(employeeKey) ?: employeeKey.toIntOrNull()?.let { employeeDao.findByLocalId(it) }
 
     suspend fun findByEmployeeCode(code: String): Employee? {
         val normalized = code.filter { it.isDigit() }.padStart(5, '0')
-        return employeeDao.findByEmployeeCode(normalized) ?: employeeDao.findByPin(normalized)
+        val employeeByCode = employeeDao.findByEmployeeCode(normalized)
+        val employeeByPin = if (employeeByCode == null) employeeDao.findByPin(normalized) else null
+        val employee = employeeByCode ?: employeeByPin
+        Log.d(
+            "EMPLOYEE_LOOKUP",
+            "layer=Room codeLength=${normalized.length} matchedBy=" +
+                when {
+                    employeeByCode != null -> "employeeCode"
+                    employeeByPin != null -> "pin"
+                    else -> "none"
+                } + " employeeId=${employee?.id} active=${employee?.isActive}"
+        )
+        return employee
     }
 
     suspend fun findAnyByEmployeeCode(code: String): Employee? {

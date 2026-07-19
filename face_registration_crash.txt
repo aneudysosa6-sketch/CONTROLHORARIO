@@ -1,0 +1,685 @@
+--------- beginning of main
+07-18 19:41:27.809   728   728 I adbd    : adbd service requested 'shell,v2,raw:am force-stop com.example.controlhorario'
+07-18 19:41:27.837   728   728 I adbd    : adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-v' 'threadtime''
+--------- beginning of system
+07-18 19:41:27.901  1066  4109 I ActivityManager: forceStop Package:com.example.controlhorario from pid:28492 uid:2000 Caller:com.android.server.am.ActivityManagerService.forceStopPackage:4007 com.android.server.am.ActivityManagerShellCommand.runForceStop:1511 com.android.server.am.ActivityManagerShellCommand.onCommand:309 com.android.server.am.UnisocActivityManagerShellCommand.onCommand:81 com.android.modules.utils.BasicShellCommandHandler.exec:97 android.os.ShellCommand.exec:38 
+07-18 19:41:27.906  1066  4109 I ActivityManager: Force stopping com.example.controlhorario appid=10275 user=0: from pid 28492
+07-18 19:41:27.911  1066  4109 I AppsFilter: interaction: PackageSetting{685c053 com.android.microdroid.empty_payload/10213} -> PackageSetting{1f482c2 com.example.controlhorario/10275} BLOCKED
+07-18 19:41:27.911  1066  4109 I AppsFilter: interaction: PackageSetting{efe689 com.ronalksp.myred/10230} -> PackageSetting{1f482c2 com.example.controlhorario/10275} BLOCKED
+07-18 19:41:27.911  1066  4109 I AppsFilter: interaction: PackageSetting{ed3c2bc com.ronalksp.myredvendedores/10231} -> PackageSetting{1f482c2 com.example.controlhorario/10275} BLOCKED
+07-18 19:41:27.914  1066  1129 V BroadcastQueue: Enqueuing BroadcastRecord{8fef8d3 android.intent.action.PACKAGE_RESTARTED/u0} ordered=false from uid 1000 pid 1066 for 16 receivers
+07-18 19:41:27.918  1326  1326 D CarrierSvcBindHelper: onHandleForceStop: [com.example.controlhorario]
+07-18 19:41:27.920  1326  1326 D CarrierSvcBindHelper: No carrier app for: 0
+07-18 19:41:27.921  1326  1326 D CarrierSvcBindHelper: No carrier app for: 1
+07-18 19:41:27.923  1066  1066 V AlarmManager: set(null) : type=3 listener=android.app.AlarmManager$ListenerWrapper@c5868cc listenerTag=*job.delay* workSource=WorkSource{10245 com.whatsapp} callingPackage=android callingUid=1000 triggerAtTime=8946433 win=1264171 tElapsed=8946433 maxElapsed=10210604 interval=0 flags=0x0
+07-18 19:41:27.924  1066  1066 D AlarmManagerService: set alarm to kernel: 7526452000000, type=2
+07-18 19:41:27.924  1066  1066 D AlarmManagerService: set alarm to kernel: 7292948000000, type=3
+07-18 19:41:27.924  1066  1066 D AlarmManagerService: set alarm to kernel: 7526452000000, type=2
+07-18 19:41:27.924  1066  1066 D AlarmManagerService: set alarm to kernel: 7292948000000, type=3
+07-18 19:41:27.924  1066  1066 V AlarmManager: set(null) : type=2 listener=android.app.AlarmManager$ListenerWrapper@e312a1e listenerTag=*job.deadline* workSource=WorkSource{10245 com.whatsapp} callingPackage=android callingUid=1000 triggerAtTime=9246433 win=1489170 tElapsed=9246433 maxElapsed=10735603 interval=0 flags=0x0
+07-18 19:41:27.925  1066  1066 D AlarmManagerService: set alarm to kernel: 7526452000000, type=2
+07-18 19:41:27.925  1066  1066 D AlarmManagerService: set alarm to kernel: 7292948000000, type=3
+07-18 19:41:27.925  1066  1066 D AlarmManagerService: set alarm to kernel: 7526452000000, type=2
+07-18 19:41:27.925  1066  1066 D AlarmManagerService: set alarm to kernel: 7292948000000, type=3
+07-18 19:41:27.941  2682  2682 D RegisteredServicesCache: invalidate : 0
+07-18 19:41:27.944  2682  2682 I RegisteredServicesCache: current user: 0, is managed profile : false
+07-18 19:41:27.944  2682  2682 I RegisteredServicesCache: New Other Services => 
+07-18 19:41:27.944  2682  2682 I RegisteredServicesCache: Removed Other Services => 
+07-18 19:41:27.945  2682  2682 E PreferredCardEmulationServices: The default payment app is [null], change route to default from config
+07-18 19:41:27.953  2682  2682 I CardEmulationManager: onPreferredPaymentServiceChanged
+07-18 19:41:27.954  2682  2682 I RegisteredServicesCache: New Services => 
+07-18 19:41:27.954  2682  2682 I RegisteredServicesCache: Removed Services => 
+07-18 19:41:27.958  2682  2682 D RegisteredNfcFServicesCache: Service unchanged, not updating
+07-18 19:41:27.959  2682  2682 D HostEmulationManager: onPreferredPaymentServiceChanged, resetting active service
+07-18 19:41:27.959  2682  2682 D HostEmulationManager: Unbinding payment service
+07-18 19:41:27.960  1606  1622 D SecureElementService: getReaders() for com.android.nfc
+07-18 19:41:27.962  1606  1622 I SecureElement-Terminal-SIM1: isNfcEventAllowed: No access rules for checking.
+07-18 19:41:27.964  1606  1622 I SecureElement-Terminal-SIM2: isNfcEventAllowed: No access rules for checking.
+07-18 19:41:27.966  1066  1079 D ActivityManager: Skip enqueue broadcast because no receiver with Intent { act=android.nfc.action.PREFERRED_PAYMENT_CHANGED flg=0x10000030 pkg=com.android.shell (has extras) }
+07-18 19:41:27.968  1606  1622 D SecureElementService: getReaders() for com.android.nfc
+07-18 19:41:27.969  1606  1622 I SecureElement-Terminal-SIM1: isNfcEventAllowed: No access rules for checking.
+07-18 19:41:27.971  1606  1622 I SecureElement-Terminal-SIM2: isNfcEventAllowed: No access rules for checking.
+07-18 19:41:27.973  1066  1079 D ActivityManager: Skip enqueue broadcast because no receiver with Intent { act=android.nfc.action.PREFERRED_PAYMENT_CHANGED flg=0x10000030 pkg=com.android.shell (has extras) }
+07-18 19:41:27.986   728   728 I adbd    : adbd service requested 'shell,v2,raw:am start -n com.example.controlhorario/.MainActivity'
+07-18 19:41:28.083  1066  1079 W ActivityTaskManager: callingPackage for (uid=2000, pid=28498) has no WPC
+07-18 19:41:28.085  1066  1079 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
+07-18 19:41:28.086  1066  1079 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@bf8b0af4 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+07-18 19:41:28.087  1066  1079 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+07-18 19:41:28.087  1066  1079 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+07-18 19:41:28.089  1066  1079 D BLASTSyncEngine: SyncGroup 192-Transition-OPEN started
+07-18 19:41:28.098   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2611}Task=39#2611 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.098   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2612}ActivityRecord{5fc696c u0 com.example.controlhorario/.MainActivity#2612 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.099   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2611}Task=39#2611 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.099   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2612}ActivityRecord{5fc696c u0 com.example.controlhorario/.MainActivity#2612 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.101  1066  1079 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.example.controlhorario/.MainActivity} with LAUNCH_MULTIPLE from uid 2000 pid 28498 (BAL_ALLOW_PERMISSION) result code=START_SUCCESS
+07-18 19:41:28.102  2445  2459 V WindowManagerShell: Transition requested (#192): android.os.BinderProxy@cd7b475 TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=39 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.example.controlhorario/.MainActivity } baseActivity=ComponentInfo{com.example.controlhorario/com.example.controlhorario.MainActivity} topActivity=ComponentInfo{com.example.controlhorario/com.example.controlhorario.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.controlhorario/com.example.controlhorario.MainActivity} numActivities=1 lastActiveTime=7261047 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@851ac0a} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 36 - 0, 0) topActivityInfo=ActivityInfo{6ed7c7b com.example.controlhorario.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false topActivityEligibleForLetterboxEducation= falseisLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false topActivityEligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=576 topActivityLetterboxHeight=1280 isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false cameraCompatTaskInfo=CameraCompatTaskInfo { cameraCompatControlState=hidden freeformCameraCompatMode=inactive}}}, pipTask = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 192 }
+07-18 19:41:28.105  1066  1091 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@bf8b0af4 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+07-18 19:41:28.108  1066  1662 D PerformanceDatabaseControl: querymem pkgName = com.example.controlhorario
+07-18 19:41:28.109   299   299 I lmkd    : memfree(587MB) is enough and ignore fast kill
+07-18 19:41:28.114  2445  2466 D SplashscreenContentDrawer: exception=Application package com.jzhk.theme.huawei not found
+07-18 19:41:28.114   650   650 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-18 19:41:28.121  1066  4109 I AppsFilter: interaction: PackageSetting{685c053 com.android.microdroid.empty_payload/10213} -> PackageSetting{f015cb3 com.example.controlhorario/10275} BLOCKED
+07-18 19:41:28.121  1066  4109 I AppsFilter: interaction: PackageSetting{efe689 com.ronalksp.myred/10230} -> PackageSetting{f015cb3 com.example.controlhorario/10275} BLOCKED
+07-18 19:41:28.121  1066  4109 I AppsFilter: interaction: PackageSetting{ed3c2bc com.ronalksp.myredvendedores/10231} -> PackageSetting{f015cb3 com.example.controlhorario/10275} BLOCKED
+07-18 19:41:28.122  1066  1129 V BroadcastQueue: Enqueuing BroadcastRecord{3453270 android.intent.action.PACKAGE_UNSTOPPED/u0} ordered=false from uid 1000 pid 1066 for 2 receivers
+07-18 19:41:28.125   587   587 D Zygote  : Forked child process 28501
+07-18 19:41:28.126  1066  1101 I ActivityManager: Start proc 28501:com.example.controlhorario/u0a275 for next-top-activity {com.example.controlhorario/com.example.controlhorario.MainActivity}
+07-18 19:41:28.131   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2613}f91af2b Splash Screen com.example.controlhorario#2613 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.131   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2613}f91af2b Splash Screen com.example.controlhorario#2613 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.137  1066  4109 D CoreBackPreview: Window{f91af2b u0 Splash Screen com.example.controlhorario}, [type=3, isChildWindow=false]*noSurface: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@39ad8a3, mPriority=0, mIsAnimationCallback=false}
+07-18 19:41:28.138 28501 28501 I .controlhorario: Late-enabling -Xcheck:jni
+07-18 19:41:28.144  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10245 pkg name:com.whatsapp sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:28.144  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:28.146   605   605 I mali_gralloc: allocate: id=25d00000d52, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=SPLIT, usage=GPU_RW|HWC, size=576x1280(2995200), stride=576, name=VRI[controlhorario]#81(BLAST Consumer)81, costTime=0ms439us038
+07-18 19:41:28.147  2445 28502 D mali_gralloc: register: id=25d00000d52, handle=0xb4000070c46db990, importpid=2445
+07-18 19:41:28.147   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2614}Splash Screen com.example.controlhorario#2614 isVisible=1 {hidden by parent or layer flag} changes=Created | Hierarchy | Geometry | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.148   605   605 I mali_gralloc: allocate: id=25d00000d53, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=SPLIT, usage=GPU_RW|HWC, size=576x1280(2995200), stride=576, name=VRI[controlhorario]#81(BLAST Consumer)81, costTime=0ms594us577
+07-18 19:41:28.148   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2614}Splash Screen com.example.controlhorario#2614 isVisible=0 {hidden by parent or layer flag} changes=Created | Hierarchy | Geometry | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.148  2445 28502 D mali_gralloc: register: id=25d00000d53, handle=0xb4000070c46b71b0, importpid=2445
+07-18 19:41:28.149   605   605 I mali_gralloc: allocate: id=25d00000d54, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=SPLIT, usage=GPU_RW|HWC, size=576x1280(2995200), stride=576, name=VRI[controlhorario]#81(BLAST Consumer)81, costTime=0ms432us539
+07-18 19:41:28.150  2445 28502 D mali_gralloc: register: id=25d00000d54, handle=0xb4000070c46d3a70, importpid=2445
+07-18 19:41:28.150   650  1728 D mali_gralloc: register: id=25d00000d52, handle=0xb400007ba79dc170, importpid=650
+07-18 19:41:28.151   650   699 D mali_gralloc: unregister: id=25d00000d46, handle=0xb400007ba79d2e10, base=0x0, importpid=650, clone_count=0
+07-18 19:41:28.152  1066  2443 D WindowManager: finishDrawingLocked: merge with mWin.mSyncTransaction!!! , mWin=Window{f91af2b u0 Splash Screen com.example.controlhorario}, [type=3, isChildWindow=false]-[Surface(name=*Title#2614)/@0x80217a0, shown=false, windowType=3]
+07-18 19:41:28.159  2445  2486 V WindowManagerShell: onTransitionReady(transaction=4578435146829)
+07-18 19:41:28.159   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 121}StatusBar#121 isVisible=0 {layer not reachable from root} changes=Visibility layerStack=0 geomLayerBounds={0,0,48,576} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.159   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 117}NavigationBar0#117 isVisible=0 {layer not reachable from root} changes=Visibility layerStack=0 geomLayerBounds={0,0,72,576} geomLayerTransform={tx=0,ty=1208}}
+07-18 19:41:28.160  2445  2459 V WindowManagerShell: onTransitionReady (#192) android.os.BinderProxy@cd7b475: {id=192 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{WCT{android.window.IWindowContainerToken$Stub$Proxy@7f3040c} m=OPEN f=NONE leash=Surface(name=Task=39#2611)/@0x3a54499 sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1},{WCT{android.window.IWindowContainerToken$Stub$Proxy@afc9155} m=TO_BACK f=NONE leash=Surface(name=Task=26#1526)/@0xf9b035e sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1}]}
+07-18 19:41:28.160  2445  2459 V WindowManagerShell: Playing animation for (#192) android.os.BinderProxy@cd7b475@0
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.transition.DefaultMixedHandler@ba9b595
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.keyguard.KeyguardTransitionHandler@2d3e6aa
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.pip.PipTransition@852921c
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.activityembedding.ActivityEmbeddingController@154ee25
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.recents.RecentsTransitionHandler@756dbfa
+07-18 19:41:28.160  2445  2459 V ShellRecents: RecentsTransitionHandler.startAnimation: no controller found
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.splitscreen.StageCoordinator@45e05ab
+07-18 19:41:28.160  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.transition.RemoteTransitionHandler@f04b408
+07-18 19:41:28.161  2445  2459 V WindowManagerShell: Transition doesn't have explicit remote, search filters for match for {id=192 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{WCT{android.window.IWindowContainerToken$Stub$Proxy@7f3040c} m=OPEN f=NONE leash=Surface(name=Task=39#2611)/@0x3a54499 sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1},{WCT{android.window.IWindowContainerToken$Stub$Proxy@afc9155} m=TO_BACK f=NONE leash=Surface(name=Task=26#1526)/@0xf9b035e sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1}]}
+07-18 19:41:28.161   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 121}StatusBar#121 isVisible=0 { buffer=10501195038939 frame=1683 color{< 0, 0, 0, 1 >}} changes=Hierarchy | Geometry | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={0,0,48,576} geomLayerTransform={tx=0,ty=0}} input{(NOT_FOCUSABLE) touchableRegion={0,0,48,576}}
+07-18 19:41:28.161  2445  2459 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0] notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=TOP topActivity=ComponentInfo{com.DDU.launcher/com.freeme.launcher.FreemeLauncher} launchCookie=null},{atype=standard independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null},{NOT atype=undefined independent=true modes=[] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@a0b47a1, appThread = android.app.IApplicationThread$Stub$Proxy@e26bdc6, debugName = QuickstepLaunchHome }}
+07-18 19:41:28.161   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 117}NavigationBar0#117 isVisible=0 { buffer=10501195038929 frame=3346 color{< 0, 0, 0, 1 >}} changes=Hierarchy | Geometry | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={0,0,72,576} geomLayerTransform={tx=0,ty=1208}} input{(NOT_FOCUSABLE | WATCH_OUTSIDE_TOUCH | SLIPPERY) touchableRegion={0,0,72,576}}
+07-18 19:41:28.161  2445  2459 V WindowManagerShell:  Delegate animation for (#192) to null
+07-18 19:41:28.161  2445  2459 V WindowManagerShell:  try handler com.android.wm.shell.transition.DefaultTransitionHandler@1755187
+07-18 19:41:28.161  2445  2459 V WindowManagerShell: start default transition animation, info = {id=192 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{WCT{android.window.IWindowContainerToken$Stub$Proxy@7f3040c} m=OPEN f=NONE leash=Surface(name=Task=39#2611)/@0x3a54499 sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1},{WCT{android.window.IWindowContainerToken$Stub$Proxy@afc9155} m=TO_BACK f=NONE leash=Surface(name=Task=26#1526)/@0xf9b035e sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1}]}
+07-18 19:41:28.162   605   605 I mali_gralloc: allocate: id=25d00000d55, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=false, usage=CPU_RW|GPU_RW|HWC, size=576x1280(2949120), stride=576, name=screenshot, costTime=0ms139us923
+07-18 19:41:28.162  2445  2459 V WindowManagerShell: loadAnimation: anim=android.view.animation.AnimationSet@6aad45b animAttr=0x9 type=OPEN isEntrance=false
+07-18 19:41:28.162   650  1728 D mali_gralloc: register: id=25d00000d55, handle=0xb400007ba79e2350, importpid=650
+07-18 19:41:28.163 28501 28501 I .controlhorario: Using generational CollectorTypeCMC GC.
+07-18 19:41:28.164   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2615}Transition Root: Task=39#2615 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.164   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2615}Transition Root: Task=39#2615 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.165  2445  2459 V WindowManagerShell: loadAnimation: anim=android.view.animation.AnimationSet@b385b37 animAttr=0x8 type=OPEN isEntrance=true
+07-18 19:41:28.168  1066  1092 D mali_gralloc: register: id=25d00000d55, handle=0xb4000070c46e8bf0, importpid=1066
+07-18 19:41:28.169  2445  2459 V WindowManagerShell:  animated by com.android.wm.shell.transition.DefaultTransitionHandler@1755187
+07-18 19:41:28.169  1066  1092 D BLASTSyncEngine: finishNow mActiveSyncs.remove: 192
+07-18 19:41:28.169  1066  1088 V WindowManager: Sent Transition (#192) createdAt=07-18 19:41:28.089 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=39 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.example.controlhorario/.MainActivity } baseActivity=ComponentInfo{com.example.controlhorario/com.example.controlhorario.MainActivity} topActivity=ComponentInfo{com.example.controlhorario/com.example.controlhorario.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.controlhorario/com.example.controlhorario.MainActivity} numActivities=1 lastActiveTime=7261047 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{RemoteToken{425dbf6 Task{9a2013b #39 type=standard A=10275:com.example.controlhorario}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 36 - 0, 0) topActivityInfo=ActivityInfo{367cbf7 com.example.controlhorario.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false topActivityEligibleForLetterboxEducation= falseisLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false topActivityEligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=576 topActivityLetterboxHeight=1280 isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false cameraCompatTaskInfo=CameraCompatTaskInfo { cameraCompatControlState=hidden freeformCameraCompatMode=inactive}}}, pipTask = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 192 }
+07-18 19:41:28.169  1066  1088 V WindowManager:     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+07-18 19:41:28.170  1066  1088 V WindowManager:     info={id=192 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[
+07-18 19:41:28.170  1066  1088 V WindowManager:         {WCT{RemoteToken{425dbf6 Task{9a2013b #39 type=standard A=10275:com.example.controlhorario}}} m=OPEN f=NONE leash=Surface(name=Task=39#2611)/@0xe264bca sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1},
+07-18 19:41:28.170  1066  1088 V WindowManager:         {WCT{RemoteToken{954a8e2 Task{37801fc #26 type=standard A=10245:com.whatsapp}}} m=TO_BACK f=NONE leash=Surface(name=Task=26#1526)/@0xbbec2ef sb=Rect(0, 0 - 576, 1280) eb=Rect(0, 0 - 576, 1280) d=0 taskParent=-1}
+07-18 19:41:28.170  1066  1088 V WindowManager:     ]}
+07-18 19:41:28.170   728   752 I adbd    : jdwp connection from 28501
+07-18 19:41:28.176 28501 28501 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+07-18 19:41:28.177  2445  2453 D mali_gralloc: register: id=25d00000d55, handle=0xb4000070c46e1810, importpid=2445
+07-18 19:41:28.177  1624  1879 D mali_gralloc: register: id=25d00000d55, handle=0xb4000070c46b6d30, importpid=1624
+07-18 19:41:28.177  2445  2454 D mali_gralloc: register: id=25d00000d55, handle=0xb4000070c46bd270, importpid=2445
+07-18 19:41:28.177  2445  2454 D mali_gralloc: unregister: id=25d00000d55, handle=0xb4000070c46bd270, base=0x0, importpid=2445, clone_count=1
+07-18 19:41:28.177  2445  3313 D mali_gralloc: register: id=25d00000d55, handle=0xb4000070c46c2010, importpid=2445
+07-18 19:41:28.178  2445  2459 D TaskStackListenerImpl: onTaskSnapshotChanged close hardwarebuffer, snapshot = TaskSnapshot{ mId=1784418088158 mCaptureTime=7261125475687 mTopActivityComponent=com.whatsapp/.home.ui.HomeActivity mSnapshot=android.hardware.HardwareBuffer@e517a2f (576x1280) mColorSpace=sRGB IEC61966-2.1 (id=0, model=RGB) mOrientation=1 mRotation=0 mTaskSize=Point(576, 1280) mContentInsets=[0,48][0,72] mLetterboxInsets=[0,0][0,0] mIsLowResolution=false mIsRealSnapshot=true mWindowingMode=1 mAppearance=0 mIsTranslucent=true mHasImeSurface=false mInternalReferences=0
+07-18 19:41:28.178  2445  2459 D mali_gralloc: unregister: id=25d00000d55, handle=0xb4000070c46c2010, base=0x0, importpid=2445, clone_count=1
+07-18 19:41:28.181   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2616}animation-background#2616 isVisible=1 { color{< 0.313721, 0.321533, 0.356934, 1 >}} changes=Created | Hierarchy | Content | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.181   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2619}4df621f ActivityRecordInputSink com.example.controlhorario/.MainActivity#2619 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Input | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-7103.99,-14293.3,14151.1,5696.01} geomLayerTransform={tx=633.593,ty=64}} input{(NO_INPUT_CHANNEL | NOT_FOCUSABLE | NOT_TOUCHABLE) replaceTouchableRegionWithCrop touchableRegion={0,0,0,0}}
+07-18 19:41:28.181   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2614}Splash Screen com.example.controlhorario#2614 isVisible=0 { buffer=10501195039277 frame=1 color{< 0, 0, 0, 1 >}} changes=Hierarchy | Geometry | Input | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={0,0,1280,576} geomLayerTransform={tx=633.593,ty=64}} input{(NOT_FOCUSABLE | NOT_TOUCHABLE | PREVENT_SPLITTING) touchCropId=2611 touchableRegion={0,0,1280,576}}
+07-18 19:41:28.181   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2617}Surface(name=84e9172 StatusBar#116)/@0xdb85240 - animation-leash of insets_animation#2617 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.181   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2618}Surface(name=b277129 NavigationBar0#112)/@0xf0e2a4f - animation-leash of insets_animation#2618 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-14008,11592,5760} geomLayerTransform={tx=0,ty=1208}}
+07-18 19:41:28.181  1066  4109 W UserManagerService: Requested status bar icon for non-badged user 0
+07-18 19:41:28.182   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2617}Surface(name=84e9172 StatusBar#116)/@0xdb85240 - animation-leash of insets_animation#2617 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.182   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2618}Surface(name=b277129 NavigationBar0#112)/@0xf0e2a4f - animation-leash of insets_animation#2618 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-14008,11592,5760} geomLayerTransform={tx=0,ty=1208}}
+07-18 19:41:28.184   606   606 D SPRDHWComposer: HWC Range:1, HWC_Transfer:4
+07-18 19:41:28.186  2445  2445 D mali_gralloc: unregister: id=25d00000d55, handle=0xb4000070c46e1810, base=0x0, importpid=2445, clone_count=0
+07-18 19:41:28.198  1066  4109 D ActivityManager: Skip enqueue broadcast because no receiver with Intent { act=android.intent.action.LOCKED_BOOT_COMPLETED flg=0x9000030 pkg=com.example.controlhorario (has extras) }
+07-18 19:41:28.199  1066  4109 V BroadcastQueue: Enqueuing BroadcastRecord{ceda0e7 android.intent.action.BOOT_COMPLETED/u0} ordered=true from uid 1000 pid 1066 for 1 receivers
+07-18 19:41:28.199  1066  4109 D ActivityManager: add com.example.controlhorario to ColdStartingAppList
+07-18 19:41:28.216   606   606 D SPRDHWComposer: HWC Range:1, HWC_Transfer:4
+07-18 19:41:28.217   606   606 D mali_gralloc: register: id=25d00000d52, handle=0xb4000076cebc4430, importpid=606
+07-18 19:41:28.227 28501 28501 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+07-18 19:41:28.227 28501 28501 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+07-18 19:41:28.249   606   606 D mali_gralloc: unregister: id=25d00000d51, handle=0xb4000076cebca970, base=0x0, importpid=606, clone_count=0
+07-18 19:41:28.249   606   606 D mali_gralloc: unregister: id=25d00000d50, handle=0xb4000076cebca4f0, base=0x0, importpid=606, clone_count=0
+07-18 19:41:28.249   606   606 D mali_gralloc: unregister: id=25d00000d4f, handle=0xb4000076cebc6710, base=0x0, importpid=606, clone_count=0
+07-18 19:41:28.320  2445  2459 V WindowManagerShell: Transition animation finished (aborted=false), notifying core (#192) android.os.BinderProxy@cd7b475@0
+07-18 19:41:28.323  1066  1088 V WindowManager: Finish Transition (#192): created at 07-18 19:41:28.089 collect-started=0.116ms request-sent=10.593ms started=15.904ms ready=64.079ms sent=67.29ms finished=233.282ms
+07-18 19:41:28.325  3360  3360 D VRI[HomeActivity]: visibilityChanged oldVisibility=true newVisibility=false
+07-18 19:41:28.326  2445  2459 V WindowManagerShell: Track 0 became idle
+07-18 19:41:28.326  2445  2459 V WindowManagerShell: All active transition animations finished
+07-18 19:41:28.328  1066  4109 W UserManagerService: Requested status bar icon for non-badged user 0
+07-18 19:41:28.329  1066  4109 W UserManagerService: Requested status bar icon for non-badged user 0
+07-18 19:41:28.330  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:28.330   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 1536}59981de ActivityRecordInputSink com.whatsapp/.home.ui.HomeActivity#1536 isVisible=0 {hidden by parent or layer flag} changes=Hierarchy | Geometry | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={-5760.01,-14292.5,14150.4,7039.29} geomLayerTransform={tx=-575.707,ty=63.9683}} input{(NO_INPUT_CHANNEL | NOT_FOCUSABLE | NOT_TOUCHABLE) replaceTouchableRegionWithCrop touchableRegion={0,0,0,0}}
+07-18 19:41:28.330   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2606}com.whatsapp/com.whatsapp.home.ui.HomeActivity#2606 isVisible=1 {hidden by parent or layer flag} changes=Hierarchy | Geometry | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={0,0,1280,576} geomLayerTransform={tx=-575.707,ty=63.9683}} input{(NO_INPUT_CHANNEL | NOT_FOCUSABLE | NOT_TOUCHABLE | PREVENT_SPLITTING | PAUSE_DISPATCHING) touchableRegion={0,0,0,0}}
+07-18 19:41:28.331   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2616}animation-background#2616 isVisible=0 {layer not reachable from root} changes=Hierarchy | Parent | RelativeParent | Visibility | AffectsChildren | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:28.337  3360 11808 D mali_gralloc: unregister: id=25d00000d4f, handle=0xb4000070c469ac50, base=0x0, importpid=3360, clone_count=0
+07-18 19:41:28.337  3360 11808 D mali_gralloc: unregister: id=25d00000d50, handle=0xb4000070c46c01b0, base=0x0, importpid=3360, clone_count=0
+07-18 19:41:28.338   650   699 D mali_gralloc: unregister: id=25d00000d55, handle=0xb400007ba79e2350, base=0x0, importpid=650, clone_count=0
+07-18 19:41:28.338   650   699 D mali_gralloc: unregister: id=25d00000d4f, handle=0xb400007ba79da550, base=0x0, importpid=650, clone_count=0
+07-18 19:41:28.345  3360  3360 D mali_gralloc: unregister: id=25d00000d51, handle=0xb4000070c46ae2d0, base=0x0, importpid=3360, clone_count=0
+07-18 19:41:28.581  1066  1187 D ActivityManager: freezing 28389 com.android.settings
+07-18 19:41:28.585 28501 28501 D nativeloader: Configuring clns-7 for other apk /data/app/~~-bAdSTfYWWV8BuYRgUPCOg==/com.example.controlhorario-zVPN4KWT6hWe2dDu2sC6Aw==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~-bAdSTfYWWV8BuYRgUPCOg==/com.example.controlhorario-zVPN4KWT6hWe2dDu2sC6Aw==/lib/arm64:/data/app/~~-bAdSTfYWWV8BuYRgUPCOg==/com.example.controlhorario-zVPN4KWT6hWe2dDu2sC6Aw==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.example.controlhorario
+07-18 19:41:28.598 28501 28501 V GraphicsEnvironment: Currently set values for:
+07-18 19:41:28.598 28501 28501 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+07-18 19:41:28.598 28501 28501 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+07-18 19:41:28.598 28501 28501 V GraphicsEnvironment: Global.Settings values are invalid: number of packages: 0, number of values: 0
+07-18 19:41:28.598 28501 28501 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+07-18 19:41:28.648 28501 28501 D WM-WrkMgrInitializer: Initializing WorkManager with default configuration.
+07-18 19:41:28.691   728   728 I adbd    : adbd service requested 'jdwp:28501'
+07-18 19:41:28.741 28501 28501 D WM-PackageManagerHelper: Skipping component enablement for androidx.work.impl.background.systemjob.SystemJobService
+07-18 19:41:28.741 28501 28501 D WM-Schedulers: Created SystemJobScheduler and enabled SystemJobService
+07-18 19:41:28.747  1066  1187 D ActivityManager: freezing 28443 com.google.android.apps.turbo
+07-18 19:41:28.753  1066  1252 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-18 19:41:28.757  1066  1252 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-18 19:41:28.757  1066  1252 D InetDiagMessage: Destroyed live tcp sockets for uids={10137} in 7ms
+07-18 19:41:28.760 28501 28516 D WM-ForceStopRunnable: The default process name was not specified.
+07-18 19:41:28.761 28501 28516 D WM-ForceStopRunnable: Performing cleanup operations.
+07-18 19:41:28.764   820  2430 D BufferPoolAccessor2.0: bufferpool2 0xebe820c8 : 0(0 size) total buffers - 0(0 size) used buffers - 1/5 (recycle/alloc) - 3/3 (fetch/transfer)
+07-18 19:41:28.764   820  2430 D BufferPoolAccessor2.0: evictor expired: 1, evicted: 1
+07-18 19:41:28.770  3360 12622 D BufferPoolAccessor2.0: evictor expired: 2, evicted: 0
+07-18 19:41:28.785 28501 28501 D nativeloader: Load libunipnp_jni.so using system ns (caller=/system_ext/framework/unipnp-framework.jar): ok
+07-18 19:41:28.806  1066  4109 D WindowManager: setFocusedApp mFocusedApp = ActivityRecord{5fc696c u0 com.example.controlhorario/.MainActivity t39 d0}displayId = 0Callers = com.android.server.wm.ActivityTaskManagerService.setLastResumedActivityUncheckLocked:5100 com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:2341 com.android.server.wm.TaskFragment.setResumedActivity:617 com.android.server.wm.TaskFragment.onActivityStateChanged:970 com.android.server.wm.ActivityRecord.setState:6230 com.android.server.wm.ActivityTaskSupervisor.realStartActivityLocked:1033 
+07-18 19:41:28.806  1066  4109 D InputDispatcher: setFocusedApplication displayId=0 ActivityRecord{5fc696c u0 com.example.controlhorario/.MainActivity t39 d0}
+07-18 19:41:28.810 28501 28516 D WM-SystemJobScheduler: Reconciling jobs
+07-18 19:41:28.811 28501 28501 D WM-RescheduleReceiver: Received intent Intent { act=android.intent.action.BOOT_COMPLETED flg=0x9000030 pkg=com.example.controlhorario cmp=com.example.controlhorario/androidx.work.impl.background.systemalarm.RescheduleReceiver (has extras) }
+07-18 19:41:28.811 28501 28501 W CheckTime: App running slow: Executing androidx.work.impl.background.systemalarm.RescheduleReceiver scheduleReceive took 602ms
+07-18 19:41:28.823 28501 28517 D vulkan  : searching for layers in '/data/app/~~-bAdSTfYWWV8BuYRgUPCOg==/com.example.controlhorario-zVPN4KWT6hWe2dDu2sC6Aw==/lib/arm64'
+07-18 19:41:28.823 28501 28517 D vulkan  : searching for layers in '/data/app/~~-bAdSTfYWWV8BuYRgUPCOg==/com.example.controlhorario-zVPN4KWT6hWe2dDu2sC6Aw==/base.apk!/lib/arm64-v8a'
+07-18 19:41:28.821 28501 28501 W RenderThread: type=1400 audit(0.0:22883): avc:  denied  { read } for  name="large_page_conf" dev="sysfs" ino=56578 scontext=u:r:untrusted_app:s0:c19,c257,c512,c768 tcontext=u:object_r:sysfs:s0 tclass=file permissive=0 app=com.example.controlhorario
+07-18 19:41:28.826  1066  4109 D ActivityManager: getHistoricalProcessExitReasons pkg: null, pid:  0, userId: 0, callingPid: 28501, callingUid: 10275
+07-18 19:41:28.830 28501 28516 D WM-ForceStopRunnable: Found unfinished work, scheduling it.
+07-18 19:41:28.861 28501 28516 D WM-SystemJobScheduler: Scheduling work ID ec60c226-0da6-4780-b7f4-c25ad61ed8abJob ID 273
+07-18 19:41:28.873 28501 28516 D WM-SystemJobScheduler: Scheduling work ID adadd38c-b836-4adc-8ece-6e324f125048Job ID 275
+07-18 19:41:28.879  1066  4109 I BroadcastQueue: BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:1 completeLatency:680 dispatchRealLatency:1 completeRealLatency:680 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
+07-18 19:41:28.880  1066  4109 D BroadcastQueue: Receiver ResolveInfo{27b07a9 com.example.controlhorario/androidx.work.impl.background.systemalarm.RescheduleReceiver m=0x108000 userHandle=UserHandle{0}} finished with BroadcastRecord{ceda0e7 android.intent.action.BOOT_COMPLETED/u0} took 678ms
+07-18 19:41:28.908 28501 28501 D EmployeeSync: WorkManager programado: immediate_id=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, periodic_id=58516ef9-7c48-4461-9d54-25c8e09d9f7b, network=CONNECTED, interval=6h
+07-18 19:41:28.949 28501 28534 D WM-SystemJobScheduler: Scheduling work ID 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7Job ID 276
+07-18 19:41:28.957 28501 28501 I ContentCaptureHelper: Setting logging level to OFF
+07-18 19:41:28.958 28501 28534 D WM-GreedyScheduler: Starting tracking for 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7
+07-18 19:41:28.968   626   626 D PowerHAL: Enter getSceneIdByName: sceneName:com.example.controlhorario
+07-18 19:41:28.968   626   626 E PowerHAL: get_scene_id: PowerHAL is not inited
+07-18 19:41:28.969   626   626 D PowerHAL: Enter getSceneIdByName: sceneName:PACKAGE
+07-18 19:41:28.969   626   626 E PowerHAL: get_scene_id: PowerHAL is not inited
+07-18 19:41:28.987 28501 28501 W HWUI    : Unknown dataspace 0
+07-18 19:41:28.988 28501 28534 D WM-GreedyScheduler: Cancelling work ID ec60c226-0da6-4780-b7f4-c25ad61ed8ab
+07-18 19:41:29.002 28501 28534 D WM-SystemJobScheduler: Scheduling work ID ec60c226-0da6-4780-b7f4-c25ad61ed8abJob ID 277
+07-18 19:41:29.006 28501 28534 D WM-GreedyScheduler: Starting tracking for 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7
+07-18 19:41:29.019 28501 28534 D WM-SystemJobScheduler: Scheduling work ID 1d628057-1706-4b39-a362-6b1220bef876Job ID 278
+07-18 19:41:29.028   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2620}353ec1d com.example.controlhorario/com.example.controlhorario.MainActivity#2620 isVisible=1 {nothing to draw} changes=Created | Input | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:29.029   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2620}353ec1d com.example.controlhorario/com.example.controlhorario.MainActivity#2620 isVisible=0 {nothing to draw} changes=Created | Input | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:29.030 28501 28534 D WM-GreedyScheduler: Starting tracking for 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7,1d628057-1706-4b39-a362-6b1220bef876
+07-18 19:41:29.047 28501 28534 D WM-GreedyScheduler: Cancelling work ID adadd38c-b836-4adc-8ece-6e324f125048
+07-18 19:41:29.058 28501 28534 D WM-SystemJobScheduler: Scheduling work ID adadd38c-b836-4adc-8ece-6e324f125048Job ID 279
+07-18 19:41:29.061 28501 28534 D WM-GreedyScheduler: Starting tracking for 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7,1d628057-1706-4b39-a362-6b1220bef876
+07-18 19:41:29.074 28501 28534 D WM-PackageManagerHelper: Skipping component enablement for androidx.work.impl.background.systemalarm.RescheduleReceiver
+07-18 19:41:29.088 28501 28534 D WM-ConstraintTracker: NetworkStateTracker24: initial state = NetworkState(isConnected=true, isValidated=true, isMetered=true, isNotRoaming=true)
+07-18 19:41:29.088 28501 28534 D WM-NetworkStateTracker: Registering network callback
+07-18 19:41:29.096  1066  4109 D ConnectivityService: requestNetwork for uid/pid:10275/28501 activeRequest: null callbackRequest: 802 [NetworkRequest [ REQUEST id=803, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10275 RequestorUid: 10275 RequestorPkg: com.example.controlhorario UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647 isUidTracked: false declaredMethods: AVAIL|LOST|NC
+07-18 19:41:29.102  1066  1235 D WifiNetworkFactory: got request NetworkRequest [ REQUEST id=803, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10275 RequestorUid: 10275 RequestorPkg: com.example.controlhorario UnderlyingNetworks: Null] ]
+07-18 19:41:29.102 28501 28534 D WM-GreedyScheduler: Constraints met: Scheduling work ID WorkGenerationalId(workSpecId=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, generation=0)
+07-18 19:41:29.103  1066  1235 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=803, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10275 RequestorUid: 10275 RequestorPkg: com.example.controlhorario UnderlyingNetworks: Null] ]
+07-18 19:41:29.104 28501 28539 D WM-NetworkStateTracker: Network capabilities changed: [ Transports: WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=12848Kbps LinkDnBandwidth>=21193Kbps TransportInfo: <SSID: <unknown ssid>, BSSID: 02:00:00:00:00:00, MAC: 02:00:00:00:00:00, IP: /10.163.206.166, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 11n, RSSI: -34, Link speed: 72Mbps, Tx Link speed: 72Mbps, Max Supported Tx Link speed: 72Mbps, Calculated Tx : 24Mbps, Rx Link speed: 78Mbps, Max Supported Rx Link speed: 72Mbps, Calculated Rx : 53Mbps, Frequency: 2447MHz, Net ID: -1, Metered hint: true, score: 100, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: -1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none><none>MLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -34 UnderlyingNetworks: Null]
+07-18 19:41:29.104  1066  1235 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=803, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10275 RequestorUid: 10275 RequestorPkg: com.example.controlhorario UnderlyingNetworks: Null] ]
+07-18 19:41:29.105  1066  1252 D ConnectivityService: NetReassign [803 : null → 100] [c 1] [a 1] [i 6]
+07-18 19:41:29.105 28501 28534 D WM-GreedyScheduler: Constraints met: Scheduling work ID WorkGenerationalId(workSpecId=1d628057-1706-4b39-a362-6b1220bef876, generation=0)
+07-18 19:41:29.105  1066  1235 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=803, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10275 RequestorUid: 10275 RequestorPkg: com.example.controlhorario UnderlyingNetworks: Null] ]
+07-18 19:41:29.114 28501 28534 D WM-Processor: Processor: processing WorkGenerationalId(workSpecId=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, generation=0)
+07-18 19:41:29.118 28501 28534 D WM-Processor: Processor: processing WorkGenerationalId(workSpecId=1d628057-1706-4b39-a362-6b1220bef876, generation=0)
+07-18 19:41:29.285 28501 28501 I .controlhorario: hiddenapi: Accessing hidden method Landroid/os/SystemProperties;->addChangeCallback(Ljava/lang/Runnable;)V (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/compose/ui/platform/AndroidComposeView$Companion; (domain=app, TargetSdkVersion=36) using reflection: allowed
+07-18 19:41:29.320  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:29.335  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:29.628 28501 28506 I .controlhorario: Compiler allocated 6553KB to compile void android.view.ViewRootImpl.performTraversals()
+07-18 19:41:29.646  1066  4109 D CoreBackPreview: Window{353ec1d u0 com.example.controlhorario/com.example.controlhorario.MainActivity}, [type=1, isChildWindow=false]*noSurface: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@b6d168d, mPriority=0, mIsAnimationCallback=false}
+07-18 19:41:29.765   820  2430 D BufferPoolAccessor2.0: bufferpool2 0xebe82ae8 : 0(0 size) total buffers - 0(0 size) used buffers - 0/4 (recycle/alloc) - 3/3 (fetch/transfer)
+07-18 19:41:29.765   820  2430 D BufferPoolAccessor2.0: evictor expired: 2, evicted: 1
+07-18 19:41:29.999  1066  4109 D UFwDisplayJamMonitorImpl: Switch focus to Window{353ec1d u0 com.example.controlhorario/com.example.controlhorario.MainActivity}, [type=1, isChildWindow=false]-[Surface(name=*Title#2621)/@0x85fc042, shown=false, windowType=1] on APP(ActivityRecord{5fc696c u0 com.example.controlhorario/.MainActivity t39 d0}) from null, newWindowHandle = 353ec1d com.example.controlhorario/com.example.controlhorario.MainActivity, frame=[Rect(0, 0 - 0, 0)], touchableRegion=SkRegion(), scaleFactor=0.0, transform=null, windowToken=null, displayId=0, isClone=false, contentSize=0x0, alpha=0.0, canOccludePresentation=false, changed=true mGlobalScale=1.0 mCompatScale=1.0 mInvGlobalScale=1.0
+07-18 19:41:30.004  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:30.009 28501 28501 I .controlhorario: hook_module_init libgui_unisoc_utils.so over, map size:3, library handle:0x874a4a8f95b1c75
+07-18 19:41:30.009 28501 28501 I UnisocBufferQueueHelper: Unisoc-Graphics: UnisocBufferQueueHelper create, this:0xb40000717461c330, size:88
+07-18 19:41:30.009 28501 28501 I .controlhorario: createUnisocBufferQueueHelperFactory success, get instance 0xb40000717461c330
+07-18 19:41:30.009 28501 28501 I .controlhorario: Unisoc-Graphics: UnisocFrameRecord create, this:0xb400007224615590, size:296, enable:0
+07-18 19:41:30.009 28501 28501 I .controlhorario: createUnisocFrameRecordFactory success, get instance 0xb400007224615590
+07-18 19:41:30.021   605   605 I mali_gralloc: allocate: id=25d00000d56, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=SPLIT, usage=GPU_RW|HWC, size=576x1280(2995200), stride=576, name=VRI[MainActivity]#0(BLAST Consumer)0, costTime=0ms566us923
+07-18 19:41:30.022 28501 28540 D mali_gralloc: register: id=25d00000d56, handle=0xb4000070c4639bd0, importpid=28501
+07-18 19:41:30.022 28501 28540 W libc    : Access denied finding property "persist.vendor.gpu.ionmemtrack"
+07-18 19:41:30.023 28501 28540 I mali_gralloc: initIonKernelMemtrack open devices:/dev/systemheap success, fd:183
+07-18 19:41:30.024   605   605 I mali_gralloc: allocate: id=25d00000d57, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=SPLIT, usage=GPU_RW|HWC, size=576x1280(2995200), stride=576, name=VRI[MainActivity]#0(BLAST Consumer)0, costTime=0ms449us385
+07-18 19:41:30.024   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2622}Surface(name=84e9172 StatusBar#116)/@0xdb85240 - animation-leash of insets_animation#2622 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.025 28501 28540 D mali_gralloc: register: id=25d00000d57, handle=0xb4000070c463ba30, importpid=28501
+07-18 19:41:30.025   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2623}Surface(name=b277129 NavigationBar0#112)/@0xf0e2a4f - animation-leash of insets_animation#2623 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-14008,11592,5760} geomLayerTransform={tx=0,ty=1208}}
+07-18 19:41:30.025   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2622}Surface(name=84e9172 StatusBar#116)/@0xdb85240 - animation-leash of insets_animation#2622 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.025   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2623}Surface(name=b277129 NavigationBar0#112)/@0xf0e2a4f - animation-leash of insets_animation#2623 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-14008,11592,5760} geomLayerTransform={tx=0,ty=1208}}
+07-18 19:41:30.026   605   605 I mali_gralloc: allocate: id=25d00000d58, halFormat=RGBA8888, maliFormat=RGBA8888, afbc=SPLIT, usage=GPU_RW|HWC, size=576x1280(2995200), stride=576, name=VRI[MainActivity]#0(BLAST Consumer)0, costTime=0ms731us308
+07-18 19:41:30.026 28501 28540 D mali_gralloc: register: id=25d00000d58, handle=0xb4000070c4638f70, importpid=28501
+07-18 19:41:30.140   650   697 D mali_gralloc: register: id=25d00000d58, handle=0xb400007ba79df530, importpid=650
+07-18 19:41:30.141   650   699 D mali_gralloc: unregister: id=25d00000d50, handle=0xb400007ba79da9d0, base=0x0, importpid=650, clone_count=0
+07-18 19:41:30.143 28501 28501 W DisplayEventDispatcher: Vsync time out! vsyncScheduleDelay=1083ms
+07-18 19:41:30.144 28501 28501 W Choreographer: Already have a pending vsync event.  There should only be one at a time.
+07-18 19:41:30.146 28501 28501 W Choreographer: Already have a pending vsync event.  There should only be one at a time.
+07-18 19:41:30.147 28501 28501 I Choreographer: Skipped 64 frames!  The application may be doing too much work on its main thread.
+07-18 19:41:30.149  1066  1092 D ActivityManager: remove com.example.controlhorario from ColdStartingAppList
+07-18 19:41:30.153  1066  1088 I ActivityTaskManager: Displayed com.example.controlhorario/.MainActivity for user 0: +2s67ms
+07-18 19:41:30.157   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2624}Surface(name=353ec1d com.example.controlhorario/com.example.controlhorario.MainActivity#2620)/@0x1ab6063 - animation-leash of starting_reveal#2624 isVisible=1 {nothing to draw} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.158   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2624}Surface(name=353ec1d com.example.controlhorario/com.example.controlhorario.MainActivity#2620)/@0x1ab6063 - animation-leash of starting_reveal#2624 isVisible=0 {nothing to draw} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.163   650   697 D mali_gralloc: register: id=25d00000d54, handle=0xb400007ba79d7a90, importpid=650
+07-18 19:41:30.169 28501 28501 I Choreographer: Skipped 65 frames!  The application may be doing too much work on its main thread.
+07-18 19:41:30.172 28501 28501 D WM-WorkerWrapper: Starting work for com.example.controlhorario.device.EmployeeSyncWorker
+07-18 19:41:30.173 28501 28512 I HWUI    : Davey! duration=1126ms; Flags=1, FrameTimelineVsyncId=-1, IntendedVsync=7021557578093, Vsync=7021557593054, InputEventId=0, HandleInputStart=7021558157939, AnimationStart=7021558163323, PerformTraversalsStart=7021558167093, DrawStart=7022617950900, FrameDeadline=7021567580477, FrameInterval=7021557593054, FrameStartTime=16666667, SyncQueued=7022642755515, SyncStart=7022643184361, IssueDrawCommandsStart=7022643557207, SwapBuffers=7022683777053, FrameCompleted=7022684712053, DequeueBufferDuration=60116, QueueBufferDuration=589769, GpuCompleted=7022683971246, SwapBuffersCompleted=7022684712053, DisplayPresentTime=183060096132724, CommandSubmissionCompleted=7022683777053, 
+07-18 19:41:30.174   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2621}com.example.controlhorario/com.example.controlhorario.MainActivity#2621 isVisible=0 { buffer=122410862903298 frame=1 color{< 0, 0, 0, 1 >}} changes=Hierarchy | Geometry | Input | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={0,0,1280,576} geomLayerTransform={tx=0,ty=0}} input{(0x0) touchCropId=2611 touchableRegion={0,0,1280,576}}
+07-18 19:41:30.175 28501 28544 D EmployeeSync: WorkManager inició EmployeeSyncWorker: attempt=0, worker_id=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7
+07-18 19:41:30.176 28501 28501 D WM-WorkerWrapper: Starting work for com.example.controlhorario.attendance.AttendanceSyncWorker
+07-18 19:41:30.176   606   606 D SPRDHWComposer: HWC Range:1, HWC_Transfer:4
+07-18 19:41:30.177   606   606 D mali_gralloc: register: id=25d00000d58, handle=0xb4000076cebc6710, importpid=606
+07-18 19:41:30.177   606   606 D mali_gralloc: register: id=25d00000d54, handle=0xb4000076cebca4f0, importpid=606
+07-18 19:41:30.177   650   697 D mali_gralloc: register: id=25d00000d53, handle=0xb400007ba79e9070, importpid=650
+07-18 19:41:30.187 28501 28545 W .controlhorario: Monitor::Inflate: Install failed 0x731f7788
+07-18 19:41:30.190   381   381 E TrustyKeymaster: succeeded to send cmd (4) to com.android.trusty.keymaster with rc(294). errno: Success
+07-18 19:41:30.191   606   606 D mali_gralloc: register: id=25d00000d53, handle=0xb4000076cebca970, importpid=606
+07-18 19:41:30.191   381   381 E TrustyKeymaster: Getting response size (28)
+07-18 19:41:30.194   381   381 E TrustyKeymaster: succeeded to send cmd (4) to com.android.trusty.keymaster with rc(294). errno: Success
+07-18 19:41:30.194   381   381 E TrustyKeymaster: Getting response size (28)
+07-18 19:41:30.195   381   381 E TrustyKeymaster: succeeded to send cmd (8) to com.android.trusty.keymaster with rc(108). errno: Success
+07-18 19:41:30.196   381   381 E TrustyKeymaster: Getting response size (92)
+07-18 19:41:30.198   381   381 E TrustyKeymaster: succeeded to send cmd (8) to com.android.trusty.keymaster with rc(108). errno: Success
+07-18 19:41:30.198   381   381 E TrustyKeymaster: Getting response size (92)
+07-18 19:41:30.199   381   381 E TrustyKeymaster: succeeded to send cmd (12) to com.android.trusty.keymaster with rc(32). errno: Success
+07-18 19:41:30.200   381   381 E TrustyKeymaster: Getting response size (24)
+07-18 19:41:30.200   381   381 E TrustyKeymaster: succeeded to send cmd (12) to com.android.trusty.keymaster with rc(32). errno: Success
+07-18 19:41:30.201   381   381 E TrustyKeymaster: Getting response size (24)
+07-18 19:41:30.202  1848  3765 I FontLog : (REDACTED) Received query %s, URI %s
+07-18 19:41:30.202  1848  3765 I FontLog : (REDACTED) Query [%s] resolved to %s
+07-18 19:41:30.202 28501 28544 D EmployeeSync: WorkManager identidad disponible: device_id=7e50d061-65ee-484e-a25a-942abb8c8b51, credential_present=true
+07-18 19:41:30.205  1848  3765 I FontLog : (REDACTED) Fetch %s end status %s
+07-18 19:41:30.215  1848  3765 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+07-18 19:41:30.226  1848  3765 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+07-18 19:41:30.230 28501 28544 D EmployeeSync: Room sync inicio: device_id=7e50d061-65ee-484e-a25a-942abb8c8b51, cursor=EmployeeSyncCursor(updatedAt=2026-07-18T02:36:55.757379+00:00, id=b913f070-dd86-4751-9c2f-63643763f6f2), last_sync=1784417826435
+07-18 19:41:30.231 28501 28544 D EmployeeSync: URL: https://heiafcxsvfhinygzxsdk.supabase.co/functions/v1/employee-sync
+07-18 19:41:30.231 28501 28544 D EmployeeSync: company_id: pendiente de respuesta Edge; cursor enviado: updated_at=2026-07-18T02:36:55.757379+00:00, id=b913f070-dd86-4751-9c2f-63643763f6f2
+07-18 19:41:30.242  2445  2483 D mali_gralloc: unregister: id=25d00000d52, handle=0xb4000070c46db990, base=0x0, importpid=2445, clone_count=0
+07-18 19:41:30.243  2445  2486 D mali_gralloc: unregister: id=25d00000d54, handle=0xb4000070c46d3a70, base=0x0, importpid=2445, clone_count=0
+07-18 19:41:30.250  2445  2465 D mali_gralloc: unregister: id=25d00000d53, handle=0xb4000070c46b71b0, base=0x0, importpid=2445, clone_count=0
+07-18 19:41:30.251  2445  2465 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda11@17fa4e5
+07-18 19:41:30.252  1066  4109 W InputManager-JNI: Input channel object 'f91af2b Splash Screen com.example.controlhorario (client)' was disposed without first being removed with the input manager!
+07-18 19:41:30.254  1066  1079 D CoreBackPreview: Window{f91af2b u0 Splash Screen com.example.controlhorario EXITING}, [type=3, isChildWindow=false]-[Surface(name=*Title#2614)/@0x80217a0, shown=false, windowType=3]: Setting back callback null
+07-18 19:41:30.256   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2625}Surface(name=f91af2b Splash Screen com.example.controlhorario#2613)/@0xfb06c34 - animation-leash of window_animation#2625 isVisible=1 {nothing to draw} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.257   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2625}Surface(name=f91af2b Splash Screen com.example.controlhorario#2613)/@0xfb06c34 - animation-leash of window_animation#2625 isVisible=0 {nothing to draw} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.258   650   650 D mali_gralloc: unregister: id=25d00000d52, handle=0xb400007ba79dc170, base=0x0, importpid=650, clone_count=0
+07-18 19:41:30.258   606   606 D mali_gralloc: register: id=25d00000d53, handle=0xb4000076cebc7910, importpid=606
+07-18 19:41:30.258   606   606 D mali_gralloc: unregister: id=25d00000d53, handle=0xb4000076cebca970, base=0x0, importpid=606, clone_count=1
+07-18 19:41:30.274 28501 28501 W Choreographer: Already have a pending vsync event.  There should only be one at a time.
+07-18 19:41:30.277 28501 28501 D WM-SystemJobService: onStartJob for WorkGenerationalId(workSpecId=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, generation=0)
+07-18 19:41:30.279 28501 28501 D WM-SystemJobService: onStartJob for WorkGenerationalId(workSpecId=1d628057-1706-4b39-a362-6b1220bef876, generation=0)
+07-18 19:41:30.286  1066  1234 D DeviceIdleControllerEx: packageName: com.whatsapp uid: 10245 is in preset white app list
+07-18 19:41:30.286   615   615 D vendor.sprd.hardware.memtrack-service: get_ion_memtrack_memory:start!
+07-18 19:41:30.287  3360  3360 D WM-SystemJobService: onStopJob for WorkGenerationalId(workSpecId=e4340b67-f94a-4ee5-b6de-d333d85feb1b, generation=0)
+07-18 19:41:30.287 28501 28533 D WM-Processor: Work WorkGenerationalId(workSpecId=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, generation=0) is already enqueued for processing
+07-18 19:41:30.288  1066  1210 I ImeTracker: com.example.controlhorario:7110a64a: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+07-18 19:41:30.288  1066  1210 I ImeTracker: com.example.controlhorario:7110a64a: onCancelled at PHASE_SERVER_SHOULD_HIDE
+07-18 19:41:30.290  3360  4274 D WM-Processor: WorkerWrapper interrupted for e4340b67-f94a-4ee5-b6de-d333d85feb1b
+07-18 19:41:30.290  3360  4274 D WM-StopWorkRunnable: StopWorkRunnable for e4340b67-f94a-4ee5-b6de-d333d85feb1b; Processor.stopWork = true
+07-18 19:41:30.291   615   615 D vendor.sprd.hardware.memtrack-service: get_ion_memtrack_memory:start!
+07-18 19:41:30.293 28501 28533 D WM-Processor: Work WorkGenerationalId(workSpecId=1d628057-1706-4b39-a362-6b1220bef876, generation=0) is already enqueued for processing
+07-18 19:41:30.298 28501 28533 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=1d628057-1706-4b39-a362-6b1220bef876, tags={ com.example.controlhorario.attendance.AttendanceSyncWorker } ]
+07-18 19:41:30.300  2583  2583 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2276 
+07-18 19:41:30.302  2583  2583 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1460 onStartInput(EditorInfo{EditorInfo{packageName=com.example.controlhorario, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+07-18 19:41:30.302  2583  2583 I LatinIMEBase: LatinIMEBase.updateInputViewCoverNavigation():317 Update input view padding, isNavbarOverInputWindow=false, bottom inset=72
+07-18 19:41:30.304  1066  3094 W PackageConfigPersister: App-specific configuration not found for packageName: com.example.controlhorario and userId: 0
+07-18 19:41:30.304  2583 27487 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatusInternal():129 repeatCheckTimes = 0, locked = false
+07-18 19:41:30.305  2583 27487 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatusInternal():129 repeatCheckTimes = 1, locked = false
+07-18 19:41:30.306   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2626}Surface(name=136d9e InputMethod#141)/@0x5c1184c - animation-leash of insets_animation#2626 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760.01,-14292.5,14150.4,7039.29} geomLayerTransform={tx=-575.707,ty=63.9683}}
+07-18 19:41:30.306   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2626}Surface(name=136d9e InputMethod#141)/@0x5c1184c - animation-leash of insets_animation#2626 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760.01,-14292.5,14150.4,7039.29} geomLayerTransform={tx=-575.707,ty=63.9683}}
+07-18 19:41:30.308   650   699 D mali_gralloc: unregister: id=25d00000d54, handle=0xb400007ba79d7a90, base=0x0, importpid=650, clone_count=0
+07-18 19:41:30.311  1066  1234 D DeviceIdleControllerEx: packageName: com.whatsapp uid: 10245 is in preset white app list
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: Work [ id=e4340b67-f94a-4ee5-b6de-d333d85feb1b, tags={ com.whatsapp.infra.networking.xmpp.lifecycle.XmppLifecycleWorker } ] was cancelled
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: X.J0U
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: 	at X.G6E.A01(:6)
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: 	at X.Irr.run(:86)
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: 	at X.G7r.run(:2)
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+07-18 19:41:30.313  3360  4302 I WM-WorkerWrapper: 	at java.lang.Thread.run(Thread.java:1572)
+07-18 19:41:30.315  3360  4302 D WM-WorkerWrapper: Status for e4340b67-f94a-4ee5-b6de-d333d85feb1b is RUNNING; not doing any work and rescheduling for later execution
+07-18 19:41:30.318  3360  3360 D WM-Processor: G6E e4340b67-f94a-4ee5-b6de-d333d85feb1b executed; reschedule = true
+07-18 19:41:30.318  3360  3360 D WM-GreedyScheduler: Stopping tracking for WorkGenerationalId(workSpecId=e4340b67-f94a-4ee5-b6de-d333d85feb1b, generation=0)
+07-18 19:41:30.322  3360  4302 D WM-GreedyScheduler: Cancelling work ID e4340b67-f94a-4ee5-b6de-d333d85feb1b
+07-18 19:41:30.326 28501 28501 D WM-Processor: Processor 1d628057-1706-4b39-a362-6b1220bef876 executed; reschedule = false
+07-18 19:41:30.327 28501 28501 D WM-GreedyScheduler: Stopping tracking for WorkGenerationalId(workSpecId=1d628057-1706-4b39-a362-6b1220bef876, generation=0)
+07-18 19:41:30.329  3360  4302 D WM-SystemJobScheduler: Scheduling work ID e4340b67-f94a-4ee5-b6de-d333d85feb1bJob ID 30467
+07-18 19:41:30.330 28501 28501 D WM-SystemJobService: 1d628057-1706-4b39-a362-6b1220bef876 executed on JobScheduler
+07-18 19:41:30.333  3360  4302 D WM-GreedyScheduler: Starting tracking for f2f2fa8f-d818-404b-b8d4-aab7a09c8d5e
+07-18 19:41:30.334 28501 28501 D WM-SystemJobService: onStopJob for WorkGenerationalId(workSpecId=1d628057-1706-4b39-a362-6b1220bef876, generation=0)
+07-18 19:41:30.336  1066  1079 W JobScheduler: Job didn't exist in JobStore: fc82d19 {androidx.work.systemjobscheduler} #u0a275/278 @androidx.work.systemjobscheduler@com.example.controlhorario/androidx.work.impl.background.systemjob.SystemJobService
+07-18 19:41:30.341   615   615 D vendor.sprd.hardware.memtrack-service: get_ion_memtrack_memory:start!
+07-18 19:41:30.345  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:30.356   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2614}Splash Screen com.example.controlhorario#2614 isVisible=0 {layer not reachable from root} changes=Hierarchy | Parent | RelativeParent | Visibility | AffectsChildren | VisibleRegion layerStack=0 geomLayerBounds={0,0,1280,576} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:30.357   606   606 D mali_gralloc: unregister: id=25d00000d52, handle=0xb4000076cebc4430, base=0x0, importpid=606, clone_count=0
+07-18 19:41:30.358   606   606 D mali_gralloc: unregister: id=25d00000d54, handle=0xb4000076cebca4f0, base=0x0, importpid=606, clone_count=0
+07-18 19:41:30.359   606   606 D mali_gralloc: unregister: id=25d00000d53, handle=0xb4000076cebc7910, base=0x0, importpid=606, clone_count=0
+07-18 19:41:30.363  1066  1662 D PerformanceDatabaseControl: querymem pkgName = com.example.controlhorario
+07-18 19:41:30.363  1066  1662 D PerformanceDatabaseControl: querycount pkgName = com.example.controlhorario
+07-18 19:41:30.363  1066  1662 D PerformanceDatabaseControl: updateDatabase pkgName = com.example.controlhorario
+07-18 19:41:30.372 28501 28516 D WM-GreedyScheduler: Cancelling work ID 1d628057-1706-4b39-a362-6b1220bef876
+07-18 19:41:30.391   650   699 D mali_gralloc: unregister: id=25d00000d51, handle=0xb400007ba79e4990, base=0x0, importpid=650, clone_count=0
+07-18 19:41:30.561 28501 28544 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package com.android.libcore cannot be found on the device
+07-18 19:41:30.601   728   728 I adbd    : adbd service requested 'shell:getprop'
+07-18 19:41:30.619   650  1197 D mali_gralloc: register: id=25d00000d57, handle=0xb400007ba79e42d0, importpid=650
+07-18 19:41:30.619   650   699 D mali_gralloc: unregister: id=25d00000d53, handle=0xb400007ba79e9070, base=0x0, importpid=650, clone_count=0
+07-18 19:41:30.623   606   606 D mali_gralloc: register: id=25d00000d57, handle=0xb4000076cebc7910, importpid=606
+07-18 19:41:31.537   600   600 D bt_vendor: op for BT_VND_OP_LPM_WAKE_SET_STATE
+07-18 19:41:31.541  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:31.546  1066  1079 D TelephonyManager: requestModemActivityInfo: Sending result to app: ModemActivityInfo{ mTimestamp=7264491 mSleepTimeMs=0 mIdleTimeMs=0 mActivityStatsTechSpecificInfo=[{mRat=UNKNOWN,mFrequencyRange=UNKNOWN,mTxTimeMs[]=[0, 0, 0, 0, 0],mRxTimeMs=259197}]}
+07-18 19:41:31.573   377   377 E android.system.suspend-service: Error opening event_count for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening max_time_ms for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening wakeup_count for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening total_time_ms for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening expire_count for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening active_count for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening last_change_ms for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening prevent_suspend_time_ms for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening name for wakeup48: Permission denied
+07-18 19:41:31.574   377   377 E android.system.suspend-service: Error opening active_time_ms for wakeup48: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening event_count for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening max_time_ms for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening wakeup_count for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening total_time_ms for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening expire_count for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening active_count for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening last_change_ms for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening prevent_suspend_time_ms for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening name for wakeup28: Permission denied
+07-18 19:41:31.576   377   377 E android.system.suspend-service: Error opening active_time_ms for wakeup28: Permission denied
+07-18 19:41:31.593   377   377 E android.system.suspend-service: Error opening event_count for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening max_time_ms for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening wakeup_count for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening total_time_ms for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening expire_count for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening active_count for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening last_change_ms for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening prevent_suspend_time_ms for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening name for wakeup29: Permission denied
+07-18 19:41:31.594   377   377 E android.system.suspend-service: Error opening active_time_ms for wakeup29: Permission denied
+07-18 19:41:31.600   377   377 E android.system.suspend-service: Error opening event_count for wakeup15: Permission denied
+07-18 19:41:31.601   377   377 E android.system.suspend-service: Error opening max_time_ms for wakeup15: Permission denied
+07-18 19:41:31.601   377   377 E android.system.suspend-service: Error opening wakeup_count for wakeup15: Permission denied
+07-18 19:41:31.601   377   377 E android.system.suspend-service: Error opening total_time_ms for wakeup15: Permission denied
+07-18 19:41:31.601   377   377 E android.system.suspend-service: Error opening expire_count for wakeup15: Permission denied
+07-18 19:41:31.602   377   377 E android.system.suspend-service: Error opening active_count for wakeup15: Permission denied
+07-18 19:41:31.602   377   377 E android.system.suspend-service: Error opening last_change_ms for wakeup15: Permission denied
+07-18 19:41:31.602   377   377 E android.system.suspend-service: Error opening prevent_suspend_time_ms for wakeup15: Permission denied
+07-18 19:41:31.602   377   377 E android.system.suspend-service: Error opening name for wakeup15: Permission denied
+07-18 19:41:31.602   377   377 E android.system.suspend-service: Error opening active_time_ms for wakeup15: Permission denied
+07-18 19:41:31.624  1066  1111 D KernelCpuUidUserSysTimeReader: Removing uids 90001-90001
+07-18 19:41:31.624  1066  1111 D KernelCpuUidUserSysTimeReader: Removing uids 90002-90002
+07-18 19:41:31.625  1066  1111 D KernelCpuUidUserSysTimeReader: Removing uids 90003-90003
+07-18 19:41:31.625  1066  1111 D KernelCpuUidUserSysTimeReader: Removing uids 90000-90000
+07-18 19:41:31.780  1066  1075 I system_server: Background young concurrent mark compact GC freed 65MB AllocSpace bytes, 1357(27MB) LOS objects, 60% free, 61MB/155MB, paused 1.783ms,4.132ms total 162.515ms
+07-18 19:41:31.787  1066  1076 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+07-18 19:41:31.824  1066  1077 W System  : A resource failed to call release. 
+07-18 19:41:31.826  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.826  1066  1077 D mali_gralloc: unregister: id=25d00000d40, handle=0xb4000070c46eb470, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.826  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.826  1066  1077 D mali_gralloc: unregister: id=25d00000d3f, handle=0xb4000070c46e5050, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.826  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.826  1066  1077 D mali_gralloc: unregister: id=25d00000d3e, handle=0xb4000070c46e5a70, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.827  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.827  1066  1077 D mali_gralloc: unregister: id=25d00000d37, handle=0xb4000070c4702d50, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.827  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.827  1066  1077 D mali_gralloc: unregister: id=25d00000d33, handle=0xb4000070c46fca50, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.830  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.831  1066  1077 D mali_gralloc: unregister: id=25d00000d29, handle=0xb4000070c4715f50, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.831  1066  1077 W System  : A resource failed to call release. 
+07-18 19:41:31.832  1066  1077 W System  : A resource failed to call close. 
+07-18 19:41:31.832  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.833  1066  1077 D mali_gralloc: unregister: id=25d00000d13, handle=0xb4000070c46e9070, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.833  1066  1077 W System  : A resource failed to call HardwareBuffer.close. 
+07-18 19:41:31.833  1066  1077 D mali_gralloc: unregister: id=25d00000d0f, handle=0xb4000070c46f5e50, base=0x0, importpid=1066, clone_count=0
+07-18 19:41:31.842 28501 28544 D EmployeeSync: HTTP: 200 en 1610 ms
+07-18 19:41:31.842 28501 28544 D EmployeeSync: Response Body: {"employees":[],"inactive":[],"cursor":{"updated_at":"2026-07-18T02:36:55.757379+00:00","id":"b913f070-dd86-4751-9c2f-63643763f6f2"},"has_more":false,"synced_at":"2026-07-18T23:41:31.093Z","company_id":"672b1cef-65d7-4e55-99b0-31b3b1d5a4fa","diagnostic_request_id":"576fac6c-8ffe-4fae-9359-19c553fd5d31"}
+07-18 19:41:31.843 28501 28544 D EmployeeSync: company_id: 672b1cef-65d7-4e55-99b0-31b3b1d5a4fa; diagnostic_request_id: 576fac6c-8ffe-4fae-9359-19c553fd5d31
+07-18 19:41:31.843 28501 28544 D EmployeeSync: empleados recibidos: activos=0, inactivos=0, cursor=EmployeeSyncCursor(updatedAt=2026-07-18T02:36:55.757379+00:00, id=b913f070-dd86-4751-9c2f-63643763f6f2), hasMore=false
+07-18 19:41:31.843 28501 28544 D EmployeeSync: Room recibe página: activos=0, inactivos=0, cursor_respuesta=EmployeeSyncCursor(updatedAt=2026-07-18T02:36:55.757379+00:00, id=b913f070-dd86-4751-9c2f-63643763f6f2)
+07-18 19:41:31.854 28501 28544 D EmployeeSync: Room sync final: recibidos=0, insertados=0, actualizados=0, descartados=0, activados=0, desactivados=0, cursor_guardado=EmployeeSyncCursor(updatedAt=2026-07-18T02:36:55.757379+00:00, id=b913f070-dd86-4751-9c2f-63643763f6f2)
+07-18 19:41:31.854 28501 28544 D EmployeeSync: WorkManager éxito: EmployeeSyncSummary(downloaded=0, activated=0, deactivated=0, syncedAt=1784418091850)
+07-18 19:41:31.858 28501 28534 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, tags={ com.example.controlhorario.device.EmployeeSyncWorker } ]
+07-18 19:41:31.877 28501 28501 D WM-Processor: Processor 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7 executed; reschedule = false
+07-18 19:41:31.878 28501 28501 D WM-GreedyScheduler: Stopping tracking for WorkGenerationalId(workSpecId=66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7, generation=0)
+07-18 19:41:31.879 28501 28501 D WM-SystemJobService: 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7 executed on JobScheduler
+07-18 19:41:31.888 28501 28534 D WM-GreedyScheduler: Cancelling work ID 66d2afd3-b4b1-43ab-a7df-ba37ef63f0c7
+07-18 19:41:31.892 28501 28534 D WM-NetworkStateTracker: Unregistering network callback
+07-18 19:41:32.238   728   728 I adbd    : adbd service requested 'shell,v2,raw:pidof com.example.controlhorario'
+07-18 19:41:32.341  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:32.354  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:32.646   728   728 I adbd    : adbd service requested 'shell,v2,raw:input tap 116 295'
+07-18 19:41:32.757  1138  1138 D srmiproxyd: 7f3c384d20, select return 1
+07-18 19:41:32.757  1138  1138 D srmiproxyd: 7f3c384d20, main_loop, mark 1, fd 4
+07-18 19:41:32.757  1138  1138 D libsrmi : srmi_msg_recv, mark 2, fd 4, len 0, buff 40
+07-18 19:41:32.757  1138  1138 D libsrmi : read fd 4, ret 40, buff size 40
+07-18 19:41:32.757  1138  1138 D libsrmi : srmi_msg_recv, mark 3, fd 4, ret 40, left 0, err -1
+07-18 19:41:32.757  1138  1138 D libsrmi : fd 4 rx parser, get simple msg 0xb400007cb509b690, len 40, dptr(0xb400007cb509b6b8), dsz(0)
+07-18 19:41:32.757  1138  1138 D libsrmi : srmi_msg_recv, mark 4, fd 4, ret 40, err 0
+07-18 19:41:32.757  1138  1138 D srmiproxyd: 7f3c384d20: recv peer MSG, VoWifi-cpims, id(4), flag(0x42), len(40), [20/0]
+07-18 19:41:32.757  1138  1138 E srmiproxyd: unknown peer msg
+07-18 19:41:32.757  1138  1138 D srmiproxyd: 7f3c384d20, add fd f to select
+07-18 19:41:32.757  1138  1138 D srmiproxyd: 7f3c384d20, add fd d to select
+07-18 19:41:32.757  1138  1138 D srmiproxyd: 7f3c384d20, add fd b to select
+07-18 19:41:32.765  1066  3094 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1299 android.content.Context.sendBroadcastMultiplePermissions:2522 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3697 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 
+07-18 19:41:32.766  1066  3094 V BroadcastQueue: Enqueuing BroadcastRecord{84cf9b9 android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.768  1066  3094 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1332 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3702 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 android.os.Binder.execTransactInternal:1505 
+07-18 19:41:32.769  1066  3094 V BroadcastQueue: Enqueuing BroadcastRecord{af2e1fe android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.771  1066  3094 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1332 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3711 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 android.os.Binder.execTransactInternal:1505 
+07-18 19:41:32.772  1066  3094 V BroadcastQueue: Enqueuing BroadcastRecord{2b9cd5f android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.774  1066  3094 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1332 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3717 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 android.os.Binder.execTransactInternal:1505 
+07-18 19:41:32.777  1066  3094 V BroadcastQueue: Enqueuing BroadcastRecord{c2993ac android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.780  1066  1100 D ActivityManager: sync unfroze 27463 com.google.android.cellbroadcastreceiver for 3
+07-18 19:41:32.783 27463 27463 D CellBroadcastReceiver: onReceive Intent { act=android.intent.action.SERVICE_STATE flg=0x1000010 cmp=com.google.android.cellbroadcastreceiver/com.android.cellbroadcastreceiver.CellBroadcastReceiver (has extras) }
+07-18 19:41:32.784 27463 27463 D CellBroadcastReceiver: onServiceStateChanged, ss: 1
+07-18 19:41:32.784 27463 27463 D CellBroadcastReceiver: networkOperator: 
+07-18 19:41:32.784  2445  2445 W KeyguardUpdateMonitorLog: invalid subId in handleServiceStateChange()
+07-18 19:41:32.785 27463 27463 D CellBroadcastReceiver: networkOperator on emergency mode: 370 for the country code: do
+07-18 19:41:32.785 27463 27463 D CellBroadcastReceiver: roamingNetworks: [XXX]
+07-18 19:41:32.785 27463 27463 D CellBroadcastReceiver: mockmodem is running? = false
+07-18 19:41:32.785 27463 27463 D CellBroadcastReceiver: update supported roaming operator as 370
+07-18 19:41:32.789  1523  1801 D IwlanNetworkService: requestNetworkRegistrationInfo,domain:2 callback:android.telephony.NetworkServiceCallback@52989d4
+07-18 19:41:32.796  1523  1801 D UnisocCallsettingManagerImpl: isVtEnabledByOperator...  setting = -1 | onByDefault = true
+07-18 19:41:32.801  1523  1801 D IwlanNetworkService: requestNetworkRegistrationInfo,domain:2 callback:android.telephony.NetworkServiceCallback@8a6777d
+07-18 19:41:32.807  1523  1801 D UnisocCallsettingManagerImpl: isVtEnabledByOperator...  setting = -1 | onByDefault = true
+07-18 19:41:32.821   650  1197 D mali_gralloc: register: id=25d00000d56, handle=0xb400007ba79da9d0, importpid=650
+07-18 19:41:32.828  1066  1079 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1299 android.content.Context.sendBroadcastMultiplePermissions:2522 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3697 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 
+07-18 19:41:32.828  1066  1079 V BroadcastQueue: Enqueuing BroadcastRecord{bba7875 android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.830  1066  1079 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1332 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3702 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 android.os.Binder.execTransactInternal:1505 
+07-18 19:41:32.831  1066  1079 V BroadcastQueue: Enqueuing BroadcastRecord{e97200a android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.833   606   606 D mali_gralloc: register: id=25d00000d56, handle=0xb4000076cebca4f0, importpid=606
+07-18 19:41:32.833  1066  1079 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1332 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3711 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 android.os.Binder.execTransactInternal:1505 
+07-18 19:41:32.834  1066  1079 V BroadcastQueue: Enqueuing BroadcastRecord{3d7e07b android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.836  1066  1079 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcastMultiplePermissions:1332 com.android.server.TelephonyRegistry.broadcastServiceStateChanged:3717 com.android.server.TelephonyRegistry.notifyServiceStateForPhoneId:1759 com.android.internal.telephony.ITelephonyRegistry$Stub.onTransact:546 android.os.Binder.execTransactInternal:1505 
+07-18 19:41:32.837  1066  1079 V BroadcastQueue: Enqueuing BroadcastRecord{3723e98 android.intent.action.SERVICE_STATE/u-1} ordered=false from uid 1000 pid 1066 for 3 receivers
+07-18 19:41:32.839  1326  1326 D ServiceStateProvider: subId=-1
+07-18 19:41:32.840 27463 27463 D CellBroadcastReceiver: onReceive Intent { act=android.intent.action.SERVICE_STATE flg=0x1000010 cmp=com.google.android.cellbroadcastreceiver/com.android.cellbroadcastreceiver.CellBroadcastReceiver (has extras) }
+07-18 19:41:32.841 27463 27463 D CellBroadcastReceiver: onServiceStateChanged, ss: 1
+07-18 19:41:32.842 27463 27463 D CellBroadcastReceiver: networkOperator: 
+07-18 19:41:32.842 27463 27463 D CellBroadcastReceiver: networkOperator on emergency mode: 370 for the country code: do
+07-18 19:41:32.842  2445  2445 W KeyguardUpdateMonitorLog: invalid subId in handleServiceStateChange()
+07-18 19:41:32.842 27463 27463 D CellBroadcastReceiver: roamingNetworks: [XXX]
+07-18 19:41:32.842 27463 27463 D CellBroadcastReceiver: mockmodem is running? = false
+07-18 19:41:32.843 27463 27463 D CellBroadcastReceiver: update supported roaming operator as 370
+07-18 19:41:33.252   600  1773 D bt_vendor: op for BT_VND_OP_EVENT_CALLBACK
+07-18 19:41:33.252   600  1773 D bt_vnd_ssp: sprd_vse_cback: 0x0a
+07-18 19:41:33.254  1574  1748 W bluetooth: system/gd/hci/hci_layer.cc:499 on_vs_event: Unhandled vendor specific event of type Unknown VseSubeventCode(0x0a)
+07-18 19:41:33.419   728   728 I adbd    : adbd service requested 'shell,v2,raw:input tap 288 295'
+07-18 19:41:33.540  1066  1187 D ActivityManager: freezing 3277 com.google.android.apps.messaging
+07-18 19:41:33.916   728   728 I adbd    : adbd service requested 'shell,v2,raw:input tap 458 295'
+07-18 19:41:34.404   728   728 I adbd    : adbd service requested 'shell,v2,raw:input tap 116 379'
+07-18 19:41:34.683 28501 28591 D ProfileInstaller: Installing profile for com.example.controlhorario
+07-18 19:41:34.754   600  1773 D bt_vendor: op for BT_VND_OP_LPM_WAKE_SET_STATE
+07-18 19:41:34.995   728   728 I adbd    : adbd service requested 'shell,v2,raw:input tap 288 379'
+07-18 19:41:35.110 28501 28501 D EMPLOYEE_LOOKUP: layer=EmployeePunchViewModel event=START enteredDigits=5
+07-18 19:41:35.120 28501 28501 D EMPLOYEE_LOOKUP: layer=Room codeLength=5 matchedBy=employeeCode employeeId=2 active=true
+07-18 19:41:35.224 28501 28501 D EMPLOYEE_STATE: event=EMPLOYEE_ASSIGNED employeeId=2 hasFaceTemplate=false
+07-18 19:41:35.286  1066  1112 D AppOps  : evalModeInternal: uid = 10245, code = 27, uidState = 600, uidCapability = 0, opCapability = 4
+07-18 19:41:35.287  2618 21815 I eohs    : (REDACTED) HDM. appOpsListener %s %s
+07-18 19:41:35.287  2618 21815 I eohs    : (REDACTED) HDM. Ignoring irrelevant audio permission changes for package %s
+07-18 19:41:35.287  1066  1112 D AppOps  : evalModeInternal: uid = 10245, code = 26, uidState = 600, uidCapability = 0, opCapability = 2
+07-18 19:41:35.288  1066  1112 D AppOps  : evalModeInternal: uid = 10245, code = 1, uidState = 600, uidCapability = 0, opCapability = 1
+07-18 19:41:35.361  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:35.369  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:35.646  1479  1737 D IpClient/wlan0: interfaceLinkStateChanged: ifindex 28 up
+07-18 19:41:35.708   613   613 D enhanceHAL: sunlightRead: current ambient = 1
+07-18 19:41:36.028   613   613 D enhanceHAL: sunlightRead: current ambient = 3
+07-18 19:41:36.094  3360 27888 I com.whatsapp: Explicit concurrent mark compact GC freed 29MB AllocSpace bytes, 37(2488KB) LOS objects, 70% free, 39MB/135MB, paused 2.181ms,26.081ms total 810.636ms
+07-18 19:41:36.188   613   613 D enhanceHAL: sunlightRead: current ambient = 12
+07-18 19:41:36.350   613   613 D enhanceHAL: sunlightRead: current ambient = 18
+07-18 19:41:36.509   613   613 D enhanceHAL: sunlightRead: current ambient = 12
+07-18 19:41:36.831   613   613 D enhanceHAL: sunlightRead: current ambient = 20
+07-18 19:41:36.990   613   613 D enhanceHAL: sunlightRead: current ambient = 17
+07-18 19:41:37.176  1066  1187 D ActivityManager: freezing 27703 com.android.vending
+07-18 19:41:37.185  1066  1252 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-18 19:41:37.189  1066  1252 D InetDiagMessage: Destroyed 1 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-18 19:41:37.189  1066  1252 D InetDiagMessage: Destroyed live tcp sockets for uids={10130} in 9ms
+07-18 19:41:37.311   613   613 D enhanceHAL: sunlightRead: current ambient = 21
+07-18 19:41:37.365   728   728 I adbd    : adbd service requested 'shell,v2,raw:uiautomator dump /sdcard/face_before_click.xml'
+07-18 19:41:37.470   613   613 D enhanceHAL: sunlightRead: current ambient = 9
+07-18 19:41:37.620 28598 28598 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+07-18 19:41:37.627 28598 28598 I app_process: MMAP_TRYLOCK is supported in uffd errno:2 addr:0x7a28ed2000 size:4096
+07-18 19:41:37.629 28598 28598 I AndroidRuntime: Using default boot image
+07-18 19:41:37.629 28598 28598 I AndroidRuntime: Leaving lock profiling enabled
+07-18 19:41:37.630   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:37.634 28598 28598 I app_process: Using generational CollectorTypeCMC GC.
+07-18 19:41:37.729 28598 28598 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+07-18 19:41:37.746 28598 28598 D nativeloader: Load libicu_jni.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+07-18 19:41:37.746 28598 28598 D app_process: u_setTimeZoneFilesDirectory("/apex/com.android.tzdata/etc/tz/versioned/8/icu") succeeded. 
+07-18 19:41:37.746 28598 28598 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt75l.dat
+07-18 19:41:37.748 28598 28598 D nativeloader: Load libjavacore.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+07-18 19:41:37.749 28598 28598 D nativeloader: Load libopenjdk.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+07-18 19:41:37.751 28598 28598 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+07-18 19:41:37.790   613   613 D enhanceHAL: sunlightRead: current ambient = 9
+07-18 19:41:37.803 28598 28598 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+07-18 19:41:37.804 28598 28598 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+07-18 19:41:37.808 28598 28598 W System  : ClassLoader referenced unknown path: /system_ext/framework/cta_security_jar.jar
+07-18 19:41:37.809 28598 28598 W CtaPermFactory: CtaPermFactory not found
+07-18 19:41:37.813 28598 28598 D UiAutomationConnection: Created on user UserHandle{0}
+07-18 19:41:37.813 28598 28598 I UiAutomation: Initialized for user 0 on display 0
+07-18 19:41:37.813 28598 28598 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+07-18 19:41:37.817  1066  1165 D AccessibilityManagerService: changeCurrentUserForTestAutomationIfNeededLocked(0): ignoring because device doesn't support visible background users
+07-18 19:41:37.817  1066  1165 I UiAutomationManager: Registering UiTestAutomationService (id=com.android.server.accessibility/UiAutomation, flags=0x0) when called by user 0
+07-18 19:41:37.821  1066  1165 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-18 19:41:37.830  1066  1066 D BatterySaverPolicy: accessibility changed to true, updating policy.
+07-18 19:41:37.834  1066  2443 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-18 19:41:37.838  1066  1066 D AS.AudioService: Accessibility volume enabled = false
+07-18 19:41:37.846   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2627}WindowToken{186ff37 type=2032 android.os.Binder@3c0d436}-topChild=null#2627 isVisible=1 {nothing to draw} changes=Created | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:37.847   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2627}WindowToken{186ff37 type=2032 android.os.Binder@3c0d436}-topChild=null#2627 isVisible=0 {nothing to draw} changes=Created | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:37.950   613   613 D enhanceHAL: sunlightRead: current ambient = 28
+07-18 19:41:38.111   613   613 D enhanceHAL: sunlightRead: current ambient = 103
+07-18 19:41:38.271   613   613 D enhanceHAL: sunlightRead: current ambient = 134
+07-18 19:41:38.291  1066  1094 E UnisocWatchdog: UnisocWatchdogImpl sendMessage:0
+07-18 19:41:38.292  1066  1166 E UnisocWatchdog: UNISOCWATCHDOG_MESSAGE_TIMER30 trigger
+07-18 19:41:38.331  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:38.334  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:38.379  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:38.391  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:38.431   613   613 D enhanceHAL: sunlightRead: current ambient = 13
+07-18 19:41:38.592   613   613 D enhanceHAL: sunlightRead: current ambient = 25
+07-18 19:41:38.752   613   613 D enhanceHAL: sunlightRead: current ambient = 5
+07-18 19:41:38.853 28598 28598 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-18 19:41:38.853 28598 28598 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-18 19:41:38.849 28598 28598 W uiautomator: type=1400 audit(0.0:22884): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=361 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-18 19:41:38.849 28598 28598 W uiautomator: type=1400 audit(0.0:22885): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=361 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-18 19:41:38.864  2596  3157 W MediaProvider: isAppCloneUserPair for user 0: false
+07-18 19:41:38.910   613   613 D enhanceHAL: sunlightRead: current ambient = 2
+07-18 19:41:39.071   613   613 D enhanceHAL: sunlightRead: current ambient = 0
+07-18 19:41:39.128 28598 28598 W AccessibilityNodeInfoDumper: Fetch time: 272ms
+07-18 19:41:39.135  1066  1163 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-18 19:41:39.136  1066  1163 D AccessibilityManagerService: restoreCurrentUserForTestAutomationIfNeededLocked(): ignoring because device doesn't support visible background users
+07-18 19:41:39.140 28598 28598 D AndroidRuntime: Shutting down VM
+07-18 19:41:39.142  1066  1066 D BatterySaverPolicy: accessibility changed to false, updating policy.
+07-18 19:41:39.336  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:39.996 28598 28598 I app_process: hook_module_exit libgui_unisoc_utils.so over, handle:0x0
+07-18 19:41:40.097   728   728 I adbd    : adbd service requested 'shell,v2,raw:cat /sdcard/face_before_click.xml'
+07-18 19:41:40.334   728   728 I adbd    : adbd service requested 'shell,v2,raw:input tap 288 727'
+07-18 19:41:40.575 28501 28501 W WindowOnBackDispatcher: OnBackInvokedCallback is not enabled for the application.
+07-18 19:41:40.575 28501 28501 W WindowOnBackDispatcher: Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+07-18 19:41:40.674   613   613 D enhanceHAL: sunlightRead: current ambient = 1
+07-18 19:41:40.703   379 28546 I keystore2: system/security/keystore2/watchdog/src/lib.rs:319 - Watchdog thread idle -> terminating. Have a great day.
+07-18 19:41:40.832   613   613 D enhanceHAL: sunlightRead: current ambient = 2
+07-18 19:41:40.993   613   613 D enhanceHAL: sunlightRead: current ambient = 3
+07-18 19:41:41.154   613   613 D enhanceHAL: sunlightRead: current ambient = 0
+07-18 19:41:41.314   613   613 D enhanceHAL: sunlightRead: current ambient = 12
+07-18 19:41:41.342  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:41.398  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:41.410  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:41.475   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:41.635   613   613 D enhanceHAL: sunlightRead: current ambient = 3
+07-18 19:41:41.955   613   613 D enhanceHAL: sunlightRead: current ambient = 4
+07-18 19:41:42.070  3360  3360 D WM-DelayedWorkTracker: Scheduling work e4340b67-f94a-4ee5-b6de-d333d85feb1b
+07-18 19:41:42.070  3360  3360 D WM-GreedyScheduler: Starting tracking for e4340b67-f94a-4ee5-b6de-d333d85feb1b
+07-18 19:41:42.074  3360  4268 D WM-GreedyScheduler: Constraints met: Scheduling work ID WorkGenerationalId(workSpecId=e4340b67-f94a-4ee5-b6de-d333d85feb1b, generation=0)
+07-18 19:41:42.076  3360  4268 D WM-Processor: G6E: processing WorkGenerationalId(workSpecId=e4340b67-f94a-4ee5-b6de-d333d85feb1b, generation=0)
+07-18 19:41:42.085  3360  3360 D WM-WorkerWrapper: Starting work for com.whatsapp.infra.networking.xmpp.lifecycle.XmppLifecycleWorker
+07-18 19:41:42.115   613   613 D enhanceHAL: sunlightRead: current ambient = 5
+07-18 19:41:42.756   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:42.868  1066  1187 D ActivityManager: freezing 27463 com.google.android.cellbroadcastreceiver
+07-18 19:41:42.876  1066  1252 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+07-18 19:41:42.880  1066  1252 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+07-18 19:41:42.880  1066  1252 D InetDiagMessage: Destroyed live tcp sockets for uids={10215} in 8ms
+07-18 19:41:43.076   613   613 D enhanceHAL: sunlightRead: current ambient = 5
+07-18 19:41:43.109  3360  3360 W com.whatsapp: type=1400 audit(0.0:22886): avc:  denied  { read } for  comm=576861747341707020576F726B6572 name="u:object_r:unipnp_prop:s0" dev="tmpfs" ino=425 scontext=u:r:untrusted_app:s0:c245,c256,c512,c768 tcontext=u:object_r:unipnp_prop:s0 tclass=file permissive=0 app=com.whatsapp
+07-18 19:41:43.112  3360 27900 W libc    : Access denied finding property "persist.unipnp.wakelock_upload.enabled"
+07-18 19:41:43.396   613   613 D enhanceHAL: sunlightRead: current ambient = 6
+07-18 19:41:44.347  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:44.358   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:44.419  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:44.430  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:44.518   613   613 D enhanceHAL: sunlightRead: current ambient = 8
+07-18 19:41:44.838   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:46.280   613   613 D enhanceHAL: sunlightRead: current ambient = 8
+07-18 19:41:46.519   728   728 I adbd    : adbd service requested 'shell,v2,raw:pidof com.example.controlhorario'
+07-18 19:41:46.599   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:46.629   728   728 I adbd    : adbd service requested 'shell,v2,raw:uiautomator dump /sdcard/face_after_click.xml'
+07-18 19:41:46.803 28625 28625 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+07-18 19:41:46.810 28625 28625 I app_process: MMAP_TRYLOCK is supported in uffd errno:2 addr:0x7e2fc8b000 size:4096
+07-18 19:41:46.812 28625 28625 I AndroidRuntime: Using default boot image
+07-18 19:41:46.812 28625 28625 I AndroidRuntime: Leaving lock profiling enabled
+07-18 19:41:46.818 28625 28625 I app_process: Using generational CollectorTypeCMC GC.
+07-18 19:41:46.912 28625 28625 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+07-18 19:41:46.929 28625 28625 D nativeloader: Load libicu_jni.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+07-18 19:41:46.929 28625 28625 D app_process: u_setTimeZoneFilesDirectory("/apex/com.android.tzdata/etc/tz/versioned/8/icu") succeeded. 
+07-18 19:41:46.929 28625 28625 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt75l.dat
+07-18 19:41:46.931 28625 28625 D nativeloader: Load libjavacore.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+07-18 19:41:46.932 28625 28625 D nativeloader: Load libopenjdk.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+07-18 19:41:46.934 28625 28625 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+07-18 19:41:46.988 28625 28625 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+07-18 19:41:46.988 28625 28625 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+07-18 19:41:46.994 28625 28625 W System  : ClassLoader referenced unknown path: /system_ext/framework/cta_security_jar.jar
+07-18 19:41:46.994 28625 28625 W CtaPermFactory: CtaPermFactory not found
+07-18 19:41:46.998 28625 28625 D UiAutomationConnection: Created on user UserHandle{0}
+07-18 19:41:46.998 28625 28625 I UiAutomation: Initialized for user 0 on display 0
+07-18 19:41:46.998 28625 28625 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+07-18 19:41:47.003  1066  1079 D AccessibilityManagerService: changeCurrentUserForTestAutomationIfNeededLocked(0): ignoring because device doesn't support visible background users
+07-18 19:41:47.003  1066  1079 I UiAutomationManager: Registering UiTestAutomationService (id=com.android.server.accessibility/UiAutomation, flags=0x0) when called by user 0
+07-18 19:41:47.006  1066  1079 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-18 19:41:47.016  1066  1066 D BatterySaverPolicy: accessibility changed to true, updating policy.
+07-18 19:41:47.018  1066  1165 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-18 19:41:47.019   650   650 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 2628}WindowToken{34dbcd type=2032 android.os.Binder@43c8d64}-topChild=null#2628 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:47.020   650   650 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 2628}WindowToken{34dbcd type=2032 android.os.Binder@43c8d64}-topChild=null#2628 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-5760,-12800,12800,5760} geomLayerTransform={tx=0,ty=0}}
+07-18 19:41:47.025  1066  1066 D AS.AudioService: Accessibility volume enabled = false
+07-18 19:41:47.401   613   613 D enhanceHAL: sunlightRead: current ambient = 6
+07-18 19:41:47.439  1066  1235 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+07-18 19:41:47.450  1066  1235 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+07-18 19:41:47.561   613   613 D enhanceHAL: sunlightRead: current ambient = 7
+07-18 19:41:48.034 28625 28625 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-18 19:41:48.034 28625 28625 W libc    : Access denied finding property "qemu.sf.lcd_density"
+07-18 19:41:48.029 28625 28625 W uiautomator: type=1400 audit(0.0:22887): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=361 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-18 19:41:48.029 28625 28625 W uiautomator: type=1400 audit(0.0:22888): avc:  denied  { read } for  name="u:object_r:qemu_sf_lcd_density_prop:s0" dev="tmpfs" ino=361 scontext=u:r:shell:s0 tcontext=u:object_r:qemu_sf_lcd_density_prop:s0 tclass=file permissive=0
+07-18 19:41:48.045  2596 11731 W MediaProvider: isAppCloneUserPair for user 0: false
+07-18 19:41:48.062 28625 28625 W AccessibilityNodeInfoDumper: Fetch time: 26ms
+07-18 19:41:48.068  1066  2440 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+07-18 19:41:48.068  1066  2440 D AccessibilityManagerService: restoreCurrentUserForTestAutomationIfNeededLocked(): ignoring because device doesn't support visible background users
+07-18 19:41:48.071 28625 28625 D AndroidRuntime: Shutting down VM
+07-18 19:41:48.073  1066  1066 D BatterySaverPolicy: accessibility changed to false, updating policy.
+07-18 19:41:48.333  1066  1549 D SSense.GalleryAppSceneRecognizer: GalleryAppScene for uid:10275 pkg name:com.example.controlhorario sceneId:0 changed:false mCurrentFlingAppName:null
+07-18 19:41:48.920 28625 28625 I app_process: hook_module_exit libgui_unisoc_utils.so over, handle:0x0
+07-18 19:41:48.985   728   728 I adbd    : adbd service requested 'shell,v2,raw:cat /sdcard/face_after_click.xml'

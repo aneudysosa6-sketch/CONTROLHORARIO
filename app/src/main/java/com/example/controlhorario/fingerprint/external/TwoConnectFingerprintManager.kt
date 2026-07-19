@@ -21,12 +21,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class TwoConnectFingerprintManager(
+class TwoConnectFingerprintManager private constructor(
     private val context: Context,
-    private val onStatus: (String) -> Unit = {}
+    onStatus: (String) -> Unit = {}
 ) {
     private val appContext = context.applicationContext
-    private val hostActivity: Activity? = context.findActivity()
+    @Volatile private var hostActivity: Activity? = context.findActivity()
+    @Volatile private var statusListener: (String) -> Unit = onStatus
     private val usbManager = appContext.getSystemService(Context.USB_SERVICE) as UsbManager
     private val reader = UsbReader()
     private var matchEngineInitializationAttempted = false
@@ -34,6 +35,8 @@ class TwoConnectFingerprintManager(
     private var opened = false
     private var receiverRegistered = false
     private val managerInstanceId = System.identityHashCode(this)
+    @Volatile private var hardwareState = HardwareState.CLOSED
+    @Volatile private var activeAttemptId: Long? = null
     @Volatile
     private var lastVerificationDiagnostics = VerificationDiagnostics()
 
@@ -66,8 +69,20 @@ class TwoConnectFingerprintManager(
         initializeMatchEngine()
         val sdkContext = hostActivity ?: context
         reader.SetContextHandler(sdkContext, null)
+        logOpenSequence("SET_CONTEXT_HANDLER_INITIAL", null, SystemClock.elapsedRealtime())
         registerReceiver()
     }
+
+    internal fun bindOwner(context: Context, onStatus: (String) -> Unit) {
+        hostActivity = context.findActivity()
+        statusListener = onStatus
+        val sdkContext = hostActivity ?: appContext
+        reader.SetContextHandler(sdkContext, null)
+        logOpenSequence("SET_CONTEXT_HANDLER_BIND", null, SystemClock.elapsedRealtime())
+        logHardwareOwner("BIND", activeAttemptId)
+    }
+
+    private fun onStatus(message: String) = statusListener(message)
 
     fun isSupportedDeviceConnected(): Boolean = findSupportedDevice() != null
 
@@ -105,17 +120,21 @@ class TwoConnectFingerprintManager(
     private fun openReader(attemptId: Long?): Boolean {
         val startedAt = SystemClock.elapsedRealtime()
         val device = findSupportedDevice()
+        logOpenSequence("USB_DEVICE_SELECTED", null, startedAt, device)
         if (device == null) {
+            logOpenSequence("OPEN_DEVICE_SKIPPED_NO_DEVICE", null, startedAt, null)
             logCaptureTrace(attemptId, "OpenDevice:NO_DEVICE", null, startedAt)
             onStatus("No se encontró lector 2Connect USB conectado.")
             return false
         }
         if (!usbManager.hasPermission(device)) {
+            logOpenSequence("OPEN_DEVICE_SKIPPED_NO_PERMISSION", null, startedAt, device)
             logCaptureTrace(attemptId, "OpenDevice:NO_PERMISSION", null, startedAt)
             requestUsbPermission()
             return false
         }
         if (hostActivity == null) {
+            logOpenSequence("OPEN_DEVICE_SKIPPED_NO_ACTIVITY", null, startedAt, device)
             logCaptureTrace(attemptId, "OpenDevice:NO_ACTIVITY", null, startedAt)
             onStatus("No se encontró Activity activa para abrir el SDK 2Connect.")
             return false
@@ -124,20 +143,38 @@ class TwoConnectFingerprintManager(
             logCaptureTrace(attemptId, "OpenDevice:ALREADY_OPEN", 0, startedAt)
             return true
         }
+        transitionHardwareState("OpenDevice", HardwareState.OPENING, null, attemptId, startedAt)
+        logOpenSequence("OPEN_DEVICE_CALL", null, startedAt, device)
         val result = reader.OpenDevice()
         logSdkInit("OpenDevice", result)
         opened = result == 0
         logCaptureTrace(attemptId, "OpenDevice", result, startedAt)
+        logOpenSequence("OPEN_DEVICE_RETURN", result, startedAt, device)
         if (!opened) {
+            // Decompiled fplib-reader-v3: FPOpenDevice returns -1 only after
+            // LibUSBOpen succeeds and FPLinkDevice returns non-zero.
+            if (result == -1) {
+                logOpenSequence("FPLinkDevice", -1, startedAt, device, "libUsbOpen=true; fpVfyDevKeys=failed")
+            }
+            // FPOpenDevice() sets the SDK internal g_IsOpen flag before FPLinkDevice().
+            // A link failure returns -1, but still leaves the SDK USB connection allocated.
+            // Release that partial session so the next operation starts from a clean reader.
+            val closeResult = reader.CloseDevice()
+            logCaptureTrace(attemptId, "CloseDevice:AFTER_OPEN_FAILURE", closeResult, startedAt)
+            transitionHardwareState("OpenDevice", HardwareState.ERROR, result, attemptId, startedAt)
+            transitionHardwareState("CloseDevice:AFTER_OPEN_FAILURE", HardwareState.CLOSED, closeResult, attemptId, startedAt)
             onStatus("No se pudo abrir el lector 2Connect. Código: $result")
             return false
         }
+        transitionHardwareState("OpenDevice", HardwareState.OPEN, result, attemptId, startedAt)
         onStatus("Lector 2Connect abierto correctamente.")
         return true
     }
 
     suspend fun enrollFingerprint(debugEmployeeId: Int? = null): CaptureResult = withContext(Dispatchers.IO) {
         hardwareOperationMutex.withLock {
+        activeAttemptId = null
+        logHardwareOwner("ENROLLMENT_START", null)
         logMethodEntry("enrollFingerprint", debugEmployeeId)
         if (!open()) {
             logEnrollmentFlow(
@@ -149,6 +186,8 @@ class TwoConnectFingerprintManager(
 
         onStatus("Coloque el dedo en el lector 2Connect.")
         val first = captureIntoBuffer(attemptId = null, bufferId = 0x01, waitForFinger = true)
+        val firstCapturedAt = SystemClock.elapsedRealtime()
+        logCaptureQuality("ENROLL_CAPTURE_1", 0x01, first, null)
         logEnroll("capture=1 imageResult=${first.imageResult} featureGenerationResult=${first.featureGenerationResult}")
         if (!first.success) {
             logEnrollmentTrace(first, null, null, null, null)
@@ -170,6 +209,13 @@ class TwoConnectFingerprintManager(
 
         onStatus("Coloque el mismo dedo nuevamente.")
         val second = captureIntoBuffer(attemptId = null, bufferId = 0x02, waitForFinger = true)
+        val secondCapturedAt = SystemClock.elapsedRealtime()
+        logCaptureQuality(
+            "ENROLL_CAPTURE_2",
+            0x02,
+            second,
+            secondCapturedAt - firstCapturedAt
+        )
         logEnroll("capture=2 imageResult=${second.imageResult} featureGenerationResult=${second.featureGenerationResult}")
         if (!second.success) {
             logEnrollmentTrace(first, second, null, null, null)
@@ -184,7 +230,7 @@ class TwoConnectFingerprintManager(
             logEnrollmentTrace(first, second, regResult, null, null)
             logEnrollmentFlow(first, second, true, null, regResult, null, null, 0, "REG_MODULE_FAILED")
             finishEnrollmentAttempt()
-            return@withContext CaptureResult.Error("No se pudo combinar la plantilla de huella. Código: $regResult")
+            return@withContext CaptureResult.Error("No se pudo completar la biometría facial. Código: $regResult")
         }
 
         val template = ByteArray(REFERENCE_TEMPLATE_BYTES)
@@ -209,7 +255,7 @@ class TwoConnectFingerprintManager(
             "templateBytes=${cleanTemplate.size} base64Length=${encodedTemplate.length} " +
                 "fpUpCharResult=$upResult sdkReportedTemplateSize=${templateSize[0]}"
         )
-        onStatus("Huella capturada correctamente desde lector 2Connect.")
+        onStatus("Biometría facial capturada correctamente.")
         val result = CaptureResult.Success(
             templateBase64 = encodedTemplate,
             templateSize = cleanTemplate.size,
@@ -235,17 +281,27 @@ class TwoConnectFingerprintManager(
         debugEmployeeId: Int? = null,
         attemptId: Long? = null
     ): CaptureResult = withContext(Dispatchers.IO) {
+        logVerifyFlow("ENTER", attemptId)
         hardwareOperationMutex.withLock {
+        logVerifyFlow("MUTEX_ACQUIRED", attemptId)
+        activeAttemptId = attemptId
+        logHardwareOwner("VERIFICATION_CAPTURE_START", attemptId)
+        logVerifyFlow("BEFORE_OPEN_DEVICE", attemptId)
         if (!openReader(attemptId)) {
+            logVerifyFlow("OPEN_DEVICE_FAILED", attemptId)
+            logVerifyFlow("EXIT", attemptId, "reason=open_device_failed")
             return@withContext CaptureResult.Error(
                 message = "No se pudo abrir el lector 2Connect.",
                 readerOpened = opened,
                 initMatchResult = initMatchResult
             )
         }
+        logVerifyFlow("OPEN_DEVICE", attemptId)
         onStatus("Coloque el dedo para verificar.")
         val capture = captureIntoBuffer(attemptId, bufferId = 0x01, waitForFinger = true)
+        logCaptureQuality("VERIFY_CAPTURE", 0x01, capture, null)
         if (!capture.success) {
+            logVerifyFlow("EXIT", attemptId, "reason=capture_failed")
             return@withContext CaptureResult.Error(
                 message = capture.message,
                 readerOpened = true,
@@ -259,9 +315,12 @@ class TwoConnectFingerprintManager(
         val template = ByteArray(REFERENCE_TEMPLATE_BYTES)
         val templateSize = IntArray(1)
         val exportStartedAt = SystemClock.elapsedRealtime()
+        logVerifyFlow("BEFORE_FPUPCHAR", attemptId)
         val upResult = reader.FPUpChar(DEVICE_ADDRESS, 0x01, template, templateSize)
         logCaptureTrace(attemptId, "FPUpChar:0x01", upResult, exportStartedAt)
+        logVerifyFlow("AFTER_FPUPCHAR", attemptId, "returnCode=$upResult templateSize=${templateSize[0]}")
         if (upResult != 0 || templateSize[0] <= 0 || templateSize[0] > template.size) {
+            logVerifyFlow("EXIT", attemptId, "reason=fpupchar_failed")
             return@withContext CaptureResult.Error(
                 message = "No se pudo leer la plantilla de verificación. Código: $upResult",
                 readerOpened = true,
@@ -275,6 +334,7 @@ class TwoConnectFingerprintManager(
 
         val cleanTemplate = template.copyOf(templateSize[0])
         FingerprintTemplateDiagnostics.log("VERIFY_AFTER_FPUPCHAR", debugEmployeeId, cleanTemplate)
+        logVerifyFlow("EXIT", attemptId, "reason=capture_ready")
         CaptureResult.Success(
             templateBase64 = Base64.encodeToString(cleanTemplate, Base64.NO_WRAP),
             templateSize = cleanTemplate.size,
@@ -297,6 +357,7 @@ class TwoConnectFingerprintManager(
         capture: CaptureResult
     ): FingerprintVerificationResult {
         logMethodEntry("verifyFingerprint", debugEmployeeId)
+        logVerifyFlow("ENTER", activeAttemptId)
         val initialDiagnostics = VerificationDiagnostics(
             usbConnected = isSupportedDeviceConnected(),
             usbPermissionGranted = hasUsbPermission(),
@@ -330,7 +391,7 @@ class TwoConnectFingerprintManager(
             if (!capture.success) {
                 lastVerificationDiagnostics = diagnostics.copy(failure = "CaptureFailed")
                 return FingerprintVerificationResult.CaptureError(
-                    "No se pudo leer la huella. Coloque el dedo nuevamente."
+                    "No se pudo completar la biometría facial. Intente nuevamente."
                 )
             }
             if (!matchEngineInitializationAttempted) {
@@ -350,7 +411,7 @@ class TwoConnectFingerprintManager(
             ) {
                 lastVerificationDiagnostics = templatesDiagnostics.copy(failure = "InvalidCapturedTemplate")
                 FingerprintVerificationResult.CaptureError(
-                    "No se pudo leer la huella. Coloque el dedo nuevamente."
+                    "No se pudo completar la biometría facial. Intente nuevamente."
                 )
             } else {
                 // El demo 2Connect usa referencia (512) primero y captura (256) después.
@@ -358,10 +419,17 @@ class TwoConnectFingerprintManager(
                     FingerprintTemplateDiagnostics.log("E_BEFORE_MATCH", debugEmployeeId, stored)
                     FingerprintTemplateDiagnostics.log("VERIFY_BEFORE_MATCH", debugEmployeeId, captured)
                     logMatchTrace(stored, captured, score = null, decision = "PENDING")
+                    logVerifyFlow("BEFORE_MATCH", activeAttemptId)
                     val score = reader.MatchTemplate(stored, captured)
+                    logVerifyFlow("AFTER_MATCH", activeAttemptId, "score=$score")
+                    logTemplateSegmentDiagnostics(stored, captured, score)
                     val result = FingerprintVerificationPolicy.resultForOfficialScore(
                         score = score,
                         threshold = VERIFIED_MATCH_THRESHOLD
+                    )
+                    logMatchDecision(
+                        score = score,
+                        accepted = result is FingerprintVerificationResult.Match
                     )
                     lastVerificationDiagnostics = templatesDiagnostics.copy(
                         matchTemplateExecuted = true,
@@ -388,7 +456,7 @@ class TwoConnectFingerprintManager(
             FingerprintVerificationResult.DeviceError("La plantilla registrada no es válida.")
         } catch (_: Exception) {
             lastVerificationDiagnostics = initialDiagnostics.copy(failure = "VerificationFailed")
-            FingerprintVerificationResult.DeviceError("No se pudo verificar la huella.")
+            FingerprintVerificationResult.DeviceError("No se pudo verificar el rostro.")
         }
     }
 
@@ -436,20 +504,18 @@ class TwoConnectFingerprintManager(
     }
 
     private fun finishEnrollmentAttempt() {
-        if (opened) {
-            val startedAt = SystemClock.elapsedRealtime()
-            val result = reader.CloseDevice()
-            logCaptureTrace(null, "CloseDevice:enrollment", result, startedAt)
-            opened = false
-        }
+        // Igual que el demo: el lector sigue abierto para reutilizar la misma instancia.
+        logHardwareOwner("ENROLLMENT_COMPLETE", activeAttemptId)
     }
 
     fun close() {
         if (opened) {
             val startedAt = SystemClock.elapsedRealtime()
+            transitionHardwareState("CloseDevice", HardwareState.CLOSING, null, activeAttemptId, startedAt)
             val result = reader.CloseDevice()
             logCaptureTrace(null, "CloseDevice", result, startedAt)
             opened = false
+            transitionHardwareState("CloseDevice", HardwareState.CLOSED, result, activeAttemptId, startedAt)
         }
     }
 
@@ -463,7 +529,35 @@ class TwoConnectFingerprintManager(
             initMatchResult = reader.InitMatch()
             logSdkInit("InitMatch", initMatchResult)
             logCaptureTrace(null, "InitMatch", if (initMatchResult == true) 0 else null, SystemClock.elapsedRealtime())
+            logOpenSequence("INIT_MATCH", initMatchResult, SystemClock.elapsedRealtime())
         }
+    }
+
+    private fun logOpenSequence(
+        step: String,
+        returnCode: Any?,
+        startedAt: Long,
+        device: UsbDevice? = findSupportedDevice(),
+        connection: String? = null
+    ) {
+        if (!BuildConfig.DEBUG) return
+        val topology = device?.let { selected ->
+            (0 until selected.interfaceCount).joinToString(";") { index ->
+                val usbInterface = selected.getInterface(index)
+                val endpoints = (0 until usbInterface.endpointCount).joinToString(",") { endpointIndex ->
+                    val endpoint = usbInterface.getEndpoint(endpointIndex)
+                    "addr=${endpoint.address},dir=${endpoint.direction},type=${endpoint.type},packet=${endpoint.maxPacketSize}"
+                }
+                "iface=${usbInterface.id},class=${usbInterface.interfaceClass},subclass=${usbInterface.interfaceSubclass},protocol=${usbInterface.interfaceProtocol},endpoints=[$endpoints]"
+            }
+        } ?: "none"
+        Log.d(
+            "OPEN_SEQUENCE",
+            "step=$step returnCode=${returnCode ?: "n/a"} elapsedMs=${SystemClock.elapsedRealtime() - startedAt} " +
+                "device=${device?.deviceName ?: "none"} vid=${device?.vendorId ?: -1} pid=${device?.productId ?: -1} " +
+                "permission=${device?.let(usbManager::hasPermission) ?: false} " +
+                "connection=${connection ?: if (opened) "open" else "not_open"} topology=$topology"
+        )
     }
 
     private fun logSdkInit(operation: String, result: Any?) {
@@ -474,6 +568,35 @@ class TwoConnectFingerprintManager(
             "operation=$operation result=$result readerHash=$readerHash " +
                 "objetoUsbReaderHash=$readerHash thread=${Thread.currentThread().name}"
         )
+    }
+
+    private fun logHardwareOwner(operation: String, attemptId: Long?) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(
+            "FINGERPRINT_HARDWARE_OWNER",
+            "instanceHash=$managerInstanceId readerHash=${System.identityHashCode(reader)} " +
+                "managerHash=$managerInstanceId state=$hardwareState operation=$operation " +
+                "attemptId=${attemptId ?: "none"} thread=${Thread.currentThread().name}"
+        )
+    }
+
+    private fun transitionHardwareState(
+        action: String,
+        newState: HardwareState,
+        result: Int?,
+        attemptId: Long?,
+        startedAt: Long
+    ) {
+        val previous = hardwareState
+        hardwareState = newState
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                "FINGERPRINT_DEVICE_LIFECYCLE",
+                "action=$action previousState=$previous newState=$newState result=${result ?: "n/a"} " +
+                    "attemptId=${attemptId ?: "none"} elapsedMs=${SystemClock.elapsedRealtime() - startedAt}"
+            )
+        }
+        logHardwareOwner(action, attemptId)
     }
 
     private fun logMethodEntry(method: String, employeeId: Int?) {
@@ -509,6 +632,15 @@ class TwoConnectFingerprintManager(
         )
     }
 
+    private fun logMatchDecision(score: Int, accepted: Boolean) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(
+            "FINGERPRINT_MATCH_DECISION",
+            "score=$score threshold=$VERIFIED_MATCH_THRESHOLD comparison=score>threshold " +
+                "accepted=$accepted evidenceSource=2Connect_SDK_manual_strict_gt_threshold"
+        )
+    }
+
     fun release() {
         close()
         if (receiverRegistered) {
@@ -526,13 +658,17 @@ class TwoConnectFingerprintManager(
         var lastImageResult: Int? = null
         while (System.currentTimeMillis() < timeoutAt) {
             val imageStartedAt = SystemClock.elapsedRealtime()
+            logVerifyFlow("BEFORE_GET_IMAGE", attemptId)
             val getImageResult = reader.FxGetImage(DEVICE_ADDRESS)
             logCaptureTrace(attemptId, "FxGetImage", getImageResult, imageStartedAt)
+            logVerifyFlow("AFTER_GET_IMAGE", attemptId, "returnCode=$getImageResult")
             lastImageResult = getImageResult
             if (getImageResult == 0) {
                 val generationStartedAt = SystemClock.elapsedRealtime()
+                logVerifyFlow("BEFORE_GENCHAR", attemptId, "bufferId=0x${bufferId.toString(16)}")
                 val genResult = reader.FxGenChar(DEVICE_ADDRESS, bufferId)
                 logCaptureTrace(attemptId, "GenChar:0x${bufferId.toString(16)}", genResult, generationStartedAt)
+                logVerifyFlow("AFTER_GENCHAR", attemptId, "returnCode=$genResult bufferId=0x${bufferId.toString(16)}")
                 return if (genResult == 0) {
                     InternalCaptureResult(true, "Captura correcta.", getImageResult, genResult)
                 } else {
@@ -542,7 +678,15 @@ class TwoConnectFingerprintManager(
             if (!waitForFinger) return InternalCaptureResult(false, "No se detectó dedo en el lector.", getImageResult, null)
             delay(CAPTURE_RETRY_DELAY_MS)
         }
-        return InternalCaptureResult(false, "Tiempo agotado esperando la huella en el lector 2Connect.", lastImageResult, null)
+        return InternalCaptureResult(false, "Tiempo agotado durante la validación facial.", lastImageResult, null)
+    }
+
+    private fun logVerifyFlow(step: String, attemptId: Long?, detail: String = "") {
+        if (!BuildConfig.DEBUG) return
+        Log.d(
+            "VERIFY_FLOW",
+            "step=$step attemptId=${attemptId ?: "none"} thread=${Thread.currentThread().name} $detail"
+        )
     }
 
     private fun logCaptureTrace(
@@ -558,6 +702,59 @@ class TwoConnectFingerprintManager(
                 "readerOpen=$opened usbConnected=${isSupportedDeviceConnected()} " +
                 "usbPermission=${hasUsbPermission()} thread=${Thread.currentThread().name} " +
                 "elapsedMs=${SystemClock.elapsedRealtime() - startedAt} managerInstance=$managerInstanceId"
+        )
+    }
+
+    /**
+     * fplib-reader-v3 does not expose image quality, effective fingerprint area, or GetWorkMsg.
+     * Keep that explicit in DEBUG logs rather than infer values from the captured template.
+     */
+    private fun logCaptureQuality(
+        stage: String,
+        bufferId: Int,
+        capture: InternalCaptureResult,
+        elapsedSincePreviousCaptureMs: Long?
+    ) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(
+            "FINGERPRINT_CAPTURE_QUALITY",
+            "stage=$stage bufferId=0x${bufferId.toString(16)} " +
+                "imageResult=${capture.imageResult} genCharResult=${capture.featureGenerationResult} " +
+                "imageQuality=SDK_NOT_EXPOSED effectiveArea=SDK_NOT_EXPOSED " +
+                "getWorkMsg=SDK_NOT_EXPOSED elapsedSincePreviousCaptureMs=" +
+                "${elapsedSincePreviousCaptureMs ?: "n/a"}"
+        )
+    }
+
+    /**
+     * DEBUG-only experiment. It never affects the production match score or decision.
+     * The SDK API does not publish a template layout; the values below are evidence for
+     * comparing the physical reader output with the official demo once it is available.
+     */
+    private fun logTemplateSegmentDiagnostics(
+        reference: ByteArray,
+        candidate: ByteArray,
+        officialScore: Int
+    ) {
+        if (!BuildConfig.DEBUG || reference.size != 512 || candidate.size != 512) return
+        fun score(label: String, left: ByteArray, right: ByteArray): String =
+            runCatching { reader.MatchTemplate(left, right).toString() }
+                .getOrElse { "error:${it.javaClass.simpleName}" }
+
+        val referenceFirst256 = reference.copyOfRange(0, 256)
+        val referenceLast256 = reference.copyOfRange(256, 512)
+        val candidateFirst256 = candidate.copyOfRange(0, 256)
+        val candidateLast256 = candidate.copyOfRange(256, 512)
+        Log.d(
+            "FINGERPRINT_TEMPLATE_SEGMENT_DIAGNOSTICS",
+            "production512x512=$officialScore " +
+                "first256x256=${score("first256x256", referenceFirst256, candidateFirst256)} " +
+                "last256x256=${score("last256x256", referenceLast256, candidateLast256)} " +
+                "reference512_candidateFirst256=${score("reference512_candidateFirst256", reference, candidateFirst256)} " +
+                "reference512_candidateLast256=${score("reference512_candidateLast256", reference, candidateLast256)} " +
+                "reverse512x512=${score("reverse512x512", candidate, reference)} " +
+                "reverseFirst256x256=${score("reverseFirst256x256", candidateFirst256, referenceFirst256)} " +
+                "reverseLast256x256=${score("reverseLast256x256", candidateLast256, referenceLast256)}"
         )
     }
 
@@ -690,6 +887,11 @@ class TwoConnectFingerprintManager(
     private data class UsbId(val vendorId: Int, val productId: Int)
 
     companion object {
+        internal fun create(
+            context: Context,
+            onStatus: (String) -> Unit
+        ): TwoConnectFingerprintManager = TwoConnectFingerprintManager(context, onStatus)
+
         private val hardwareOperationMutex = Mutex()
         private const val ACTION_USB_PERMISSION = "com.example.controlhorario.USB_2CONNECT_PERMISSION"
         private const val DEVICE_ADDRESS = -1
@@ -708,6 +910,23 @@ class TwoConnectFingerprintManager(
         )
     }
 }
+
+/** Process-wide owner of the only 2Connect SDK instance. Compose screens acquire it; none owns it. */
+object TwoConnectReaderProvider {
+    private val providerLock = Any()
+    @Volatile private var manager: TwoConnectFingerprintManager? = null
+
+    fun acquire(context: Context, onStatus: (String) -> Unit = {}): TwoConnectFingerprintManager =
+        synchronized(providerLock) {
+            val instance = manager ?: TwoConnectFingerprintManager.create(context, onStatus).also {
+                manager = it
+            }
+            instance.bindOwner(context, onStatus)
+            instance
+        }
+}
+
+private enum class HardwareState { CLOSED, OPENING, OPEN, CLOSING, ERROR }
 
 class UsbPermissionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

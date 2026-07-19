@@ -40,9 +40,10 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         SupervisorEventEntity::class,
         PendingAttendanceReviewEntity::class,
         AppEventEntity::class
-        ,DeviceEnrollmentEntity::class
+        ,DeviceEnrollmentEntity::class,
+        EmployeeFaceBiometricEntity::class
     ],
-    version = 32,
+    version = 33,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -97,4 +98,5 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun appEventDao(): AppEventDao
     abstract fun deviceEnrollmentDao():DeviceEnrollmentDao
+    abstract fun employeeFaceBiometricDao(): EmployeeFaceBiometricDao
 }

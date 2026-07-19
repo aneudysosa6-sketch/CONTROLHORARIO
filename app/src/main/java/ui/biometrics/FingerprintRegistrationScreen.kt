@@ -19,7 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.controlhorario.fingerprint.external.TwoConnectFingerprintManager
+import com.example.controlhorario.fingerprint.external.TwoConnectReaderProvider
+import com.example.controlhorario.fingerprint.external.OfficialFingerprintDiagnostic
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETCard
 import com.example.controlhorario.ui.components.OSINETColors
@@ -43,13 +44,25 @@ fun FingerprintRegistrationScreen(
     var supervisor by remember { mutableStateOf("admin") }
     var busy by remember { mutableStateOf(false) }
     var readerStatus by remember { mutableStateOf("Preparando lector 2Connect USB...") }
+    var officialDiagnosticMessage by remember { mutableStateOf("") }
     val twoConnectManager = remember(context) {
-        TwoConnectFingerprintManager(context) { status -> readerStatus = status }
+        TwoConnectReaderProvider.acquire(context) { status -> readerStatus = status }
+    }
+    val officialDiagnostic = remember(context) {
+        OfficialFingerprintDiagnostic(context) { status -> readerStatus = status }
     }
 
-    DisposableEffect(twoConnectManager) {
+    LaunchedEffect(Unit) {
+        Log.i(
+            "REGISTER_SCREEN_OPENED",
+            "screen=FingerprintRegistrationScreen initialEmployeeCodePresent=${initialEmployeeCode.isNotBlank()} " +
+                "timestamp=${System.currentTimeMillis()}"
+        )
+    }
+
+    DisposableEffect(twoConnectManager, officialDiagnostic) {
         twoConnectManager.requestUsbPermission()
-        onDispose { twoConnectManager.release() }
+        onDispose { officialDiagnostic.release() }
     }
 
     LaunchedEffect(initialEmployeeCode) {
@@ -60,8 +73,8 @@ fun FingerprintRegistrationScreen(
 
     OSINETScreen {
         OSINETHeader(
-            title = "Registro de huella",
-            subtitle = "Use el lector USB 2Connect conectado por OTG"
+            title = "Registro facial",
+            subtitle = "Use el registro facial local del dispositivo"
         )
         Spacer(Modifier.height(12.dp))
         OSINETStatusText(readerStatus)
@@ -79,16 +92,22 @@ fun FingerprintRegistrationScreen(
             OSINETCard {
                 Text("Empleado: ${employee.nombre}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text("Código: ${employee.employeeCode.ifBlank { employee.pin }}", color = OSINETColors.TextSecondary)
-                Text(if (employee.fingerprintRegistered) "Estado: huella registrada" else "Estado: sin huella registrada", color = if (employee.fingerprintRegistered) OSINETColors.GreenSoft else OSINETColors.Warning)
+                Text(if (employee.fingerprintRegistered) "Estado: rostro registrado" else "Estado: sin rostro registrado", color = if (employee.fingerprintRegistered) OSINETColors.GreenSoft else OSINETColors.Warning)
                 if (state.registeredTemplateSize > 0) {
                     Text("Plantilla 2Connect: ${state.registeredTemplateSize} bytes", color = OSINETColors.TextSecondary)
                 }
             }
             Spacer(Modifier.height(14.dp))
             OSINETButton(
-                text = if (employee.fingerprintRegistered) "Actualizar huella 2Connect" else "Registrar huella 2Connect",
+                text = if (employee.fingerprintRegistered) "Actualizar rostro" else "Registrar rostro",
                 onClick = {
                     if (busy) return@OSINETButton
+                    Log.i(
+                        "REGISTER_BUTTON_CLICKED",
+                        "screen=FingerprintRegistrationScreen employeeId=${employee.id} " +
+                            "operation=${if (employee.fingerprintRegistered) "UPDATE" else "CREATE"} " +
+                            "timestamp=${System.currentTimeMillis()}"
+                    )
                     Log.i(
                         "FINGERPRINT_UI_TRACE",
                         "screen=FingerprintRegistrationScreen " +
@@ -114,12 +133,46 @@ fun FingerprintRegistrationScreen(
                     }
                 }
             )
+            Spacer(Modifier.height(10.dp))
+            OSINETSecondaryButton(
+                text = "Diagnóstico oficial: registrar en memoria",
+                onClick = {
+                    if (busy) return@OSINETSecondaryButton
+                    busy = true
+                    coroutineScope.launch {
+                        officialDiagnosticMessage = when (val result = officialDiagnostic.enrollReference()) {
+                            is OfficialFingerprintDiagnostic.Result.Enrolled ->
+                                "Diagnóstico oficial listo: referencia ${result.referenceSize} bytes en memoria."
+                            is OfficialFingerprintDiagnostic.Result.Error -> result.message
+                            is OfficialFingerprintDiagnostic.Result.Compared -> "Estado diagnóstico inesperado."
+                        }
+                        busy = false
+                    }
+                }
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETSecondaryButton(
+                text = "Diagnóstico oficial: capturar y comparar",
+                onClick = {
+                    if (busy) return@OSINETSecondaryButton
+                    busy = true
+                    coroutineScope.launch {
+                        officialDiagnosticMessage = when (val result = officialDiagnostic.captureAndCompare()) {
+                            is OfficialFingerprintDiagnostic.Result.Compared ->
+                                "Diagnóstico: ref/ref=${result.refRef}; mat/mat=${result.matMat}; score=${result.score}."
+                            is OfficialFingerprintDiagnostic.Result.Error -> result.message
+                            is OfficialFingerprintDiagnostic.Result.Enrolled -> "Estado diagnóstico inesperado."
+                        }
+                        busy = false
+                    }
+                }
+            )
         }
 
         if (busy) {
             Spacer(Modifier.height(12.dp))
             CircularProgressIndicator(color = OSINETColors.Green)
-            OSINETStatusText("Espere. Capturando huella desde el lector externo...")
+            OSINETStatusText("Espere. Preparando el registro facial...")
         }
 
         Spacer(Modifier.height(10.dp))
@@ -130,6 +183,10 @@ fun FingerprintRegistrationScreen(
         if (state.message.isNotBlank()) {
             Spacer(Modifier.height(16.dp))
             OSINETStatusText(state.message, OSINETColors.TextPrimary)
+        }
+        if (officialDiagnosticMessage.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            OSINETStatusText(officialDiagnosticMessage, OSINETColors.TextPrimary)
         }
     }
 }

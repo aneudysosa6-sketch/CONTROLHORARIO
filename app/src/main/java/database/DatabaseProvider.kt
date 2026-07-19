@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33).build()
 
             INSTANCE = instance
 
@@ -85,4 +85,9 @@ val MIGRATION_30_31=object:Migration(30,31){override fun migrate(db:SupportSQLit
 val MIGRATION_31_32=object:Migration(31,32){override fun migrate(db:SupportSQLiteDatabase){
  db.execSQL("ALTER TABLE journeys ADD COLUMN startBranchId TEXT")
  db.execSQL("ALTER TABLE journeys ADD COLUMN endBranchId TEXT")
+}}
+
+val MIGRATION_32_33=object:Migration(32,33){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("CREATE TABLE IF NOT EXISTS employee_face_biometrics (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, employeeId INTEGER NOT NULL, encryptedEmbedding TEXT NOT NULL, embeddingVersion INTEGER NOT NULL, modelName TEXT NOT NULL, embeddingDimension INTEGER NOT NULL, registeredAt TEXT NOT NULL, registeredBy TEXT NOT NULL, updatedAt TEXT NOT NULL, isActive INTEGER NOT NULL)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_employee_face_biometrics_employeeId ON employee_face_biometrics(employeeId)")
 }}

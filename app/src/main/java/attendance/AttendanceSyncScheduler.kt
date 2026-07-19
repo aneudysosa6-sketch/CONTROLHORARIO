@@ -13,6 +13,6 @@ import java.util.concurrent.TimeUnit
 
 object AttendanceSyncScheduler{
  private const val IMMEDIATE="attendance-sync-immediate";private const val PERIODIC="attendance-sync-periodic"
- fun enqueue(context:Context){val c=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();WorkManager.getInstance(context).enqueueUniqueWork(IMMEDIATE,ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<AttendanceSyncWorker>().setConstraints(c).setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS).build())}
+ fun enqueue(context:Context){val c=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();WorkManager.getInstance(context).enqueueUniqueWork(IMMEDIATE,ExistingWorkPolicy.APPEND_OR_REPLACE,OneTimeWorkRequestBuilder<AttendanceSyncWorker>().setConstraints(c).setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS).build())}
  fun start(context:Context){enqueue(context);val c=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build();WorkManager.getInstance(context).enqueueUniquePeriodicWork(PERIODIC,ExistingPeriodicWorkPolicy.UPDATE,PeriodicWorkRequestBuilder<AttendanceSyncWorker>(6,TimeUnit.HOURS).setConstraints(c).setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS).build())}
 }

@@ -35,6 +35,10 @@ export class DashboardQueryError extends Error {
 const failure = (query: string, error: PostgrestError, workDate: string | null) =>
   new DashboardQueryError(query, error.code, error.message, error.details, error.hint, workDate);
 
+const dashboardLog = (event: 'DASHBOARD_QUERY' | 'ACTIVE_JOURNEY_QUERY', details: Record<string, unknown>) => {
+  if (import.meta.env.DEV) console.debug(event, details);
+};
+
 export function companyWorkDate(timezone: string, date = new Date()): string {
   try {
     const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
@@ -62,6 +66,14 @@ export const dashboardService = {
     if (companyResult.error) throw failure('companies.select(timezone)', companyResult.error, null);
     if (!companyResult.data?.timezone) throw new DashboardQueryError('companies.select(timezone)', 'COMPANY_TIMEZONE_NOT_FOUND', 'No se encontró la zona horaria de la empresa autenticada.', session.companyId, '', null);
     const workDate = companyWorkDate(companyResult.data.timezone);
+    dashboardLog('DASHBOARD_QUERY', {
+      companyId: session.companyId,
+      workDate,
+      timezone: companyResult.data.timezone,
+      branchId: null,
+      departmentId: null,
+      supervisorId: null,
+    });
 
     const [employeeResult, journeyResult, incidentResult] = await Promise.all([
       supabase.from('empleados').select('id,nombre_completo,codigo_empleado,activo,jornada_habilitada').eq('empresa_id', session.companyId),
@@ -78,6 +90,15 @@ export const dashboardService = {
     const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
     const employeesWithJourney = new Set(journeys.map((journey) => journey.empleado_id));
     const eligible = employees.filter((employee) => employee.activo && employee.jornada_habilitada);
+    dashboardLog('ACTIVE_JOURNEY_QUERY', {
+      companyId: session.companyId,
+      workDate,
+      timezone: companyResult.data.timezone,
+      statuses: ['EN_CURSO', 'EN_PAUSA', 'FINALIZADA'],
+      employeeId: null,
+      resultCount: journeys.length,
+      inProgress: journeys.filter((journey) => journey.estado === 'EN_CURSO').length,
+    });
     return {
       workDate,
       notStarted: eligible.filter((employee) => !employeesWithJourney.has(employee.id)).length,
