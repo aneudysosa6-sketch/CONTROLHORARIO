@@ -50,5 +50,7 @@ data class Employee(
     val startDate: String? = null,
     val payType: String? = null,
     val remoteUpdatedAt: String? = null,
-    val lastSyncedAt: Long? = null
+    val lastSyncedAt: Long? = null,
+    val syncStatus: String = "PENDING",
+    val lastSyncError: String? = null
 )

@@ -1,3 +1,4 @@
 <resources>
+    <string name="employee_upsert_url">https://placeholder.supabase.co/functions/v1/employee-upsert</string>
     <string name="app_name">CONTROL HORARIO</string>
 </resources>

@@ -2,11 +2,16 @@ package com.example.controlhorario.repository
 
 import android.util.Log
 import com.example.controlhorario.database.EmployeeDao
+import com.example.controlhorario.database.EmployeeSyncOutboxDao
+import com.example.controlhorario.database.EmployeeSyncOutboxEntity
 import com.example.controlhorario.model.Employee
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONObject
+import java.util.UUID
 
 class EmployeeRepository(
-    private val employeeDao: EmployeeDao
+    private val employeeDao: EmployeeDao,
+    private val outboxDao: EmployeeSyncOutboxDao? = null
 ) {
     fun getAllEmployees(): Flow<List<Employee>> = employeeDao.getAllEmployees()
 
@@ -67,13 +72,18 @@ class EmployeeRepository(
             updatedAt = System.currentTimeMillis()
         )
 
-        employeeDao.insertEmployee(employeeToSave)
+        val localId=employeeDao.insertEmployee(employeeToSave).toInt()
+        queue(employeeToSave.copy(id=localId),"CREATE")
+        Log.d("EMPLOYEE_LOCAL_SAVE","employeeId=$localId code=$code syncStatus=PENDING operation=CREATE")
         return code
     }
 
     suspend fun updateEmployee(employee: Employee) {
         require(employee.id > 0) { "No se puede editar un empleado sin id local" }
-        employeeDao.updateEmployee(employee)
+        val pending=employee.copy(syncStatus="PENDING",lastSyncError=null,updatedAt=System.currentTimeMillis())
+        employeeDao.updateEmployee(pending)
+        queue(pending,"UPDATE")
+        Log.d("EMPLOYEE_LOCAL_SAVE","employeeId=${pending.id} code=${pending.employeeCode} syncStatus=PENDING operation=UPDATE")
     }
 
     suspend fun markFingerprintRegistered(employeeId: Int, registeredAt: String, registeredBy: String) {
@@ -88,5 +98,13 @@ class EmployeeRepository(
         val lastCode = employeeDao.getLastEmployeeCode()
         val lastNumber = lastCode?.toIntOrNull() ?: 0
         return (lastNumber + 1).toString().padStart(5, '0')
+    }
+
+    private suspend fun queue(employee:Employee,operation:String){
+        val outbox=outboxDao?:return
+        val key=UUID.randomUUID().toString()
+        val payload=JSONObject().put("idempotency_key",key).put("operation",operation).put("local_employee_id",employee.id).put("remote_id",employee.remoteId).put("employee_code",employee.employeeCode).put("name",employee.nombre).put("phone",employee.telefono).put("email",employee.email).put("active",employee.isActive).put("updated_at",employee.updatedAt).toString()
+        outbox.insert(EmployeeSyncOutboxEntity(employeeLocalId=employee.id,operation=operation,payloadJson=payload,idempotencyKey=key))
+        Log.d("EMPLOYEE_OUTBOX","employeeId=${employee.id} remoteId=${employee.remoteId} code=${employee.employeeCode} operation=$operation syncStatus=PENDING idempotencyKey=$key")
     }
 }

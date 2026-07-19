@@ -21,6 +21,8 @@ import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETTextField
+import androidx.compose.ui.platform.LocalContext
+import com.example.controlhorario.device.EmployeeUploadScheduler
 
 @Composable
 fun AddEmployeeScreen(
@@ -33,6 +35,7 @@ fun AddEmployeeScreen(
     onSaved: () -> Unit = {},
     onBack: () -> Unit
 ) {
+    val context=LocalContext.current
     var codigoPin by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var cedula by remember { mutableStateOf("") }
@@ -276,9 +279,11 @@ fun AddEmployeeScreen(
                 if(isEditMode&&initialEmployee!=null){
                     val fields=EmployeeEditableFields(codigoPin,nombre,cedula,telefono,profilePhotoUri,cargo,departmentName,branchId,departmentId,nuevoEmpleado.sueldo,nuevoEmpleado.lunchHours)
                     viewModel.updateEmployee(EmployeeEditEngine.merge(initialEmployee,fields),onSaved)
+                    EmployeeUploadScheduler.enqueueImmediate(context)
                     mensaje="Cambios guardados correctamente"
                 }else{
                     viewModel.addEmployee(nuevoEmpleado)
+                    EmployeeUploadScheduler.enqueueImmediate(context)
                     codigoPin = "";nombre = "";cedula = "";telefono = "";cargo = "";sueldo = "";lunchHours = "";profilePhotoUri = "";selectedBranch = null;selectedDepartment = null
                     mensaje = "Empleado creado correctamente. Código asignado: se mostrará abajo."
                 }

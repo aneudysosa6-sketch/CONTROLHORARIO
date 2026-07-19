@@ -85,4 +85,10 @@ interface EmployeeDao {
 
     @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL AND isActive = 0")
     fun observeSyncedInactive(): Flow<Int>
+
+    @Query("UPDATE employees SET remoteId=:remoteId,syncStatus='SYNCED',lastSyncError=NULL,remoteUpdatedAt=:remoteUpdatedAt,lastSyncedAt=:now WHERE id=:employeeId")
+    suspend fun markRemoteSynced(employeeId:Int,remoteId:String,remoteUpdatedAt:String,now:Long)
+
+    @Query("UPDATE employees SET syncStatus=:status,lastSyncError=:error WHERE id=:employeeId")
+    suspend fun setSyncStatus(employeeId:Int,status:String,error:String?=null)
 }

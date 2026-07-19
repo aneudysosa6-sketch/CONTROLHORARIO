@@ -439,7 +439,7 @@ fun AppNavigation(
                 factory = AppUserViewModelFactory(AppUserRepository(db.appUserDao()))
             )
             val employeeVm: EmployeeViewModel = viewModel(
-                factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
+                factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao()))
             )
             val branchVm: BranchViewModel = viewModel(
                 factory = BranchViewModelFactory(BranchRepository(db.branchDao()))
@@ -666,7 +666,7 @@ fun AppNavigation(
         ) { backStackEntry ->
             val employeeKey = backStackEntry.arguments?.getString("employeeKey").orEmpty()
             val db = DatabaseProvider.getDatabase(LocalContext.current)
-            val vm: EmployeeViewModel = viewModel(factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao())))
+            val vm: EmployeeViewModel = viewModel(factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao())))
             val branchVm: BranchViewModel = viewModel(factory = BranchViewModelFactory(BranchRepository(db.branchDao())))
             val departmentVm: DepartmentViewModel = viewModel(factory = DepartmentViewModelFactory(DepartmentRepository(db.departmentDao())))
             val employee by vm.editingEmployee.collectAsState()
