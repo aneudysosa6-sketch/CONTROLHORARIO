@@ -67,7 +67,10 @@ class JourneyCurrentStateSynchronizer(
             localBeforeFlush?.status.orEmpty(),pendingBefore,null,null,null,null,localBeforeFlush?.status.orEmpty(),"STARTED"
         )
         val blockedBeforeFlush=localBeforeFlush
-        if(pendingBefore&&blockedBeforeFlush!=null&&blockedBeforeFlush.syncStatus in setOf("CONFLICTO","RECHAZADA")){
+        if(
+            pendingBefore&&blockedBeforeFlush!=null&&
+            journeyDao.conflictingCountForJourney(blockedBeforeFlush.localId)>0
+        ){
             val result=JourneyCurrentStateRefreshResult(
                 blockedBeforeFlush.workDate,
                 blockedBeforeFlush.remoteId!=null,
@@ -160,7 +163,7 @@ class JourneyCurrentStateSynchronizer(
         val hydration=journeyDao.hydrateRemoteState(
             employeeLocalId,employeeRemoteId,session.deviceId,current.workDate,remote.id,remote.status,remote.startedAt,
             remote.pauseStartedAt,remote.pauseEndedAt,remote.finishedAt,remote.workedMinutes,remote.breakMinutes,
-            remote.version,remote.rawJson,System.currentTimeMillis()
+            remote.version,System.currentTimeMillis()
         )
         val outcome=when(hydration.decision){
             JourneyRemoteHydrationDecision.INSERT,JourneyRemoteHydrationDecision.UPDATE->JourneyCurrentStateOutcome.REMOTE_SUCCESS

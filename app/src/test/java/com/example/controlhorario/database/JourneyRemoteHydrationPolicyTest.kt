@@ -7,21 +7,36 @@ class JourneyRemoteHydrationPolicyTest {
     @Test fun `estado remoto crea cache cuando no existe jornada local`() {
         assertEquals(
             JourneyRemoteHydrationDecision.INSERT,
-            JourneyRemoteHydrationPolicy.decide(local = null, hasPendingOutbox = false, remoteVersion = 3)
+            JourneyRemoteHydrationPolicy.decide(
+                local = null,
+                hasPendingOutbox = false,
+                hasUnresolvedConflict = false,
+                remoteVersion = 3
+            )
         )
     }
 
     @Test fun `version remota mas nueva actualiza una jornada sincronizada`() {
         assertEquals(
             JourneyRemoteHydrationDecision.UPDATE,
-            JourneyRemoteHydrationPolicy.decide(local(syncVersion = 2), hasPendingOutbox = false, remoteVersion = 3)
+            JourneyRemoteHydrationPolicy.decide(
+                local(syncVersion = 2),
+                hasPendingOutbox = false,
+                hasUnresolvedConflict = false,
+                remoteVersion = 3
+            )
         )
     }
 
-    @Test fun `misma version conserva cache sin reescribirla`() {
+    @Test fun `misma version acepta snapshot remoto cuando no hay pendientes`() {
         assertEquals(
-            JourneyRemoteHydrationDecision.KEEP_LOCAL,
-            JourneyRemoteHydrationPolicy.decide(local(syncVersion = 3), hasPendingOutbox = false, remoteVersion = 3)
+            JourneyRemoteHydrationDecision.UPDATE,
+            JourneyRemoteHydrationPolicy.decide(
+                local(syncVersion = 3),
+                hasPendingOutbox = false,
+                hasUnresolvedConflict = false,
+                remoteVersion = 3
+            )
         )
     }
 
@@ -29,33 +44,58 @@ class JourneyRemoteHydrationPolicyTest {
         val pending = local(syncStatus = "PENDIENTE", syncVersion = 2)
         assertEquals(
             JourneyRemoteHydrationDecision.BLOCKED_PENDING,
-            JourneyRemoteHydrationPolicy.decide(pending, hasPendingOutbox = true, remoteVersion = 9)
+            JourneyRemoteHydrationPolicy.decide(
+                pending,
+                hasPendingOutbox = true,
+                hasUnresolvedConflict = false,
+                remoteVersion = 9
+            )
         )
     }
 
-    @Test fun `version remota anterior produce conflicto y no overwrite`() {
+    @Test fun `snapshot remoto es autoritativo sin cambios locales aunque la version cache sea mayor`() {
+        assertEquals(
+            JourneyRemoteHydrationDecision.UPDATE,
+            JourneyRemoteHydrationPolicy.decide(
+                local(syncVersion = 8),
+                hasPendingOutbox = false,
+                hasUnresolvedConflict = false,
+                remoteVersion = 7
+            )
+        )
+    }
+
+    @Test fun `conflicto local temporal acepta una version remota mas nueva`() {
+        assertEquals(
+            JourneyRemoteHydrationDecision.UPDATE,
+            JourneyRemoteHydrationPolicy.decide(local(syncStatus = "CONFLICTO", syncVersion = 2), false, false, 3)
+        )
+        assertEquals(
+            JourneyRemoteHydrationDecision.UPDATE,
+            JourneyRemoteHydrationPolicy.decide(local(syncStatus = "CONFLICTO", syncVersion = 3), false, false, 3)
+        )
+    }
+
+    @Test fun `flags locales obsoletos no sustituyen la existencia real del outbox`() {
+        assertEquals(
+            JourneyRemoteHydrationDecision.UPDATE,
+            JourneyRemoteHydrationPolicy.decide(local(syncStatus = "PENDIENTE", syncVersion = 2), false, false, 3)
+        )
+        assertEquals(
+            JourneyRemoteHydrationDecision.BLOCKED_PENDING,
+            JourneyRemoteHydrationPolicy.decide(local(syncStatus = "ENVIADA", syncVersion = 2), true, false, 3)
+        )
+    }
+
+    @Test fun `solo un conflicto real del outbox bloquea la hidratacion remota`() {
         assertEquals(
             JourneyRemoteHydrationDecision.VERSION_CONFLICT,
-            JourneyRemoteHydrationPolicy.decide(local(syncVersion = 8), hasPendingOutbox = false, remoteVersion = 7)
-        )
-    }
-
-    @Test fun `conflicto local abierto no se resuelve por hidratacion`() {
-        assertEquals(
-            JourneyRemoteHydrationDecision.VERSION_CONFLICT,
-            JourneyRemoteHydrationPolicy.decide(local(syncStatus = "CONFLICTO", syncVersion = 2), false, 3)
-        )
-    }
-
-    @Test fun `misma version solo conserva cache cuando snapshots coinciden`() {
-        val local=local(syncVersion=3)
-        assertEquals(
-            true,
-            JourneyRemoteStateComparator.matches(local,"EN_CURSO",null,null,null,null,0,0)
-        )
-        assertEquals(
-            false,
-            JourneyRemoteStateComparator.matches(local,"EN_PAUSA",null,"2026-07-20T16:00:00Z",null,null,0,0)
+            JourneyRemoteHydrationPolicy.decide(
+                local(syncStatus = "CONFLICTO", syncVersion = 2),
+                hasPendingOutbox = false,
+                hasUnresolvedConflict = true,
+                remoteVersion = 3
+            )
         )
     }
 

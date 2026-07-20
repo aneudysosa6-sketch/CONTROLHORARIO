@@ -26,20 +26,12 @@ data class JourneyRemoteHydrationResult(
 )
 
 object JourneyRemoteHydrationPolicy {
- fun decide(local:JourneyEntity?,hasPendingOutbox:Boolean,remoteVersion:Long):JourneyRemoteHydrationDecision=when{
+ fun decide(local:JourneyEntity?,hasPendingOutbox:Boolean,hasUnresolvedConflict:Boolean,remoteVersion:Long):JourneyRemoteHydrationDecision=when{
   local==null->JourneyRemoteHydrationDecision.INSERT
-  hasPendingOutbox||local.syncStatus=="PENDIENTE"->JourneyRemoteHydrationDecision.BLOCKED_PENDING
-  local.syncStatus=="CONFLICTO"||local.syncStatus=="RECHAZADA"->JourneyRemoteHydrationDecision.VERSION_CONFLICT
-  remoteVersion>local.syncVersion->JourneyRemoteHydrationDecision.UPDATE
-  remoteVersion==local.syncVersion->JourneyRemoteHydrationDecision.KEEP_LOCAL
-  else->JourneyRemoteHydrationDecision.VERSION_CONFLICT
+  hasPendingOutbox->JourneyRemoteHydrationDecision.BLOCKED_PENDING
+  hasUnresolvedConflict->JourneyRemoteHydrationDecision.VERSION_CONFLICT
+  else->JourneyRemoteHydrationDecision.UPDATE.also{require(remoteVersion>=0){"INVALID_REMOTE_VERSION"}}
  }
-}
-
-object JourneyRemoteStateComparator {
- fun matches(local:JourneyEntity,status:String,startedAt:String?,pauseStartedAt:String?,pauseEndedAt:String?,finishedAt:String?,workedMinutes:Int,breakMinutes:Int)=
-  local.status==status&&local.startedAt==startedAt&&local.pauseStartedAt==pauseStartedAt&&local.pauseEndedAt==pauseEndedAt&&
-   local.finishedAt==finishedAt&&local.workedMinutes==workedMinutes&&local.breakMinutes==breakMinutes
 }
 
 @Dao interface JourneyDao {
@@ -56,6 +48,7 @@ object JourneyRemoteStateComparator {
  @Query("SELECT o.* FROM journey_outbox o INNER JOIN journeys j ON j.localId=o.journeyLocalId WHERE j.employeeLocalId=:employeeLocalId AND o.state='PENDIENTE' ORDER BY o.id LIMIT :limit") suspend fun pendingForEmployee(employeeLocalId:Int,limit:Int=100):List<JourneyOutboxEntity>
  @Query("SELECT COUNT(*) FROM journey_outbox o INNER JOIN journeys j ON j.localId=o.journeyLocalId WHERE j.employeeLocalId=:employeeLocalId AND o.state='PENDIENTE'") suspend fun pendingCountForEmployee(employeeLocalId:Int):Int
  @Query("SELECT COUNT(*) FROM journey_outbox WHERE journeyLocalId=:journeyLocalId AND state='PENDIENTE'") suspend fun pendingCountForJourney(journeyLocalId:Int):Int
+ @Query("SELECT COUNT(*) FROM journey_outbox WHERE journeyLocalId=:journeyLocalId AND state='CONFLICTO'") suspend fun conflictingCountForJourney(journeyLocalId:Int):Int
  @Query("UPDATE journey_outbox SET state='ENVIADA',sentAt=:now,lastError='' WHERE id=:id") suspend fun markSent(id:Long,now:Long)
  @Query("UPDATE journey_outbox SET state=:state,attempts=attempts+1,nextRetryAt=:nextRetry,lastError=:error WHERE id=:id") suspend fun markFailed(id:Long,state:String,nextRetry:Long,error:String)
  @Query("UPDATE journeys SET syncStatus=:state,updatedAt=:now WHERE localId=:localId") suspend fun markJourneySyncState(localId:Int,state:String,now:Long)
@@ -63,6 +56,7 @@ object JourneyRemoteStateComparator {
  @Query("UPDATE journeys SET remoteId=:remoteId,status=:status,startedAt=:startedAt,pauseStartedAt=:pauseStartedAt,pauseEndedAt=:pauseEndedAt,finishedAt=:finishedAt,workedMinutes=:workedMinutes,breakMinutes=:breakMinutes,syncStatus='ENVIADA',syncVersion=:version,lastSyncedAt=:now,createdOffline=0,updatedAt=:now WHERE localId=:localId") suspend fun applyRemote(localId:Int,remoteId:String?,status:String,startedAt:String?,pauseStartedAt:String?,pauseEndedAt:String?,finishedAt:String?,workedMinutes:Int,breakMinutes:Int,version:Long,now:Long)
  @Insert suspend fun insertConflict(value:JourneyConflictEntity)
  @Query("SELECT COUNT(*) FROM journey_conflicts WHERE journeyLocalId=:journeyLocalId AND reason=:reason AND remoteSnapshot=:remoteSnapshot AND resolutionState='PENDIENTE'") suspend fun openConflictCount(journeyLocalId:Int,reason:String,remoteSnapshot:String):Int
+ @Query("UPDATE journey_conflicts SET resolutionState='RESUELTO_REMOTO',resolvedAt=:now WHERE journeyLocalId=:journeyLocalId AND resolutionState='PENDIENTE'") suspend fun resolveOpenConflictsFromRemote(journeyLocalId:Int,now:Long):Int
 
  @Transaction suspend fun acknowledgeRemoteOperation(
   outbox:JourneyOutboxEntity,remoteId:String?,status:String,startedAt:String?,pauseStartedAt:String?,pauseEndedAt:String?,finishedAt:String?,workedMinutes:Int,breakMinutes:Int,version:Long,remoteSnapshot:String,now:Long
@@ -74,16 +68,12 @@ object JourneyRemoteStateComparator {
    recordRemoteAckMetadata(local.localId,remoteId,maxOf(local.syncVersion,version),now)
    return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.BLOCKED_PENDING,local.localId,local.status,local.status,local.syncVersion,maxOf(local.syncVersion,version))
   }
-  if(local.syncStatus=="CONFLICTO"||local.syncStatus=="RECHAZADA"){
-   insertConflictOnce(local,outbox.idempotencyKey,remoteSnapshot,"VERSION_CONFLICT")
-   return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.VERSION_CONFLICT,local.localId,local.status,local.status,local.syncVersion,local.syncVersion)
-  }
-  if(version<local.syncVersion){
-   insertConflictOnce(local,outbox.idempotencyKey,remoteSnapshot,"VERSION_CONFLICT")
+  if(conflictingCountForJourney(local.localId)>0){
    markJourneySyncState(local.localId,"CONFLICTO",now)
    return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.VERSION_CONFLICT,local.localId,local.status,local.status,local.syncVersion,local.syncVersion)
   }
   applyRemote(local.localId,remoteId,status,startedAt,pauseStartedAt,pauseEndedAt,finishedAt,workedMinutes,breakMinutes,version,now)
+  resolveOpenConflictsFromRemote(local.localId,now)
   return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.UPDATE,local.localId,local.status,status,local.syncVersion,version)
  }
 
@@ -97,11 +87,12 @@ object JourneyRemoteStateComparator {
  @Transaction suspend fun hydrateRemoteState(
   employeeLocalId:Int,employeeRemoteId:String,deviceId:String,workDate:String,remoteId:String?,status:String,
   startedAt:String?,pauseStartedAt:String?,pauseEndedAt:String?,finishedAt:String?,workedMinutes:Int,breakMinutes:Int,
-  version:Long,remoteSnapshot:String,now:Long
+  version:Long,now:Long
  ):JourneyRemoteHydrationResult{
   val local=find(employeeLocalId,workDate)
   val pending=local?.let{pendingCountForJourney(it.localId)>0}?:false
-  return when(val decision=JourneyRemoteHydrationPolicy.decide(local,pending,version)){
+  val unresolvedConflict=local?.let{conflictingCountForJourney(it.localId)>0}?:false
+  return when(val decision=JourneyRemoteHydrationPolicy.decide(local,pending,unresolvedConflict,version)){
    JourneyRemoteHydrationDecision.INSERT->{
     val value=JourneyEntity(remoteId=remoteId,employeeLocalId=employeeLocalId,employeeRemoteId=employeeRemoteId,deviceId=deviceId,workDate=workDate,status=status,startedAt=startedAt,pauseStartedAt=pauseStartedAt,pauseEndedAt=pauseEndedAt,finishedAt=finishedAt,workedMinutes=workedMinutes,breakMinutes=breakMinutes,syncStatus="ENVIADA",syncVersion=version,lastSyncedAt=now,createdOffline=false,updatedAt=now)
     val id=insertJourney(value).toInt()
@@ -111,18 +102,14 @@ object JourneyRemoteStateComparator {
     val current=requireNotNull(local)
     val updated=current.copy(remoteId=remoteId?:current.remoteId,employeeRemoteId=employeeRemoteId,status=status,startedAt=startedAt,pauseStartedAt=pauseStartedAt,pauseEndedAt=pauseEndedAt,finishedAt=finishedAt,workedMinutes=workedMinutes,breakMinutes=breakMinutes,syncStatus="ENVIADA",syncVersion=version,lastSyncedAt=now,createdOffline=false,updatedAt=now)
     updateJourney(updated)
+    resolveOpenConflictsFromRemote(current.localId,now)
     JourneyRemoteHydrationResult(decision,current.localId,current.status,status,current.syncVersion,version)
    }
    JourneyRemoteHydrationDecision.KEEP_LOCAL->{
     val current=requireNotNull(local)
-    if(JourneyRemoteStateComparator.matches(current,status,startedAt,pauseStartedAt,pauseEndedAt,finishedAt,workedMinutes,breakMinutes)){
-     updateJourney(current.copy(remoteId=remoteId?:current.remoteId,employeeRemoteId=employeeRemoteId,syncStatus="ENVIADA",lastSyncedAt=now,createdOffline=false,updatedAt=now))
-     JourneyRemoteHydrationResult(decision,current.localId,current.status,current.status,current.syncVersion,current.syncVersion)
-    }else{
-     insertConflictOnce(current,currentStateConflictKey(employeeRemoteId,workDate,version),remoteSnapshot,"VERSION_CONFLICT")
-     markJourneySyncState(current.localId,"CONFLICTO",now)
-     JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.VERSION_CONFLICT,current.localId,current.status,current.status,current.syncVersion,current.syncVersion)
-    }
+    applyRemote(current.localId,remoteId?:current.remoteId,status,startedAt,pauseStartedAt,pauseEndedAt,finishedAt,workedMinutes,breakMinutes,version,now)
+    resolveOpenConflictsFromRemote(current.localId,now)
+    JourneyRemoteHydrationResult(decision,current.localId,current.status,status,current.syncVersion,version)
    }
    JourneyRemoteHydrationDecision.BLOCKED_PENDING->{
     val current=requireNotNull(local)
@@ -130,7 +117,6 @@ object JourneyRemoteStateComparator {
    }
    JourneyRemoteHydrationDecision.VERSION_CONFLICT->{
     val current=requireNotNull(local)
-    insertConflictOnce(current,currentStateConflictKey(employeeRemoteId,workDate,version),remoteSnapshot,"VERSION_CONFLICT")
     markJourneySyncState(current.localId,"CONFLICTO",now)
     JourneyRemoteHydrationResult(decision,current.localId,current.status,current.status,current.syncVersion,current.syncVersion)
    }
@@ -162,7 +148,6 @@ object JourneyRemoteStateComparator {
   insertConflict(JourneyConflictEntity(journeyLocalId=local.localId,idempotencyKey=key,localSnapshot=local.conflictSnapshot(),remoteSnapshot=remoteSnapshot,reason=reason))
  }
 }
-private fun currentStateConflictKey(employeeRemoteId:String,workDate:String,version:Long)=UUID.nameUUIDFromBytes("current_state|$employeeRemoteId|$workDate|$version".toByteArray()).toString()
 private fun JourneyEntity.conflictSnapshot()=JSONObject().put("local_id",localId).put("remote_id",remoteId).put("employee_remote_id",employeeRemoteId).put("work_date",workDate).put("status",status).put("started_at",startedAt).put("pause_started_at",pauseStartedAt).put("pause_ended_at",pauseEndedAt).put("finished_at",finishedAt).put("worked_minutes",workedMinutes).put("break_minutes",breakMinutes).put("sync_status",syncStatus).put("sync_version",syncVersion).toString()
 private fun JourneyEntity.toSnapshot()=JourneySnapshot(JourneyStatus.valueOf(status),startedAt,pauseStartedAt,pauseEndedAt,finishedAt,workedMinutes,breakMinutes)
 private fun JourneyEntity.fromSnapshot(s:JourneySnapshot)=copy(status=s.status.name,startedAt=s.startedAt,pauseStartedAt=s.pauseStartedAt,pauseEndedAt=s.pauseEndedAt,finishedAt=s.finishedAt,workedMinutes=s.workedMinutes,breakMinutes=s.breakMinutes)
