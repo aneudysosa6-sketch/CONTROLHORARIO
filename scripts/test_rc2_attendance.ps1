@@ -1,5 +1,6 @@
 $ErrorActionPreference='Stop'
 function Has($path,$pattern,$label){if(-not(Select-String -LiteralPath $path -Pattern $pattern -Quiet)){throw "FALLO: $label"};Write-Host "OK: $label"}
+function HasRaw($path,$pattern,$label){if(-not((Get-Content -LiteralPath $path -Raw)-match $pattern)){throw "FALLO: $label"};Write-Host "OK: $label"}
 Has 'contracts/attendance-rc2-v1.json' '"contractVersion": 1' 'contrato versionado'
 Has 'contracts/attendance-rc2-v1.json' '"from":"FINALIZADA"' 'FINALIZADA irreversible en fixtures'
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'unique\(empresa_id,empleado_id,fecha_laboral\)' 'una jornada por empleado y fecha'
@@ -17,6 +18,13 @@ Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'cerrar_jornadas_vencid
 Has 'supabase/migrations/0008_rc2_attendance_engine.sql' 'v_minutos<15' 'tolerancia 15 minutos inclusiva'
 Has 'supabase/functions/attendance-sync/index.ts' 'DEVICE_REVOKED' 'revocacion de dispositivo'
 Has 'supabase/functions/attendance-sync/index.ts' 'registrar_evento_jornada_dispositivo' 'RPC atomica'
+Has 'supabase/functions/attendance-sync/index.ts' "text\(body\.mode\) === 'current_state'" 'consulta autenticada de estado actual'
+HasRaw 'supabase/functions/attendance-sync/index.ts' "(?s)from\('jornadas'\).*?eq\('empresa_id', auth\.empresa_id\).*?eq\('empleado_id', employeeRemoteId\).*?eq\('fecha_laboral', workDate\).*?maybeSingle\(\)" 'estado actual aislado por empresa empleado y fecha'
+Has 'supabase/functions/attendance-sync/index.ts' 'businessDate\(now, timezone\)' 'fecha actual del servidor resuelta en zona empresarial'
+Has 'supabase/functions/attendance-sync/index.ts' "select\('id,estado,iniciado_en,pausa_iniciada_en,pausa_finalizada_en,finalizado_en,minutos_trabajados,minutos_pausa,version_sync'\)" 'snapshot remoto minimo y versionado'
+Has 'supabase/functions/attendance-sync/index.ts' 'return json\(\{ exists: false, work_date: workDate \}\)' 'ausencia remota explicita'
+Has 'supabase/functions/attendance-sync/index.ts' 'return json\(\{ exists: true, work_date: workDate, remote \}\)' 'estado remoto explicito'
+Has 'supabase/functions/attendance-sync/index.ts' 'JOURNEY_STATE_SYNC' 'diagnostico seguro de estado remoto'
 Has 'app/src/main/java/database/DatabaseProvider.kt' 'Migration\(28,29\)' 'migracion Room 28 a 29'
 Has 'app/src/main/java/database/JourneyDao.kt' '@Transaction' 'transaccion jornada evento outbox'
 Has 'app/src/main/java/database/JourneyDao.kt' 'insertLegacy' 'compatibilidad nomina'

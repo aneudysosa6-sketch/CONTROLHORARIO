@@ -6,6 +6,7 @@ const text = (value: unknown) => typeof value === 'string' ? value.trim() : '';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isDevelopment = () => Deno.env.get('ENVIRONMENT') === 'development';
 const debug = (event: string, payload: Record<string, unknown>) => { if (isDevelopment()) console.log(event, payload); };
+const stateLog = (payload: Record<string, unknown>) => console.log('JOURNEY_STATE_SYNC', payload);
 
 const sha256 = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))).map((x) => x.toString(16).padStart(2, '0')).join('');
 const b64 = (v: string) => Uint8Array.from(atob(v), (c) => c.charCodeAt(0));
@@ -19,6 +20,13 @@ const businessDate = (occurredAt: string, timezone: string) => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(occurredAt));
   const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
   return `${value('year')}-${value('month')}-${value('day')}`;
+};
+const validIsoInstant = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/i.exec(value);
+  if (!match || Number.isNaN(Date.parse(value))) return false;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  return calendarDate.getUTCFullYear() === year && calendarDate.getUTCMonth() === month - 1 && calendarDate.getUTCDate() === day;
 };
 
 async function validProof(publicKey: string, op: Record<string, unknown>, deviceId: string) {
@@ -46,7 +54,49 @@ Deno.serve(async (req) => {
     if (!device || device.estado !== 'activo') return json({ error_code: 'DEVICE_REVOKED', request_id: requestId }, 403);
     const { data: company } = await admin.from('companies').select('timezone').eq('id', auth.empresa_id).maybeSingle();
     const timezone = company?.timezone || 'America/Santo_Domingo';
-    const body = await req.json() as { operations?: unknown[] };
+    const body = await req.json() as { mode?: unknown; employee_remote_id?: unknown; requested_at?: unknown; operations?: unknown[] };
+    if (text(body.mode) === 'current_state') {
+      const employeeRemoteId = text(body.employee_remote_id);
+      const requestedAt = text(body.requested_at);
+      if (!uuid.test(employeeRemoteId) || !validIsoInstant(requestedAt)) {
+        return json({ error_code: 'INVALID_PAYLOAD', request_id: requestId }, 400);
+      }
+
+      // requested_at is retained for audit/log correlation; the current business day
+      // is derived from the trusted server clock in the company's timezone.
+      const workDate = businessDate(now, timezone);
+      const { data: current, error: currentError } = await admin.from('jornadas')
+        .select('id,estado,iniciado_en,pausa_iniciada_en,pausa_finalizada_en,finalizado_en,minutos_trabajados,minutos_pausa,version_sync')
+        .eq('empresa_id', auth.empresa_id)
+        .eq('empleado_id', employeeRemoteId)
+        .eq('fecha_laboral', workDate)
+        .maybeSingle();
+      if (currentError) {
+        stateLog({ requestId, employeeRemoteId, deviceId, requestedAt, workDate, exists: false, finalResult: 'query_error', errorCode: currentError.code || 'DATABASE_ERROR' });
+        throw currentError;
+      }
+
+      await admin.from('credenciales_dispositivo').update({ ultima_uso_at: now }).eq('dispositivo_id', deviceId);
+      await admin.from('dispositivos_android').update({ ultima_conexion_at: now }).eq('id', deviceId);
+      if (!current) {
+        stateLog({ requestId, employeeRemoteId, deviceId, requestedAt, workDate, exists: false, finalResult: 'not_found' });
+        return json({ exists: false, work_date: workDate });
+      }
+
+      const remote = {
+        id: current.id,
+        estado: current.estado,
+        iniciado_en: current.iniciado_en,
+        pausa_iniciada_en: current.pausa_iniciada_en,
+        pausa_finalizada_en: current.pausa_finalizada_en,
+        finalizado_en: current.finalizado_en,
+        minutos_trabajados: current.minutos_trabajados,
+        minutos_pausa: current.minutos_pausa,
+        version_sync: current.version_sync,
+      };
+      stateLog({ requestId, employeeRemoteId, deviceId, requestedAt, workDate, exists: true, remoteStatus: current.estado, remoteVersion: current.version_sync, finalResult: 'found' });
+      return json({ exists: true, work_date: workDate, remote });
+    }
     if (!Array.isArray(body.operations) || body.operations.length < 1 || body.operations.length > 100) return json({ error_code: 'INVALID_PAYLOAD', request_id: requestId }, 400);
 
     const results: Record<string, unknown>[] = [];

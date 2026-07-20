@@ -37,6 +37,9 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.controlhorario.database.DatabaseProvider
 import com.example.controlhorario.BuildConfig
+import com.example.controlhorario.attendance.AttendanceDeviceSession
+import com.example.controlhorario.attendance.AttendanceSyncClient
+import com.example.controlhorario.attendance.JourneyCurrentStateSynchronizer
 import com.example.controlhorario.device.DeviceEnrollmentScreen
 import com.example.controlhorario.device.DeviceSyncScheduler
 import com.example.controlhorario.device.EmployeeSyncDashboardScreen
@@ -606,12 +609,40 @@ fun AppNavigation(
         ) { backStackEntry ->
             val employeeId = backStackEntry.arguments?.getInt("employeeId") ?: 0
             val context = LocalContext.current
+            val appContext = context.applicationContext
             val db = DatabaseProvider.getDatabase(context)
+            val journeyRepository = remember(db, appContext) {
+                JourneyRepository(
+                    db.journeyDao(),
+                    JourneyCurrentStateSynchronizer(
+                        journeyDao = db.journeyDao(),
+                        employeeDao = db.employeeDao(),
+                        gateway = AttendanceSyncClient(
+                            appContext.getString(com.example.controlhorario.R.string.attendance_sync_url)
+                        ),
+                        sessionProvider = {
+                            val identity = DeviceIdentityManager(appContext)
+                            val deviceId = identity.deviceId
+                            val credential = identity.credential()
+                            if (deviceId == null || credential == null) {
+                                null
+                            } else {
+                                AttendanceDeviceSession(deviceId, credential)
+                            }
+                        }
+                    )
+                )
+            }
             val employeeVm: EmployeeViewModel = viewModel(
                 factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
             )
             val journeyVm: JourneyViewModel = viewModel(
-                factory = JourneyViewModelFactory(context,JourneyRepository(db.journeyDao()),employeeId,LocalDate.now().toString())
+                factory = JourneyViewModelFactory(
+                    context,
+                    journeyRepository,
+                    employeeId,
+                    LocalDate.now().toString()
+                )
             )
             val employees by employeeVm.employees.collectAsState()
             val employee = employees.firstOrNull { it.id == employeeId }
