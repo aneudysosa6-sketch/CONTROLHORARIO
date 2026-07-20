@@ -305,7 +305,12 @@ private fun FaceVerificationCamera(
                             return@setAnalyzer
                         }
                         val rotationDegrees = proxy.imageInfo.rotationDegrees
-                        val sourceBitmap = proxy.yPlaneBitmap()
+                        val sourceBitmap = proxy.yPlaneBitmapOrNull()
+                        if (sourceBitmap == null) {
+                            processing.set(false)
+                            proxy.close()
+                            return@setAnalyzer
+                        }
                         val frameBitmap = sourceBitmap.rotated(rotationDegrees)
                         currentDetector.process(InputImage.fromMediaImage(image, rotationDegrees))
                             .addOnSuccessListener(executor) { faces ->
@@ -569,17 +574,21 @@ private fun verifyLog(tag: String, message: String) {
     if (BuildConfig.DEBUG) Log.d(tag, message)
 }
 
-private fun androidx.camera.core.ImageProxy.yPlaneBitmap(): Bitmap {
-    val plane = planes[0]
-    val buffer = plane.buffer.duplicate()
-    val bytes = ByteArray(buffer.remaining()).also { buffer.get(it) }
+private fun androidx.camera.core.ImageProxy.yPlaneBitmapOrNull(): Bitmap? = runCatching {
+    val plane = planes.getOrNull(0) ?: return null
+    val buffer = plane.buffer ?: return null
+    val duplicate = buffer.duplicate()
+    val bytes = ByteArray(duplicate.remaining()).also { duplicate.get(it) }
     val pixels = IntArray(width * height)
     for (y in 0 until height) for (x in 0 until width) {
-        val lum = bytes[y * plane.rowStride + x * plane.pixelStride].toInt() and 0xff
-        pixels[y * width + x] = android.graphics.Color.rgb(lum, lum, lum)
+        val index = y * plane.rowStride + x * plane.pixelStride
+        if (index in bytes.indices) {
+            val lum = bytes[index].toInt() and 0xff
+            pixels[y * width + x] = android.graphics.Color.rgb(lum, lum, lum)
+        }
     }
-    return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-}
+    Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+}.getOrNull()
 
 private const val MAX_VISUAL_ATTEMPTS = 3
 private const val FACE_QUALITY_STEP = 4

@@ -455,22 +455,17 @@ fun AppNavigation(
         }
 
         composable(Route.EMPLOYEE_PORTAL) {
-            val context = LocalContext.current
-            val db = DatabaseProvider.getDatabase(context)
-            val currentUser by UserSessionManager.currentUser.collectAsState()
-            val vm: EmployeePermissionRequestsViewModel = viewModel(
-                factory = EmployeePermissionRequestsViewModelFactory(
-                    EmployeePermissionRequestRepository(
-                        requestDao = db.employeePermissionRequestDao(),
-                        dailyPaymentDao = db.medicalLicenseDailyPaymentDao()
-                    )
-                )
-            )
-            EmployeePortalScreen(
-                viewModel = vm,
-                currentUser = currentUser,
-                onBack = { navController.popBackStack() }
-            )
+            val principal by AuthSessionStore.principal.collectAsState()
+            val authenticated = principal
+            if (authenticated == null) {
+                ModuleScreen("Portal del Empleado", "Inicia sesión con tu cuenta de empleado para acceder.") {
+                    navController.popBackStack()
+                }
+            } else {
+                EmployeeSelfServiceScreen(authenticated) {
+                    navController.popBackStack()
+                }
+            }
         }
 
         composable(Route.BRANCH_MANAGER_PANEL) {
@@ -1541,188 +1536,6 @@ private fun UserManagementScreen(
 }
 
 @Composable
-private fun EmployeePortalScreen(
-    viewModel: EmployeePermissionRequestsViewModel,
-    currentUser: AppUserEntity?,
-    onBack: () -> Unit
-) {
-    var section by remember { mutableStateOf("MENU") }
-    var lateHour by remember { mutableStateOf("") }
-    var medicalMsg by remember { mutableStateOf("") }
-    var medicalAttachment by remember { mutableStateOf("") }
-    var licenseAttachment by remember { mutableStateOf("") }
-    var personalMsg by remember { mutableStateOf("") }
-    var loanAmount by remember { mutableStateOf("") }
-    var loanDiscount by remember { mutableStateOf("") }
-    var requestStatus by remember { mutableStateOf("Sin solicitudes enviadas") }
-    fun submitPermission(type: String, message: String, attachment: String = "") {
-        val now = portalNow()
-        viewModel.saveRequest(
-            EmployeePermissionRequestEntity(
-                employeeId = currentUser?.employeeId ?: 0,
-                employeeName = currentUser?.fullName ?: "Empleado",
-                employeeCode = currentUser?.username ?: "",
-                branchId = currentUser?.branchId ?: 0,
-                departmentId = currentUser?.departmentId ?: 0,
-                requestType = type,
-                message = message.trim(),
-                attachmentUri = attachment.substringAfter(": ", attachment),
-                attachmentLabel = attachment,
-                requestedDate = now,
-                createdAt = now,
-                updatedAt = now
-            )
-        )
-    }
-    val medicalFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) medicalAttachment = "Archivo cargado: $uri"
-    }
-    val medicalGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) medicalAttachment = "Foto de galería cargada: $uri"
-    }
-    val medicalCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) medicalAttachment = "Foto tomada con cámara"
-    }
-    val licenseFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) licenseAttachment = "Archivo cargado: $uri"
-    }
-    val licenseGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) licenseAttachment = "Foto de galería cargada: $uri"
-    }
-    val licenseCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) licenseAttachment = "Foto tomada con cámara"
-    }
-
-    OSINETScreen {
-        OSINETHeader(
-            title = "Portal del Empleado",
-            subtitle = "Información personal del empleado autenticado"
-        )
-        Spacer(Modifier.height(16.dp))
-        if (section == "MENU") {
-            OSINETActionCard("PAGOS", "Sueldo bruto, incentivos, horas extras, descuentos y total a cobrar", onClick = { section = "PAGOS" })
-            Spacer(Modifier.height(10.dp))
-            OSINETActionCard("PRÉSTAMOS", "Total, pendiente, solicitud y estado", onClick = { section = "PRESTAMOS" })
-            Spacer(Modifier.height(10.dp))
-            OSINETActionCard("HISTORIAL", "Descuentos de préstamos por nómina", onClick = { section = "HISTORIAL" })
-            Spacer(Modifier.height(10.dp))
-            OSINETActionCard("PERMISOS", "Llegaré tarde, médico, licencia médica y motivo personal", onClick = { section = "PERMISOS" })
-            Spacer(Modifier.height(18.dp))
-            OSINETSecondaryButton("Volver", onBack)
-            return@OSINETScreen
-        }
-
-        when (section) {
-            "PAGOS" -> {
-                OSINETCard {
-                    Text("Sueldo bruto: según última nómina generada", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Incentivo: según perfil de nómina", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Ganancia horas extras: calculada por ponches", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Descuento crédito: según crédito activo", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
-                    Text("Descuento préstamo: según préstamo entregado", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
-                    Text("Otros descuentos: plantilla o perfil", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
-                    Text("Total a cobrar: resultado de nómina", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
-                }
-            }
-            "PRESTAMOS" -> {
-                OSINETCard {
-                    Text("Total préstamo: se carga cuando el dinero está ENTREGADO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Pendiente a pagar: balance actual", color = com.example.controlhorario.ui.components.OSINETColors.Warning)
-                    Text("Estado solicitud: $requestStatus", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
-                }
-                Spacer(Modifier.height(10.dp))
-                OSINETCard {
-                    Text("SOLICITAR PRÉSTAMO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Spacer(Modifier.height(8.dp))
-                    OSINETTextField(loanAmount, { loanAmount = it }, "Monto solicitado", Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    OSINETTextField(loanDiscount, { loanDiscount = it }, "Descuento quincenal", Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("ENVIAR SOLICITUD", enabled = loanAmount.isNotBlank() && loanDiscount.isNotBlank(), onClick = { requestStatus = "Pendiente de aprobación" })
-                }
-            }
-            "HISTORIAL" -> {
-                OSINETCard {
-                    Text("Historial de descuentos de préstamos", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Fecha · Monto descontado · Nómina · Balance pendiente", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
-                    Text("Se alimentará automáticamente desde cada nómina generada.", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
-                }
-            }
-            "PERMISOS" -> {
-                OSINETCard {
-                    Text("LLEGARÉ TARDE", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    OSINETTextField(lateHour, { lateHour = it }, "Hora estimada de llegada", Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("ENVIAR", enabled = lateHour.isNotBlank(), onClick = {
-                        submitPermission(EmployeePermissionRequestEntity.TYPE_LATE, "Hora estimada de llegada: $lateHour")
-                        lateHour = ""
-                        requestStatus = "Permiso de llegada tarde enviado"
-                    })
-                }
-                Spacer(Modifier.height(10.dp))
-                OSINETCard {
-                    Text("MÉDICO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    OSINETTextField(medicalMsg, { medicalMsg = it }, "Mensaje", Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Adjunto: ${medicalAttachment.ifBlank { "Sin archivo o foto" }}",
-                        color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OSINETButton("ARCHIVO", onClick = { medicalFileLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f))
-                        OSINETButton("GALERÍA", onClick = { medicalGalleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("CÁMARA", onClick = { medicalCameraLauncher.launch(null) })
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("ENVIAR", enabled = medicalMsg.isNotBlank() || medicalAttachment.isNotBlank(), onClick = {
-                        submitPermission(EmployeePermissionRequestEntity.TYPE_MEDICAL, medicalMsg, medicalAttachment)
-                        medicalMsg = ""
-                        medicalAttachment = ""
-                        requestStatus = "Solicitud médica enviada"
-                    })
-                }
-                Spacer(Modifier.height(10.dp))
-                OSINETCard {
-                    Text("LICENCIA MÉDICA", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text(
-                        "Adjunto: ${licenseAttachment.ifBlank { "Sin archivo o foto" }}",
-                        color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OSINETButton("ARCHIVO", onClick = { licenseFileLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f))
-                        OSINETButton("GALERÍA", onClick = { licenseGalleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("CÁMARA", onClick = { licenseCameraLauncher.launch(null) })
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("ENVIAR", enabled = licenseAttachment.isNotBlank(), onClick = {
-                        submitPermission(EmployeePermissionRequestEntity.TYPE_MEDICAL_LICENSE, "Licencia médica enviada para revisión", licenseAttachment)
-                        licenseAttachment = ""
-                        requestStatus = "Licencia médica enviada a revisión"
-                    })
-                }
-                Spacer(Modifier.height(10.dp))
-                OSINETCard {
-                    Text("MOTIVO PERSONAL", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    OSINETTextField(personalMsg, { personalMsg = it }, "Motivo", Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-                    OSINETButton("ENVIAR", enabled = personalMsg.isNotBlank(), onClick = {
-                        submitPermission(EmployeePermissionRequestEntity.TYPE_PERSONAL, personalMsg)
-                        personalMsg = ""
-                        requestStatus = "Solicitud por motivo personal enviada"
-                    })
-                }
-            }
-        }
-        Spacer(Modifier.height(18.dp))
-        OSINETSecondaryButton("Volver al Portal", onClick = { section = "MENU" })
-    }
-}
-
-@Composable
 private fun ModuleScreen(title: String, detail: String, onBack: () -> Unit) {
     OSINETScreen {
         OSINETHeader(title = title, subtitle = detail)
@@ -1735,9 +1548,6 @@ private fun ModuleScreen(title: String, detail: String, onBack: () -> Unit) {
 private fun MenuButton(title: String, onClick: () -> Unit) {
     OSINETActionCard(title = title, onClick = onClick)
 }
-
-private fun portalNow(): String =
-    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
 
 private object Route {
     const val DEVICE_ENROLLMENT = "device_enrollment"

@@ -452,16 +452,17 @@ private fun Bitmap.qualityIssue(): String? {
 }
 
 private fun androidx.camera.core.ImageProxy.yPlaneBitmapOrNull(): Bitmap? = runCatching {
-    val plane = planes.firstOrNull() ?: return null
+    val plane = planes.getOrNull(0) ?: return null
     val buffer = plane.buffer ?: return null
     val duplicate = buffer.duplicate()
     val bytes = ByteArray(duplicate.remaining()).also { duplicate.get(it) }
     val pixels = IntArray(width * height)
     for (y in 0 until height) for (x in 0 until width) {
         val index = y * plane.rowStride + x * plane.pixelStride
-        require(index in bytes.indices)
-        val luminance = bytes[index].toInt() and 0xff
-        pixels[y * width + x] = android.graphics.Color.rgb(luminance, luminance, luminance)
+        if (index in bytes.indices) {
+            val luminance = bytes[index].toInt() and 0xff
+            pixels[y * width + x] = android.graphics.Color.rgb(luminance, luminance, luminance)
+        }
     }
     Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
 }.getOrNull()
