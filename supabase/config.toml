@@ -32,6 +32,10 @@ verify_jwt = false
 [functions.employee-sync]
 verify_jwt = false
 
+# Autenticación propia mediante x-device-id + x-device-credential.
+[functions.employee-upsert]
+verify_jwt = false
+
 # Autenticación propia mediante credencial del dispositivo; las operaciones se validan en servidor.
 [functions.attendance-sync]
 verify_jwt = false

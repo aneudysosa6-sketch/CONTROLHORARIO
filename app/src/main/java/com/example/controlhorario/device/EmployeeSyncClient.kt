@@ -11,19 +11,21 @@ data class RemoteEmployee(
  val id:String,val code:String,val name:String,val phone:String,val email:String,
  val branchId:String?,val branchName:String,val departmentId:String?,val departmentName:String,
  val positionId:String?,val positionName:String,val supervisorId:String?,val supervisorName:String,
- val status:String,val jornadaEnabled:Boolean=true,val scheduleStart:String?=null,val scheduleEnd:String?=null,val lunchStart:String?=null,val lunchDurationMinutes:Int?=null,val workDays:String?=null,val toleranceMinutes:Int?=null,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String,val faceEmbedding:FloatArray?=null
+ val status:String,val jornadaEnabled:Boolean=true,val scheduleStart:String?=null,val scheduleEnd:String?=null,val lunchStart:String?=null,val lunchDurationMinutes:Int?=null,val workDays:String?=null,val toleranceMinutes:Int?=null,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String,val faceEmbedding:FloatArray?=null,
+ val remoteEmbeddingPresent:Boolean=false,val remoteEmbeddingDimension:Int?=null
 )
 data class RemoteInactiveEmployee(val id:String,val updatedAt:String)
 data class EmployeeSyncPage(
  val employees:List<RemoteEmployee>,val inactive:List<RemoteInactiveEmployee>,
- val cursor:EmployeeSyncCursor?,val hasMore:Boolean,val syncedAt:String
+ val cursor:EmployeeSyncCursor?,val hasMore:Boolean,val syncedAt:String,val httpStatus:Int=200
 )
 
 class EmployeeSyncClient(private val endpoint:String){
- fun download(deviceId:String,credential:String,cursor:EmployeeSyncCursor?):EmployeeSyncPage{
+ fun download(deviceId:String,credential:String,cursor:EmployeeSyncCursor?,employeeCode:String?=null):EmployeeSyncPage{
   require(endpoint.startsWith("https://")&&endpoint.endsWith("/functions/v1/employee-sync")){"Configura CONTROLHORARIO_EMPLOYEE_SYNC_URL con HTTPS"}
   val request=JSONObject()
-  cursor?.let{request.put("cursor",JSONObject().put("updated_at",it.updatedAt).put("id",it.id))}
+  if(employeeCode!=null){require(employeeCode.matches(Regex("^[0-9]{5,12}$")));request.put("employee_code",employeeCode)}
+  else cursor?.let{request.put("cursor",JSONObject().put("updated_at",it.updatedAt).put("id",it.id))}
   Log.d(TAG,"URL: $endpoint")
   Log.d(TAG,"company_id: pendiente de respuesta Edge; cursor enviado: updated_at=${cursor?.updatedAt}, id=${cursor?.id}")
   val startedAt=SystemClock.elapsedRealtime();var connection:HttpURLConnection?=null;var status=-1
@@ -37,29 +39,32 @@ class EmployeeSyncClient(private val endpoint:String){
    val stream=if(status in 200..299)connection.inputStream else connection.errorStream
    val response=stream?.bufferedReader()?.use{it.readText()}.orEmpty()
    Log.d(TAG,"HTTP: $status en ${SystemClock.elapsedRealtime()-startedAt} ms")
-   Log.d(TAG,"Response Body: $response")
    val json=runCatching{JSONObject(response)}.getOrElse{throw IllegalStateException("Respuesta inválida de employee-sync",it)}
    Log.d(TAG,"company_id: ${json.optString("company_id","<no devuelto>")}; diagnostic_request_id: ${json.optString("diagnostic_request_id","<no devuelto>")}")
    if(status !in 200..299)throw DeviceEnrollmentHttpException(status,response,json.optString("error","Error de sincronización"))
-   return parse(json).also{Log.d(TAG,"empleados recibidos: activos=${it.employees.size}, inactivos=${it.inactive.size}, cursor=${it.cursor}, hasMore=${it.hasMore}")}
+   return parse(json,status).also{
+    Log.d(TAG,"empleados recibidos: activos=${it.employees.size}, inactivos=${it.inactive.size}, cursor=${it.cursor}, hasMore=${it.hasMore}")
+    if(employeeCode!=null){val remote=it.employees.firstOrNull();Log.d("FACE_CROSS_DEVICE_SYNC","employeeCode=$employeeCode remoteId=${remote?.id} HTTP status=$status remoteEmbeddingPresent=${remote?.remoteEmbeddingPresent==true} remoteEmbeddingDimension=${remote?.remoteEmbeddingDimension} finalResult=${if(remote==null)"NOT_FOUND" else "DOWNLOADED"}")}
+   }
   }catch(error:Exception){Log.e(TAG,"excepción completa employee-sync (URL=$endpoint, HTTP=$status, cursor=$cursor)",error);throw error}finally{connection?.disconnect()}
  }
 
- private fun parse(json:JSONObject):EmployeeSyncPage{
+ private fun parse(json:JSONObject,httpStatus:Int):EmployeeSyncPage{
   val employeeRows=json.optJSONArray("employees")
   val employees=(0 until (employeeRows?.length()?:0)).map{employeeRows!!.getJSONObject(it)}.map{row->
+   val rawEmbedding=row.optJSONArray("face_embedding")
    RemoteEmployee(
     id=row.getString("remote_id"),code=row.getString("code"),name=row.getString("name"),phone=row.optString("phone"),email=row.optString("email"),
     branchId=row.optNullableString("branch_id"),branchName=row.optString("branch_name"),departmentId=row.optNullableString("department_id"),departmentName=row.optString("department_name"),
     positionId=row.optNullableString("position_id"),positionName=row.optString("position_name"),supervisorId=row.optNullableString("supervisor_id"),supervisorName=row.optString("supervisor_name"),
-    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),scheduleStart=row.optNullableString("schedule_start"),scheduleEnd=row.optNullableString("schedule_end"),lunchStart=row.optNullableString("lunch_start"),lunchDurationMinutes=if(row.isNull("lunch_duration_minutes"))null else row.optInt("lunch_duration_minutes"),workDays=row.optJSONArray("work_days")?.let{days->(0 until days.length()).joinToString(","){index->days.getInt(index).toString()}},toleranceMinutes=if(row.isNull("tolerance_minutes"))null else row.optInt("tolerance_minutes"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at"),faceEmbedding=row.optJSONArray("face_embedding")?.takeIf{it.length()==128}?.let{values->FloatArray(128){index->values.optDouble(index,Double.NaN).toFloat()}.takeIf{it.all(Float::isFinite)}}
+    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),scheduleStart=row.optNullableString("schedule_start"),scheduleEnd=row.optNullableString("schedule_end"),lunchStart=row.optNullableString("lunch_start"),lunchDurationMinutes=if(row.isNull("lunch_duration_minutes"))null else row.optInt("lunch_duration_minutes"),workDays=row.optJSONArray("work_days")?.let{days->(0 until days.length()).joinToString(","){index->days.getInt(index).toString()}},toleranceMinutes=if(row.isNull("tolerance_minutes"))null else row.optInt("tolerance_minutes"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at"),faceEmbedding=rawEmbedding?.takeIf{it.length()==128}?.let{values->FloatArray(128){index->values.optDouble(index,Double.NaN).toFloat()}.takeIf{it.all(Float::isFinite)}},remoteEmbeddingPresent=rawEmbedding!=null,remoteEmbeddingDimension=rawEmbedding?.length()
    )
   }
   val inactiveRows=json.optJSONArray("inactive")
   val inactive=(0 until (inactiveRows?.length()?:0)).map{inactiveRows!!.getJSONObject(it)}.map{RemoteInactiveEmployee(it.getString("remote_id"),it.getString("updated_at"))}
   val cursorJson=json.optJSONObject("cursor")
   val cursor=cursorJson?.optString("updated_at")?.takeIf{it.isNotBlank()}?.let{EmployeeSyncCursor(it,cursorJson.optString("id"))}
-  return EmployeeSyncPage(employees,inactive,cursor,json.optBoolean("has_more"),json.optString("synced_at"))
+  return EmployeeSyncPage(employees,inactive,cursor,json.optBoolean("has_more"),json.optString("synced_at"),httpStatus)
  }
  private fun JSONObject.optNullableString(name:String)=if(isNull(name))null else optString(name).takeIf{it.isNotBlank()}
  private companion object{const val TAG="EmployeeSync"}

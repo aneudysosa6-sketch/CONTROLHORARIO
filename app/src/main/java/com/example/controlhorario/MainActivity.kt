@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.session.KioskModeManager
 import com.example.controlhorario.device.DeviceSyncScheduler
+import com.example.controlhorario.device.EmployeeUploadScheduler
 import com.example.controlhorario.attendance.AttendanceSyncScheduler
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.ui.navigation.AppNavigation
@@ -20,7 +21,7 @@ class MainActivity : FragmentActivity() {
 
         UserSessionManager.init(this)
         KioskModeManager.init(this)
-        if(DeviceIdentityManager(this).deviceId!=null){DeviceSyncScheduler.start(this);AttendanceSyncScheduler.start(this)}
+        if(DeviceIdentityManager(this).deviceId!=null)AttendanceSyncScheduler.start(this)
         enableEdgeToEdge()
 
         setContent {
@@ -28,6 +29,14 @@ class MainActivity : FragmentActivity() {
                 val navController = rememberNavController()
                 AppNavigation(navController)
             }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (DeviceIdentityManager(this).deviceId != null) {
+            DeviceSyncScheduler.start(this)
+            EmployeeUploadScheduler.enqueueImmediate(this)
         }
     }
 }

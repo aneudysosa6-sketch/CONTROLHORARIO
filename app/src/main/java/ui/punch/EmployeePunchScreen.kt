@@ -123,7 +123,14 @@ fun EmployeePunchScreen(
                     }
                 )
 
-                val employeeWithoutFace = state.employee?.takeUnless { state.hasFaceTemplate }
+                if (state.canRetryFaceSync) {
+                    Button(
+                        onClick = viewModel::retryFaceSync,
+                        enabled = !state.identifying,
+                        modifier = Modifier.fillMaxWidth().height(58.dp)
+                    ) { Text("Reintentar sincronización", fontWeight = FontWeight.Bold) }
+                }
+                val employeeWithoutFace = state.employee?.takeUnless { state.hasFaceTemplate || !state.faceSyncCompleted }
                 if (employeeWithoutFace != null) {
                     Button(
                         onClick = { onRegisterFace(employeeWithoutFace.id) },

@@ -505,10 +505,15 @@ fun AppNavigation(
         composable(Route.EMPLOYEE_PUNCH) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
+            val faceRepository = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
             val vm: EmployeePunchViewModel = viewModel(
                 factory = EmployeePunchViewModelFactory(
                     employeeRepository = EmployeeRepository(db.employeeDao()),
-                    faceRepository = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
+                    faceRepository = faceRepository,
+                    faceAvailability = com.example.controlhorario.device.EmployeeFaceAvailabilityCoordinator(
+                        faceExists = { employeeId -> faceRepository.activeForEmployee(employeeId) != null },
+                        targetedSync = com.example.controlhorario.device.AndroidTargetedEmployeeSyncGateway(context, db)
+                    )
                 )
             )
             EmployeePunchScreen(

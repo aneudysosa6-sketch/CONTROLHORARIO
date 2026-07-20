@@ -20,7 +20,7 @@ object DeviceSyncScheduler{
   val manager=WorkManager.getInstance(context)
   val immediate=OneTimeWorkRequestBuilder<EmployeeSyncWorker>().setConstraints(constraints).setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS).build()
   val periodic=PeriodicWorkRequestBuilder<EmployeeSyncWorker>(6,TimeUnit.HOURS).setConstraints(constraints).setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS).build()
-  manager.enqueueUniqueWork(IMMEDIATE_WORK,ExistingWorkPolicy.REPLACE,immediate)
+  manager.enqueueUniqueWork(IMMEDIATE_WORK,ExistingWorkPolicy.KEEP,immediate)
   manager.enqueueUniquePeriodicWork(PERIODIC_WORK,ExistingPeriodicWorkPolicy.UPDATE,periodic)
   Log.d("EmployeeSync","WorkManager programado: immediate_id=${immediate.id}, periodic_id=${periodic.id}, network=CONNECTED, interval=6h")
  }
