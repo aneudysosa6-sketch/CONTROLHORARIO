@@ -305,81 +305,91 @@ private fun FaceVerificationCamera(
                             return@setAnalyzer
                         }
                         val rotationDegrees = proxy.imageInfo.rotationDegrees
-                        val sourceBitmap = proxy.yPlaneBitmap()
+                        val sourceBitmap = proxy.yPlaneBitmapOrNull()
+                        if (sourceBitmap == null) {
+                            processing.set(false)
+                            proxy.close()
+                            return@setAnalyzer
+                        }
                         val frameBitmap = sourceBitmap.rotated(rotationDegrees)
                         currentDetector.process(InputImage.fromMediaImage(image, rotationDegrees))
                             .addOnSuccessListener(executor) { faces ->
-                                when {
-                                    faces.isEmpty() -> {
-                                        verifyLog(
-                                            "FACE_VERIFY_FRAME",
-                                            "faces=0 rotation=$rotationDegrees attempt=$attempt state=$visualState reason=NO_FACE"
-                                        )
-                                        onGuidance("Mire directamente a la cámara")
-                                    }
-                                    faces.size > 1 -> {
-                                        verifyLog(
-                                            "FACE_VERIFY_FRAME",
-                                            "faces=${faces.size} rotation=$rotationDegrees attempt=$attempt " +
-                                                "state=$visualState reason=MULTIPLE_FACES"
-                                        )
-                                        onGuidance("Centre un único rostro")
-                                    }
-                                    else -> {
-                                        val bounds = faces.single().boundingBox
-                                        val face = faces.single()
-                                        val quality = frameBitmap.faceQuality(bounds)
-                                        verifyLog(
-                                            "FACE_VERIFY_FRAME",
-                                            "faces=1 eulerX=${face.headEulerAngleX} eulerY=${face.headEulerAngleY} " +
-                                                "eulerZ=${face.headEulerAngleZ} bounds=${bounds.left},${bounds.top}," +
-                                                "${bounds.right},${bounds.bottom} faceSize=${bounds.width()}x${bounds.height()} " +
-                                                "frame=${frameBitmap.width}x${frameBitmap.height} rotation=$rotationDegrees " +
-                                                "attempt=$attempt state=$visualState"
-                                        )
-                                        when {
-                                            bounds.width() < frameBitmap.width / 4 || bounds.height() < frameBitmap.height / 4 -> {
-                                                verifyLog("FACE_VERIFY_QUALITY", "reason=FACE_TOO_SMALL attempt=$attempt")
-                                                onGuidance("Acérquese a la cámara")
-                                            }
-                                            bounds.width() > frameBitmap.width * 9 / 10 || bounds.height() > frameBitmap.height * 9 / 10 -> {
-                                                verifyLog("FACE_VERIFY_QUALITY", "reason=FACE_TOO_LARGE attempt=$attempt")
-                                                onGuidance("Aléjese ligeramente de la cámara")
-                                            }
-                                            !bounds.isInside(frameBitmap.width, frameBitmap.height) -> {
-                                                verifyLog("FACE_VERIFY_QUALITY", "reason=FACE_NOT_CENTERED attempt=$attempt")
-                                                onGuidance("Centre el rostro")
-                                            }
-                                            quality.meanLuminance < MIN_FACE_LUMINANCE -> {
-                                                verifyLight(quality, bounds, rotationDegrees, attempt, "TOO_DARK")
-                                                onGuidance("Aumente ligeramente la iluminación")
-                                            }
-                                            quality.meanLuminance > MAX_FACE_LUMINANCE -> {
-                                                verifyLight(quality, bounds, rotationDegrees, attempt, "OVEREXPOSED")
-                                                onGuidance("Evite la luz directa")
-                                            }
-                                            else -> {
-                                                verifyLight(quality, bounds, rotationDegrees, attempt, "PASS")
-                                                runCatching { currentEngine.embedding(frameBitmap, bounds) }
-                                                    .onSuccess {
-                                                        verifyLog(
-                                                            "FACE_VERIFY_QUALITY",
-                                                            "contrast=${quality.contrast} sharpness=${quality.sharpness} " +
-                                                                "attempt=$attempt result=EMBEDDING_READY"
-                                                        )
-                                                        onEmbedding(it)
-                                                    }
-                                                    .onFailure { error ->
-                                                        verifyLog(
-                                                            "FACE_VERIFY_QUALITY",
-                                                            "attempt=$attempt reason=EMBEDDING_FAILED type=" +
-                                                                "${error.javaClass.simpleName}"
-                                                        )
-                                                        onGuidance("Mantenga el rostro quieto")
-                                                    }
+                                runCatching {
+                                    when {
+                                        faces.isEmpty() -> {
+                                            verifyLog(
+                                                "FACE_VERIFY_FRAME",
+                                                "faces=0 rotation=$rotationDegrees attempt=$attempt state=$visualState reason=NO_FACE"
+                                            )
+                                            onGuidance("Mire directamente a la cámara")
+                                        }
+                                        faces.size > 1 -> {
+                                            verifyLog(
+                                                "FACE_VERIFY_FRAME",
+                                                "faces=${faces.size} rotation=$rotationDegrees attempt=$attempt " +
+                                                    "state=$visualState reason=MULTIPLE_FACES"
+                                            )
+                                            onGuidance("Centre un único rostro")
+                                        }
+                                        else -> {
+                                            val bounds = faces.single().boundingBox
+                                            val face = faces.single()
+                                            val quality = frameBitmap.faceQuality(bounds)
+                                            verifyLog(
+                                                "FACE_VERIFY_FRAME",
+                                                "faces=1 eulerX=${face.headEulerAngleX} eulerY=${face.headEulerAngleY} " +
+                                                    "eulerZ=${face.headEulerAngleZ} bounds=${bounds.left},${bounds.top}," +
+                                                    "${bounds.right},${bounds.bottom} faceSize=${bounds.width()}x${bounds.height()} " +
+                                                    "frame=${frameBitmap.width}x${frameBitmap.height} rotation=$rotationDegrees " +
+                                                    "attempt=$attempt state=$visualState"
+                                            )
+                                            when {
+                                                bounds.width() < frameBitmap.width / 4 || bounds.height() < frameBitmap.height / 4 -> {
+                                                    verifyLog("FACE_VERIFY_QUALITY", "reason=FACE_TOO_SMALL attempt=$attempt")
+                                                    onGuidance("Acérquese a la cámara")
+                                                }
+                                                bounds.width() > frameBitmap.width * 9 / 10 || bounds.height() > frameBitmap.height * 9 / 10 -> {
+                                                    verifyLog("FACE_VERIFY_QUALITY", "reason=FACE_TOO_LARGE attempt=$attempt")
+                                                    onGuidance("Aléjese ligeramente de la cámara")
+                                                }
+                                                !bounds.isInside(frameBitmap.width, frameBitmap.height) -> {
+                                                    verifyLog("FACE_VERIFY_QUALITY", "reason=FACE_NOT_CENTERED attempt=$attempt")
+                                                    onGuidance("Centre el rostro")
+                                                }
+                                                quality.meanLuminance < MIN_FACE_LUMINANCE -> {
+                                                    verifyLight(quality, bounds, rotationDegrees, attempt, "TOO_DARK")
+                                                    onGuidance("Aumente ligeramente la iluminación")
+                                                }
+                                                quality.meanLuminance > MAX_FACE_LUMINANCE -> {
+                                                    verifyLight(quality, bounds, rotationDegrees, attempt, "OVEREXPOSED")
+                                                    onGuidance("Evite la luz directa")
+                                                }
+                                                else -> {
+                                                    verifyLight(quality, bounds, rotationDegrees, attempt, "PASS")
+                                                    runCatching { currentEngine.embedding(frameBitmap, bounds) }
+                                                        .onSuccess {
+                                                            verifyLog(
+                                                                "FACE_VERIFY_QUALITY",
+                                                                "contrast=${quality.contrast} sharpness=${quality.sharpness} " +
+                                                                    "attempt=$attempt result=EMBEDDING_READY"
+                                                            )
+                                                            onEmbedding(it)
+                                                        }
+                                                        .onFailure { error ->
+                                                            verifyLog(
+                                                                "FACE_VERIFY_QUALITY",
+                                                                "attempt=$attempt reason=EMBEDDING_FAILED type=" +
+                                                                    "${error.javaClass.simpleName}"
+                                                            )
+                                                            onGuidance("Mantenga el rostro quieto")
+                                                        }
+                                                }
                                             }
                                         }
                                     }
+                                }.onFailure { error ->
+                                    verifyLog("FACE_VERIFY_CRITICAL_ERROR", "error=${error.message}")
+                                    onGuidance("Mantenga el rostro quieto")
                                 }
                             }
                             .addOnCompleteListener {
@@ -569,17 +579,21 @@ private fun verifyLog(tag: String, message: String) {
     if (BuildConfig.DEBUG) Log.d(tag, message)
 }
 
-private fun androidx.camera.core.ImageProxy.yPlaneBitmap(): Bitmap {
-    val plane = planes[0]
-    val buffer = plane.buffer.duplicate()
-    val bytes = ByteArray(buffer.remaining()).also { buffer.get(it) }
+private fun androidx.camera.core.ImageProxy.yPlaneBitmapOrNull(): Bitmap? = runCatching {
+    val plane = planes.getOrNull(0) ?: return null
+    val buffer = plane.buffer ?: return null
+    val duplicate = buffer.duplicate()
+    val bytes = ByteArray(duplicate.remaining()).also { duplicate.get(it) }
     val pixels = IntArray(width * height)
     for (y in 0 until height) for (x in 0 until width) {
-        val lum = bytes[y * plane.rowStride + x * plane.pixelStride].toInt() and 0xff
-        pixels[y * width + x] = android.graphics.Color.rgb(lum, lum, lum)
+        val index = y * plane.rowStride + x * plane.pixelStride
+        if (index in bytes.indices) {
+            val lum = bytes[index].toInt() and 0xff
+            pixels[y * width + x] = android.graphics.Color.rgb(lum, lum, lum)
+        }
     }
-    return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-}
+    Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+}.getOrNull()
 
 private const val MAX_VISUAL_ATTEMPTS = 3
 private const val FACE_QUALITY_STEP = 4

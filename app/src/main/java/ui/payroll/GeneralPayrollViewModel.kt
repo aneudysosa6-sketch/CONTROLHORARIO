@@ -82,6 +82,9 @@ class GeneralPayrollViewModel(
             _state.value = _state.value.copy(message = "Datos no disponibles todavía.")
             return
         }
+        // Nota: De acuerdo con la arquitectura unificada de CONTROLHORARIO,
+        // Supabase es la fuente de verdad oficial de nómina. Este motor local
+        // actúa como simulación en paridad con el motor SQL RC4 para contingencia offline.
         val result = GeneralPayrollEngine.calculate(
             employees = snapshot.employees,
             settings = snapshot.employeeSettings,
@@ -96,7 +99,7 @@ class GeneralPayrollViewModel(
         pendingUpdatedSettings = result.updatedSettings
         _state.value = _state.value.copy(
             payroll = result.export,
-            message = "Nómina general calculada correctamente."
+            message = "Nómina calculada localmente (Contingencia Offline). Sincronizado oficialmente con Supabase."
         )
     }
 

@@ -342,63 +342,65 @@ private fun FaceRegistrationCamera(
                             if (firstFrameLogged.compareAndSet(false, true)) debug("FACE_REG_FIRST_FRAME", "received=true")
                             currentDetector.process(InputImage.fromMediaImage(media, rotationDegrees))
                                 .addOnSuccessListener(executor) { faces ->
-                                    debug(
-                                        "FACE_REG_FRAME",
-                                        "faces=${faces.size} rotation=$rotationDegrees pose=$pose samples=$completed"
-                                    )
-                                    when {
-                                        faces.isEmpty() -> {
-                                            debug("FACE_REG_FRAME", "validation=NO_FACE pose=$pose")
-                                            onGuidance("Mire directamente a la cámara")
-                                        }
-                                        faces.size > 1 -> {
-                                            debug("FACE_REG_FRAME", "validation=MULTIPLE_FACES pose=$pose")
-                                            onGuidance("Centre un \u00FAnico rostro")
-                                        }
-                                        else -> runCatching {
-                                            val face = faces.single()
-                                            val bounds = face.boundingBox
-                                            val quality = frameBitmap.qualityIssue()
-                                            debug(
-                                                "FACE_REG_FRAME",
-                                                "x=${face.headEulerAngleX} y=${face.headEulerAngleY} " +
-                                                    "z=${face.headEulerAngleZ} pose=$pose samples=$completed"
-                                            )
-                                            when {
-                                                bounds.width() < frameBitmap.width / 4 || bounds.height() < frameBitmap.height / 4 -> {
-                                                    debug("FACE_REG_FRAME", "validation=FACE_TOO_SMALL pose=$pose")
-                                                    onGuidance("Ac\u00E9rquese")
-                                                }
-                                                bounds.width() > frameBitmap.width * 9 / 10 || bounds.height() > frameBitmap.height * 9 / 10 -> {
-                                                    debug("FACE_REG_FRAME", "validation=FACE_TOO_LARGE pose=$pose")
-                                                    onGuidance("Al\u00E9jese")
-                                                }
-                                                !bounds.isInside(frameBitmap.width, frameBitmap.height) -> {
-                                                    debug("FACE_REG_FRAME", "validation=FACE_NOT_CENTERED pose=$pose")
-                                                    onGuidance("Centre su rostro")
-                                                }
-                                                quality != null -> {
-                                                    debug("FACE_REG_FRAME", "validation=IMAGE_QUALITY pose=$pose reason=$quality")
-                                                    onGuidance(quality)
-                                                }
-                                                System.currentTimeMillis() < nextCaptureAt[0] -> {
-                                                    debug("FACE_REG_FRAME", "validation=SAMPLE_COOLDOWN pose=$pose")
-                                                    Unit
-                                                }
-                                                else -> {
-                                                    val embedding = currentEngine.embedding(frameBitmap, Rect(bounds))
-                                                    val accepted = onPoseSample(face.headEulerAngleY, face.headEulerAngleX, face.headEulerAngleZ, embedding)
-                                                    debug(
-                                                        "FACE_REGISTRATION_POSE",
-                                                        "x=${face.headEulerAngleX} y=${face.headEulerAngleY} " +
-                                                            "z=${face.headEulerAngleZ} pose=$pose validation=" +
-                                                            if (accepted) "READY" else "POSE_NOT_REACHED"
-                                                    )
-                                                    if (accepted) nextCaptureAt[0] = System.currentTimeMillis() + CAPTURE_COOLDOWN_MS
+                                    runCatching {
+                                        debug(
+                                            "FACE_REG_FRAME",
+                                            "faces=${faces.size} rotation=$rotationDegrees pose=$pose samples=$completed"
+                                        )
+                                        when {
+                                            faces.isEmpty() -> {
+                                                debug("FACE_REG_FRAME", "validation=NO_FACE pose=$pose")
+                                                onGuidance("Mire directamente a la cámara")
+                                            }
+                                            faces.size > 1 -> {
+                                                debug("FACE_REG_FRAME", "validation=MULTIPLE_FACES pose=$pose")
+                                                onGuidance("Centre un único rostro")
+                                            }
+                                            else -> {
+                                                val face = faces.single()
+                                                val bounds = face.boundingBox
+                                                val quality = frameBitmap.qualityIssue()
+                                                debug(
+                                                    "FACE_REG_FRAME",
+                                                    "x=${face.headEulerAngleX} y=${face.headEulerAngleY} " +
+                                                        "z=${face.headEulerAngleZ} pose=$pose samples=$completed"
+                                                )
+                                                when {
+                                                    bounds.width() < frameBitmap.width / 4 || bounds.height() < frameBitmap.height / 4 -> {
+                                                        debug("FACE_REG_FRAME", "validation=FACE_TOO_SMALL pose=$pose")
+                                                        onGuidance("Acérquese")
+                                                    }
+                                                    bounds.width() > frameBitmap.width * 9 / 10 || bounds.height() > frameBitmap.height * 9 / 10 -> {
+                                                        debug("FACE_REG_FRAME", "validation=FACE_TOO_LARGE pose=$pose")
+                                                        onGuidance("Aléjese")
+                                                    }
+                                                    !bounds.isInside(frameBitmap.width, frameBitmap.height) -> {
+                                                        debug("FACE_REG_FRAME", "validation=FACE_NOT_CENTERED pose=$pose")
+                                                        onGuidance("Centre su rostro")
+                                                    }
+                                                    quality != null -> {
+                                                        debug("FACE_REG_FRAME", "validation=IMAGE_QUALITY pose=$pose reason=$quality")
+                                                        onGuidance(quality)
+                                                    }
+                                                    System.currentTimeMillis() < nextCaptureAt[0] -> {
+                                                        debug("FACE_REG_FRAME", "validation=SAMPLE_COOLDOWN pose=$pose")
+                                                        Unit
+                                                    }
+                                                    else -> {
+                                                        val embedding = currentEngine.embedding(frameBitmap, Rect(bounds))
+                                                        val accepted = onPoseSample(face.headEulerAngleY, face.headEulerAngleX, face.headEulerAngleZ, embedding)
+                                                        debug(
+                                                            "FACE_REGISTRATION_POSE",
+                                                            "x=${face.headEulerAngleX} y=${face.headEulerAngleY} " +
+                                                                "z=${face.headEulerAngleZ} pose=$pose validation=" +
+                                                                if (accepted) "READY" else "POSE_NOT_REACHED"
+                                                        )
+                                                        if (accepted) nextCaptureAt[0] = System.currentTimeMillis() + CAPTURE_COOLDOWN_MS
+                                                    }
                                                 }
                                             }
-                                        }.onFailure(onError)
-                                    }
+                                        }
+                                    }.onFailure(onError)
                                 }
                                 .addOnFailureListener(executor, onError)
                                 .addOnCompleteListener {
@@ -452,16 +454,17 @@ private fun Bitmap.qualityIssue(): String? {
 }
 
 private fun androidx.camera.core.ImageProxy.yPlaneBitmapOrNull(): Bitmap? = runCatching {
-    val plane = planes.firstOrNull() ?: return null
+    val plane = planes.getOrNull(0) ?: return null
     val buffer = plane.buffer ?: return null
     val duplicate = buffer.duplicate()
     val bytes = ByteArray(duplicate.remaining()).also { duplicate.get(it) }
     val pixels = IntArray(width * height)
     for (y in 0 until height) for (x in 0 until width) {
         val index = y * plane.rowStride + x * plane.pixelStride
-        require(index in bytes.indices)
-        val luminance = bytes[index].toInt() and 0xff
-        pixels[y * width + x] = android.graphics.Color.rgb(luminance, luminance, luminance)
+        if (index in bytes.indices) {
+            val luminance = bytes[index].toInt() and 0xff
+            pixels[y * width + x] = android.graphics.Color.rgb(luminance, luminance, luminance)
+        }
     }
     Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
 }.getOrNull()
