@@ -256,6 +256,7 @@ private fun VerificationResult(success: Boolean, message: String) {
 }
 
 @Composable
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
 private fun FaceVerificationCamera(
     onEmbedding: (FloatArray) -> Unit,
     onGuidance: (String) -> Unit,

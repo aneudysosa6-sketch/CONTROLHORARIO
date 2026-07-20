@@ -65,6 +65,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.controlhorario.BuildConfig
 import com.example.controlhorario.face.FaceEmbeddingEngine
+import com.example.controlhorario.face.CloseOnce
+import com.example.controlhorario.face.FaceFrameGate
+import com.example.controlhorario.face.FaceFrameSafety
 import com.example.controlhorario.ui.components.OSINETHeader
 import com.example.controlhorario.ui.components.OSINETScreen
 import com.google.mlkit.vision.common.InputImage
@@ -98,6 +101,7 @@ fun FaceRegistrationScreen(
     LaunchedEffect(state.registrationCompleted, state.employee?.id) {
         val employeeId = state.employee?.id
         if (state.registrationCompleted && employeeId != null) {
+            crashLog("stage=navigation employeeId=$employeeId")
             viewModel.acknowledgeRegistrationCompleted()
             onRegistered?.invoke(employeeId)
         }
@@ -279,6 +283,7 @@ private fun poseDisplayText(pose: FaceRegistrationPose): String = when (pose) {
 }
 
 @Composable
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
 private fun FaceRegistrationCamera(
     onPoseSample: (y: Float, x: Float, z: Float, embedding: FloatArray) -> Boolean,
     onGuidance: (String) -> Unit,
@@ -286,16 +291,20 @@ private fun FaceRegistrationCamera(
     pose: FaceRegistrationPose,
     completed: Int
 ) {
+    val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
-    val processing = remember { AtomicBoolean(false) }
+    val processing = remember { FaceFrameGate() }
     val firstFrameLogged = remember { AtomicBoolean(false) }
     val nextCaptureAt = remember { longArrayOf(0L) }
     var provider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var engine by remember { mutableStateOf<FaceEmbeddingEngine?>(null) }
     var detector by remember { mutableStateOf<FaceDetector?>(null) }
+    val active = remember { AtomicBoolean(true) }
+    val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
     DisposableEffect(Unit) {
         onDispose {
+            active.set(false)
             provider?.unbindAll()
             detector?.close()
             engine?.close()
@@ -324,24 +333,32 @@ private fun FaceRegistrationCamera(
                         debug("FACE_REG_DETECTOR_READY", "ready=true")
                         val analysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
                         analysis.setAnalyzer(executor) { proxy ->
+                            crashLog("stage=analyzer_started")
+                            val closeOnce = CloseOnce(proxy::close)
                             val media = proxy.image
-                            if (media == null || !processing.compareAndSet(false, true)) {
-                                proxy.close()
+                            if (media == null || !processing.tryAcquire()) {
+                                closeOnce.close()
                                 return@setAnalyzer
                             }
-                            // Copy before ML Kit consumes the ImageProxy. Its plane buffers are invalid in callbacks.
-                            val rotationDegrees = proxy.imageInfo.rotationDegrees
-                            val sourceBitmap = proxy.yPlaneBitmapOrNull()
-                            if (sourceBitmap == null) {
-                                processing.set(false)
-                                proxy.close()
-                                onError(IllegalStateException("y_plane_unavailable"))
+                            val rotationDegrees: Int
+                            val luma: ByteArray
+                            try {
+                                rotationDegrees = proxy.imageInfo.rotationDegrees
+                                val plane = proxy.planes.firstOrNull() ?: error("y_plane_missing")
+                                luma = FaceFrameSafety.copyLuma(plane.buffer, proxy.width, proxy.height, plane.rowStride, plane.pixelStride)
+                                crashLog("stage=frame_copied width=${proxy.width} height=${proxy.height} rotation=$rotationDegrees")
+                            } catch (error: Throwable) {
+                                processing.release()
+                                closeOnce.close()
+                                reportCrash("frame_copy", error, active, mainExecutor, onError)
                                 return@setAnalyzer
                             }
-                            val frameBitmap = sourceBitmap.rotated(rotationDegrees)
                             if (firstFrameLogged.compareAndSet(false, true)) debug("FACE_REG_FIRST_FRAME", "received=true")
+                            crashLog("stage=mlkit_started")
+                            try {
                             currentDetector.process(InputImage.fromMediaImage(media, rotationDegrees))
                                 .addOnSuccessListener(executor) { faces ->
+                                    crashLog("stage=face_detected count=${faces.size}")
                                     debug(
                                         "FACE_REG_FRAME",
                                         "faces=${faces.size} rotation=$rotationDegrees pose=$pose samples=$completed"
@@ -349,15 +366,17 @@ private fun FaceRegistrationCamera(
                                     when {
                                         faces.isEmpty() -> {
                                             debug("FACE_REG_FRAME", "validation=NO_FACE pose=$pose")
-                                            onGuidance("Mire directamente a la cámara")
+                                            postIfActive(active, mainExecutor) { onGuidance("Mire directamente a la cámara") }
                                         }
                                         faces.size > 1 -> {
                                             debug("FACE_REG_FRAME", "validation=MULTIPLE_FACES pose=$pose")
-                                            onGuidance("Centre un \u00FAnico rostro")
+                                            postIfActive(active, mainExecutor) { onGuidance("Centre un \u00FAnico rostro") }
                                         }
-                                        else -> runCatching {
+                                        else -> try {
+                                            withFrameBitmap(luma, proxy.width, proxy.height, rotationDegrees) { frameBitmap ->
                                             val face = faces.single()
                                             val bounds = face.boundingBox
+                                            crashLog("stage=face_cropped bounds=${bounds.width()}x${bounds.height()}")
                                             val quality = frameBitmap.qualityIssue()
                                             debug(
                                                 "FACE_REG_FRAME",
@@ -367,19 +386,19 @@ private fun FaceRegistrationCamera(
                                             when {
                                                 bounds.width() < frameBitmap.width / 4 || bounds.height() < frameBitmap.height / 4 -> {
                                                     debug("FACE_REG_FRAME", "validation=FACE_TOO_SMALL pose=$pose")
-                                                    onGuidance("Ac\u00E9rquese")
+                                                    postIfActive(active, mainExecutor) { onGuidance("Ac\u00E9rquese") }
                                                 }
                                                 bounds.width() > frameBitmap.width * 9 / 10 || bounds.height() > frameBitmap.height * 9 / 10 -> {
                                                     debug("FACE_REG_FRAME", "validation=FACE_TOO_LARGE pose=$pose")
-                                                    onGuidance("Al\u00E9jese")
+                                                    postIfActive(active, mainExecutor) { onGuidance("Al\u00E9jese") }
                                                 }
                                                 !bounds.isInside(frameBitmap.width, frameBitmap.height) -> {
                                                     debug("FACE_REG_FRAME", "validation=FACE_NOT_CENTERED pose=$pose")
-                                                    onGuidance("Centre su rostro")
+                                                    postIfActive(active, mainExecutor) { onGuidance("Centre su rostro") }
                                                 }
                                                 quality != null -> {
                                                     debug("FACE_REG_FRAME", "validation=IMAGE_QUALITY pose=$pose reason=$quality")
-                                                    onGuidance(quality)
+                                                    postIfActive(active, mainExecutor) { onGuidance(quality) }
                                                 }
                                                 System.currentTimeMillis() < nextCaptureAt[0] -> {
                                                     debug("FACE_REG_FRAME", "validation=SAMPLE_COOLDOWN pose=$pose")
@@ -387,24 +406,31 @@ private fun FaceRegistrationCamera(
                                                 }
                                                 else -> {
                                                     val embedding = currentEngine.embedding(frameBitmap, Rect(bounds))
-                                                    val accepted = onPoseSample(face.headEulerAngleY, face.headEulerAngleX, face.headEulerAngleZ, embedding)
-                                                    debug(
-                                                        "FACE_REGISTRATION_POSE",
-                                                        "x=${face.headEulerAngleX} y=${face.headEulerAngleY} " +
-                                                            "z=${face.headEulerAngleZ} pose=$pose validation=" +
-                                                            if (accepted) "READY" else "POSE_NOT_REACHED"
-                                                    )
-                                                    if (accepted) nextCaptureAt[0] = System.currentTimeMillis() + CAPTURE_COOLDOWN_MS
+                                                    require(embedding.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION) { "invalid_embedding_dimension" }
+                                                    crashLog("stage=embedding_generated dimension=${embedding.size}")
+                                                    postIfActive(active, mainExecutor) {
+                                                        val accepted = onPoseSample(face.headEulerAngleY, face.headEulerAngleX, face.headEulerAngleZ, embedding)
+                                                        debug("FACE_REGISTRATION_POSE", "pose=$pose validation=${if (accepted) "READY" else "POSE_NOT_REACHED"}")
+                                                        if (accepted) nextCaptureAt[0] = System.currentTimeMillis() + CAPTURE_COOLDOWN_MS
+                                                    }
                                                 }
                                             }
-                                        }.onFailure(onError)
+                                            }
+                                        } catch (error: Throwable) {
+                                            reportCrash("face_processing", error, active, mainExecutor, onError)
+                                        }
                                     }
                                 }
-                                .addOnFailureListener(executor, onError)
+                                .addOnFailureListener(executor) { reportCrash("mlkit", it, active, mainExecutor, onError) }
                                 .addOnCompleteListener {
-                                    processing.set(false)
-                                    proxy.close()
+                                    processing.release()
+                                    closeOnce.close()
                                 }
+                            } catch (error: Throwable) {
+                                processing.release()
+                                closeOnce.close()
+                                reportCrash("mlkit_start", error, active, mainExecutor, onError)
+                            }
                         }
                         currentProvider.unbindAll()
                         currentProvider.bindToLifecycle(
@@ -416,7 +442,7 @@ private fun FaceRegistrationCamera(
                         debug("FACE_REG_CAMERA_BOUND", "front=true")
                     }.onFailure { error ->
                         provider?.unbindAll()
-                        onError(error)
+                        reportCrash("camera_setup", error, active, mainExecutor, onError)
                     }
                 }, ContextCompat.getMainExecutor(context))
             }
@@ -451,20 +477,38 @@ private fun Bitmap.qualityIssue(): String? {
     }
 }
 
-private fun androidx.camera.core.ImageProxy.yPlaneBitmapOrNull(): Bitmap? = runCatching {
-    val plane = planes.firstOrNull() ?: return null
-    val buffer = plane.buffer ?: return null
-    val duplicate = buffer.duplicate()
-    val bytes = ByteArray(duplicate.remaining()).also { duplicate.get(it) }
-    val pixels = IntArray(width * height)
-    for (y in 0 until height) for (x in 0 until width) {
-        val index = y * plane.rowStride + x * plane.pixelStride
-        require(index in bytes.indices)
-        val luminance = bytes[index].toInt() and 0xff
-        pixels[y * width + x] = android.graphics.Color.rgb(luminance, luminance, luminance)
+private fun ByteArray.toBitmap(width: Int, height: Int): Bitmap {
+    require(size == width * height) { "invalid_luma_size" }
+    val pixels = IntArray(size) { index ->
+        val luminance = this[index].toInt() and 0xff
+        android.graphics.Color.rgb(luminance, luminance, luminance)
     }
-    Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-}.getOrNull()
+    return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+}
+
+private inline fun withFrameBitmap(luma: ByteArray, width: Int, height: Int, rotationDegrees: Int, action: (Bitmap) -> Unit) {
+    val source = luma.toBitmap(width, height)
+    val rotated = source.rotated(rotationDegrees)
+    try {
+        action(rotated)
+    } finally {
+        if (rotated !== source) rotated.recycle()
+        source.recycle()
+    }
+}
+
+private fun postIfActive(active: AtomicBoolean, mainExecutor: java.util.concurrent.Executor, action: () -> Unit) {
+    if (active.get()) mainExecutor.execute { if (active.get()) action() }
+}
+
+private fun reportCrash(stage: String, error: Throwable, active: AtomicBoolean, mainExecutor: java.util.concurrent.Executor, onError: (Throwable) -> Unit) {
+    Log.e("FACE_REGISTRATION_CRASH", "stage=error file=FaceRegistrationScreen.kt pipelineStage=$stage message=${error.message}", error)
+    postIfActive(active, mainExecutor) { onError(error) }
+}
+
+private fun crashLog(message: String) {
+    if (BuildConfig.DEBUG) Log.d("FACE_REGISTRATION_CRASH", message)
+}
 
 private fun debug(tag: String, message: String) {
     if (BuildConfig.DEBUG) Log.d(tag, message)

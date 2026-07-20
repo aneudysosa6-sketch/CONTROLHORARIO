@@ -3,6 +3,7 @@ package com.example.controlhorario.face
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.util.Log
 import java.nio.ByteBuffer
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -21,7 +22,7 @@ class FaceEmbeddingCipher {
         return Base64.encodeToString(cipher.iv + cipherText, Base64.NO_WRAP)
     }
 
-    fun decrypt(value: String, dimension: Int): FloatArray? = runCatching {
+    fun decrypt(value: String, dimension: Int): FloatArray? = try {
         val bytes = Base64.decode(value, Base64.NO_WRAP)
         require(bytes.size > IV_BYTES)
         val cipher = Cipher.getInstance(TRANSFORMATION).apply {
@@ -30,7 +31,14 @@ class FaceEmbeddingCipher {
         val plain = cipher.doFinal(bytes.copyOfRange(IV_BYTES, bytes.size))
         require(plain.size == dimension * Float.SIZE_BYTES)
         FloatArray(dimension) { index -> ByteBuffer.wrap(plain, index * Float.SIZE_BYTES, Float.SIZE_BYTES).float }
-    }.getOrNull()
+    } catch (error: Throwable) {
+        Log.e(
+            "FACE_REGISTRATION_CRASH",
+            "stage=error file=FaceEmbeddingCipher.kt pipelineStage=decrypt message=${error.message}",
+            error
+        )
+        null
+    }
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }

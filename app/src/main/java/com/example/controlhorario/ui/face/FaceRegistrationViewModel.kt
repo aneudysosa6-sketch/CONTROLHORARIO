@@ -18,7 +18,9 @@ import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class FaceRegistrationState(
     val employee: Employee? = null,
@@ -138,7 +140,7 @@ class FaceRegistrationViewModel(
     }
 
     fun cameraFailure(error: Throwable) {
-        debug("FACE_REG_CAMERA_ERROR", "type=${error.javaClass.simpleName} message=${error.message.orEmpty().take(120)}")
+        Log.e("FACE_REGISTRATION_CRASH", "stage=error file=FaceRegistrationViewModel.kt pipelineStage=camera message=${error.message}", error)
         _state.value = _state.value.copy(
             capturing = false,
             saving = false,
@@ -157,6 +159,7 @@ class FaceRegistrationViewModel(
         viewModelScope.launch {
             val employee = _state.value.employee ?: run { saving = false; return@launch }
             runCatching {
+            withContext(Dispatchers.IO) {
             require(samples.size == FaceRegistrationPose.entries.size)
             require(samples.all { it.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION })
             val embedding = FaceEmbeddingEngine.average(samples)
@@ -187,16 +190,19 @@ class FaceRegistrationViewModel(
             )
             val recovered = requireNotNull(cipher.decrypt(stored.encryptedEmbedding, stored.embeddingDimension))
             require(recovered.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION && recovered.all { it.isFinite() })
+            crashLog("stage=embedding_stored employeeId=${employee.id} dimension=${recovered.size}")
             debug(
                 "FACE_EMBEDDING_FLOW",
                 "stage=decrypted employeeId=${employee.id} dimension=${recovered.size} finite=true"
             )
             employees.enqueueFaceEmbedding(employee, recovered)
+            crashLog("stage=embedding_queued employeeId=${employee.id} dimension=${recovered.size}")
             EmployeeUploadScheduler.enqueueImmediate(context)
+            }
             }.onSuccess {
             _state.value = _state.value.copy(registered = true, samples = 5, capturing = false, saving = false, registrationCompleted = true, message = "Rostro registrado correctamente.")
             }.onFailure { error ->
-                Log.d("FACE_REGISTRATION", "saveFailure=${error.javaClass.simpleName}")
+                Log.e("FACE_REGISTRATION_CRASH", "stage=error file=FaceRegistrationViewModel.kt pipelineStage=storage message=${error.message}", error)
                 _state.value = _state.value.copy(capturing = false, saving = false, message = "No se pudo guardar el rostro. Intente nuevamente.")
             }
             saving = false
@@ -219,5 +225,9 @@ class FaceRegistrationViewModel(
 
     private fun debug(tag: String, message: String) {
         if (BuildConfig.DEBUG) Log.d(tag, message)
+    }
+
+    private fun crashLog(message: String) {
+        if (BuildConfig.DEBUG) Log.d("FACE_REGISTRATION_CRASH", message)
     }
 }
