@@ -15,7 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.engine.JourneyAction
-import com.example.controlhorario.engine.JourneyStateEngine
 import com.example.controlhorario.engine.JourneyStatus
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.ui.components.OSINETButton
@@ -37,13 +36,13 @@ fun Rc2EmployeeAttendanceScreen(
     val error by viewModel.error.collectAsState()
     val authorized by viewModel.isPunchAuthorized.collectAsState()
     val remotePresentation by viewModel.remotePresentation.collectAsState()
-    val status = journey?.status
-        ?.let { runCatching { JourneyStatus.valueOf(it) }.getOrNull() }
-        ?: JourneyStatus.SIN_INICIAR
-    val allowed = JourneyStateEngine.allowedActions(status)
+    val status = JourneyActionAvailability.effectiveStatus(journey?.status,remotePresentation.access)
+    val allowed = JourneyActionAvailability.allowedActions(journey?.status,remotePresentation.access)
+    val journeyStateReady = remotePresentation.actionsAllowed && status != null
     val stateMessage = when {
         remotePresentation.loadingRemote -> remotePresentation.message
         !remotePresentation.actionsAllowed -> remotePresentation.message
+        remotePresentation.access == JourneyRemoteAccess.PENDING -> remotePresentation.message
         status == JourneyStatus.FINALIZADA -> "La jornada de hoy ya fue finalizada."
         authorized -> "Rostro validado. Registra una sola acción."
         else -> "Autorización vencida. Vuelva al PIN."
@@ -61,7 +60,7 @@ fun Rc2EmployeeAttendanceScreen(
             Text(
                 text = when {
                     remotePresentation.loadingRemote -> "Estado actual: Confirmando…"
-                    journey == null && !remotePresentation.actionsAllowed -> "Estado actual: No confirmado"
+                    status == null -> "Estado actual: No confirmado"
                     else -> "Estado actual: ${statusLabel(status)}"
                 },
                 color = OSINETColors.GreenSoft
@@ -94,7 +93,7 @@ fun Rc2EmployeeAttendanceScreen(
             allowed,
             busy,
             authorized,
-            remotePresentation.actionsAllowed,
+            journeyStateReady,
             employee,
             viewModel,
             onFinish
@@ -106,7 +105,7 @@ fun Rc2EmployeeAttendanceScreen(
             allowed,
             busy,
             authorized,
-            remotePresentation.actionsAllowed,
+            journeyStateReady,
             employee,
             viewModel,
             onFinish
@@ -118,7 +117,7 @@ fun Rc2EmployeeAttendanceScreen(
             allowed,
             busy,
             authorized,
-            remotePresentation.actionsAllowed,
+            journeyStateReady,
             employee,
             viewModel,
             onFinish
@@ -130,7 +129,7 @@ fun Rc2EmployeeAttendanceScreen(
             allowed,
             busy,
             authorized,
-            remotePresentation.actionsAllowed,
+            journeyStateReady,
             employee,
             viewModel,
             onFinish

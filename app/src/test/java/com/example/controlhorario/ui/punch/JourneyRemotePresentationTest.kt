@@ -1,6 +1,7 @@
 package com.example.controlhorario.ui.punch
 
 import com.example.controlhorario.database.JourneyEntity
+import com.example.controlhorario.engine.JourneyAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -44,9 +45,31 @@ class JourneyRemotePresentationTest {
         assertFalse(state.actionsAllowed)
     }
 
-    @Test fun `pending and conflict outcomes stay blocked`() {
-        assertFalse(JourneyRemotePresentation.pendingLocalAction().actionsAllowed)
+    @Test fun `pending is a warning while a real conflict stays blocked`() {
+        val pending=JourneyRemotePresentation.pendingLocalAction()
+        assertEquals(JourneyRemoteAccess.PENDING,pending.access)
+        assertTrue(pending.actionsAllowed)
+        assertTrue(pending.message.contains("pendiente"))
         assertFalse(JourneyRemotePresentation.conflict().actionsAllowed)
+    }
+
+    @Test fun `pending warning keeps the canonical actions for each usable state`() {
+        val access=JourneyRemoteAccess.PENDING
+        assertEquals(setOf(JourneyAction.INICIAR),JourneyActionAvailability.allowedActions("SIN_INICIAR",access))
+        assertEquals(setOf(JourneyAction.PAUSAR,JourneyAction.FINALIZAR),JourneyActionAvailability.allowedActions("EN_CURSO",access))
+        assertEquals(setOf(JourneyAction.REANUDAR,JourneyAction.FINALIZAR),JourneyActionAvailability.allowedActions("EN_PAUSA",access))
+        assertEquals(emptySet<JourneyAction>(),JourneyActionAvailability.allowedActions("FINALIZADA",access))
+    }
+
+    @Test fun `pending without snapshot and unknown status never enable iniciar`() {
+        assertEquals(emptySet<JourneyAction>(),JourneyActionAvailability.allowedActions(null,JourneyRemoteAccess.PENDING))
+        assertEquals(emptySet<JourneyAction>(),JourneyActionAvailability.allowedActions("UNKNOWN",JourneyRemoteAccess.CONFIRMED))
+        assertEquals(setOf(JourneyAction.INICIAR),JourneyActionAvailability.allowedActions(null,JourneyRemoteAccess.CONFIRMED))
+    }
+
+    @Test fun `loading and conflict block all actions even with an existing status`() {
+        assertEquals(emptySet<JourneyAction>(),JourneyActionAvailability.allowedActions("EN_CURSO",JourneyRemoteAccess.LOADING))
+        assertEquals(emptySet<JourneyAction>(),JourneyActionAvailability.allowedActions("EN_PAUSA",JourneyRemoteAccess.BLOCKED))
     }
 
     private fun journey(syncStatus: String, status: String) = JourneyEntity(

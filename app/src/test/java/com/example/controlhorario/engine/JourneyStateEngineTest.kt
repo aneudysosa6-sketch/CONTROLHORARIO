@@ -12,4 +12,10 @@ class JourneyStateEngineTest{
  @Test fun `cada transicion invalida se rechaza`(){val cases=listOf(JourneySnapshot() to listOf(JourneyAction.PAUSAR,JourneyAction.REANUDAR,JourneyAction.FINALIZAR),JourneySnapshot(status=JourneyStatus.EN_CURSO,startedAt=t0) to listOf(JourneyAction.INICIAR,JourneyAction.REANUDAR),JourneySnapshot(status=JourneyStatus.EN_PAUSA,startedAt=t0,pauseStartedAt=t1) to listOf(JourneyAction.INICIAR,JourneyAction.PAUSAR));cases.forEach{(state,actions)->actions.forEach{assertFalse(JourneyStateEngine.apply(state,it,t2).accepted)}}}
  @Test fun `doble toque no crea segunda transicion`(){val started=JourneyStateEngine.apply(JourneySnapshot(),JourneyAction.INICIAR,t0).snapshot;val second=JourneyStateEngine.apply(started,JourneyAction.INICIAR,t0);assertFalse(second.accepted);assertEquals(AttendanceContract.ERROR_INVALID_TRANSITION,second.errorCode)}
  @Test fun `finalizada es irreversible`(){val final=JourneySnapshot(status=JourneyStatus.FINALIZADA,startedAt=t0,finishedAt=t3);JourneyAction.entries.forEach{val result=JourneyStateEngine.apply(final,it,t3);assertFalse(result.accepted);assertEquals(AttendanceContract.ERROR_ALREADY_FINALIZED,result.errorCode)}}
+ @Test fun `acciones habilitadas siguen exactamente el estado de jornada`(){
+  assertEquals(setOf(JourneyAction.INICIAR),JourneyStateEngine.allowedActions(JourneyStatus.SIN_INICIAR))
+  assertEquals(setOf(JourneyAction.PAUSAR,JourneyAction.FINALIZAR),JourneyStateEngine.allowedActions(JourneyStatus.EN_CURSO))
+  assertEquals(setOf(JourneyAction.REANUDAR,JourneyAction.FINALIZAR),JourneyStateEngine.allowedActions(JourneyStatus.EN_PAUSA))
+  assertEquals(emptySet<JourneyAction>(),JourneyStateEngine.allowedActions(JourneyStatus.FINALIZADA))
+ }
 }

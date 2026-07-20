@@ -1,11 +1,15 @@
 package com.example.controlhorario.ui.punch
 
 import com.example.controlhorario.database.JourneyEntity
+import com.example.controlhorario.engine.JourneyAction
+import com.example.controlhorario.engine.JourneyStateEngine
+import com.example.controlhorario.engine.JourneyStatus
 
 enum class JourneyRemoteAccess {
     LOADING,
     CONFIRMED,
     CACHED,
+    PENDING,
     BLOCKED
 }
 
@@ -14,7 +18,11 @@ data class JourneyRemotePresentation(
     val message: String = ""
 ) {
     val loadingRemote: Boolean get() = access == JourneyRemoteAccess.LOADING
-    val actionsAllowed: Boolean get() = access == JourneyRemoteAccess.CONFIRMED || access == JourneyRemoteAccess.CACHED
+    val actionsAllowed: Boolean get() = access in setOf(
+        JourneyRemoteAccess.CONFIRMED,
+        JourneyRemoteAccess.CACHED,
+        JourneyRemoteAccess.PENDING
+    )
 
     companion object {
         fun loading() = JourneyRemotePresentation(
@@ -34,8 +42,8 @@ data class JourneyRemotePresentation(
         }
 
         fun pendingLocalAction() = JourneyRemotePresentation(
-            access = JourneyRemoteAccess.BLOCKED,
-            message = "Hay una acción de jornada pendiente de sincronización. Verifique la conexión."
+            access = JourneyRemoteAccess.PENDING,
+            message = "Hay una acción de jornada pendiente de sincronización."
         )
 
         fun conflict() = JourneyRemotePresentation(
@@ -47,3 +55,14 @@ data class JourneyRemotePresentation(
 
 internal fun JourneyEntity?.isValidJourneyCache(): Boolean =
     this != null && syncStatus == "ENVIADA"
+
+internal object JourneyActionAvailability {
+    fun effectiveStatus(localStatus:String?,access:JourneyRemoteAccess):JourneyStatus? {
+        if(access !in setOf(JourneyRemoteAccess.CONFIRMED,JourneyRemoteAccess.CACHED,JourneyRemoteAccess.PENDING))return null
+        if(localStatus==null)return JourneyStatus.SIN_INICIAR.takeIf{access==JourneyRemoteAccess.CONFIRMED}
+        return runCatching{JourneyStatus.valueOf(localStatus)}.getOrNull()
+    }
+
+    fun allowedActions(localStatus:String?,access:JourneyRemoteAccess):Set<JourneyAction> =
+        effectiveStatus(localStatus,access)?.let(JourneyStateEngine::allowedActions).orEmpty()
+}

@@ -56,7 +56,11 @@ class JourneyViewModel(
     }
 
     fun record(employee: Employee, action: JourneyAction, onSaved: () -> Unit) {
-        if (busy.value || !_remotePresentation.value.actionsAllowed) return
+        val availableActions=JourneyActionAvailability.allowedActions(
+            journey.value?.status,
+            _remotePresentation.value.access
+        )
+        if (busy.value || action !in availableActions) return
         val deviceId = identity.deviceId
         val authorized = deviceId != null && JourneyBiometricGate.isAuthorized(employee.id, deviceId)
         isPunchAuthorized.value = authorized
