@@ -160,6 +160,10 @@ class FaceRegistrationViewModel(
             require(samples.size == FaceRegistrationPose.entries.size)
             require(samples.all { it.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION })
             val embedding = FaceEmbeddingEngine.average(samples)
+            debug(
+                "FACE_EMBEDDING_FLOW",
+                "stage=generated employeeId=${employee.id} dimension=${embedding.size} finite=${embedding.all { it.isFinite() }}"
+            )
             val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
             val previous = faces.activeForEmployee(employee.id)
             val insertedId = faces.replace(
@@ -177,8 +181,17 @@ class FaceRegistrationViewModel(
             require(insertedId > 0)
             val stored = requireNotNull(faces.activeForEmployee(employee.id))
             require(stored.embeddingDimension == FaceEmbeddingEngine.EMBEDDING_DIMENSION)
-            require(cipher.decrypt(stored.encryptedEmbedding, stored.embeddingDimension)?.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION)
-            employees.enqueueFaceEmbedding(employee, embedding)
+            debug(
+                "FACE_EMBEDDING_FLOW",
+                "stage=stored employeeId=${employee.id} rowId=$insertedId dimension=${stored.embeddingDimension} encrypted=true"
+            )
+            val recovered = requireNotNull(cipher.decrypt(stored.encryptedEmbedding, stored.embeddingDimension))
+            require(recovered.size == FaceEmbeddingEngine.EMBEDDING_DIMENSION && recovered.all { it.isFinite() })
+            debug(
+                "FACE_EMBEDDING_FLOW",
+                "stage=decrypted employeeId=${employee.id} dimension=${recovered.size} finite=true"
+            )
+            employees.enqueueFaceEmbedding(employee, recovered)
             EmployeeUploadScheduler.enqueueImmediate(context)
             }.onSuccess {
             _state.value = _state.value.copy(registered = true, samples = 5, capturing = false, saving = false, registrationCompleted = true, message = "Rostro registrado correctamente.")

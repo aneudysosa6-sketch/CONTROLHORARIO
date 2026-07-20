@@ -117,7 +117,10 @@ class EmployeeRepository(
             .put("employee_code", employee.employeeCode).put("name", employee.nombre)
             .put("phone", employee.telefono).put("email", employee.email).put("active", employee.isActive)
             .put("updated_at", System.currentTimeMillis()).put("face_embedding", org.json.JSONArray(embedding.toList())).toString()
-        outbox.insert(EmployeeSyncOutboxEntity(employeeLocalId = employee.id, operation = "UPDATE", payloadJson = payload, idempotencyKey = key))
-        Log.d("EMPLOYEE_OUTBOX", "employeeId=${employee.id} operation=UPDATE faceEmbedding=present")
+        val outboxId = outbox.insert(EmployeeSyncOutboxEntity(employeeLocalId = employee.id, operation = "UPDATE", payloadJson = payload, idempotencyKey = key))
+        Log.d(
+            "FACE_EMBEDDING_FLOW",
+            "stage=outbox employeeId=${employee.id} outboxId=$outboxId operation=UPDATE faceEmbeddingType=array dimension=${embedding.size}"
+        )
     }
 }

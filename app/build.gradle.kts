@@ -28,6 +28,7 @@ val attendanceSyncUrl = providers.environmentVariable("CONTROLHORARIO_ATTENDANCE
     .get().trim()
 val supabasePublishableKey = configuredValue("CONTROLHORARIO_SUPABASE_PUBLISHABLE_KEY")
 val supabaseUrl = employeeSyncUrl.substringBefore("/functions/v1/")
+val employeeUpsertUrl = "$supabaseUrl/functions/v1/employee-upsert"
 
 require(deviceEnrollmentUrl.startsWith("https://")) { "CONTROLHORARIO_DEVICE_ENROLLMENT_URL debe usar HTTPS" }
 require(deviceEnrollmentUrl.endsWith("/functions/v1/device-enrollment")) { "CONTROLHORARIO_DEVICE_ENROLLMENT_URL debe apuntar a la Edge Function device-enrollment" }
@@ -47,6 +48,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resValue("string", "device_enrollment_url", deviceEnrollmentUrl)
         resValue("string", "employee_sync_url", employeeSyncUrl)
+        resValue("string", "employee_upsert_url", employeeUpsertUrl)
         resValue("string", "attendance_sync_url", attendanceSyncUrl)
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabasePublishableKey\"")
