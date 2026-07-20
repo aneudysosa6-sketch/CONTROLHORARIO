@@ -26,11 +26,13 @@ data class JourneyRemoteHydrationResult(
 )
 
 object JourneyRemoteHydrationPolicy {
- fun decide(local:JourneyEntity?,hasPendingOutbox:Boolean,hasUnresolvedConflict:Boolean,remoteVersion:Long):JourneyRemoteHydrationDecision=when{
-  local==null->JourneyRemoteHydrationDecision.INSERT
-  hasPendingOutbox->JourneyRemoteHydrationDecision.BLOCKED_PENDING
-  hasUnresolvedConflict->JourneyRemoteHydrationDecision.VERSION_CONFLICT
-  else->JourneyRemoteHydrationDecision.UPDATE.also{require(remoteVersion>=0){"INVALID_REMOTE_VERSION"}}
+ fun decide(local:JourneyEntity?,hasPendingOutbox:Boolean,remoteVersion:Long):JourneyRemoteHydrationDecision{
+  require(remoteVersion>=0){"INVALID_REMOTE_VERSION"}
+  return when{
+   local==null->JourneyRemoteHydrationDecision.INSERT
+   hasPendingOutbox->JourneyRemoteHydrationDecision.BLOCKED_PENDING
+   else->JourneyRemoteHydrationDecision.UPDATE
+  }
  }
 }
 
@@ -48,9 +50,9 @@ object JourneyRemoteHydrationPolicy {
  @Query("SELECT o.* FROM journey_outbox o INNER JOIN journeys j ON j.localId=o.journeyLocalId WHERE j.employeeLocalId=:employeeLocalId AND o.state='PENDIENTE' ORDER BY o.id LIMIT :limit") suspend fun pendingForEmployee(employeeLocalId:Int,limit:Int=100):List<JourneyOutboxEntity>
  @Query("SELECT COUNT(*) FROM journey_outbox o INNER JOIN journeys j ON j.localId=o.journeyLocalId WHERE j.employeeLocalId=:employeeLocalId AND o.state='PENDIENTE'") suspend fun pendingCountForEmployee(employeeLocalId:Int):Int
  @Query("SELECT COUNT(*) FROM journey_outbox WHERE journeyLocalId=:journeyLocalId AND state='PENDIENTE'") suspend fun pendingCountForJourney(journeyLocalId:Int):Int
- @Query("SELECT COUNT(*) FROM journey_outbox WHERE journeyLocalId=:journeyLocalId AND state='CONFLICTO'") suspend fun conflictingCountForJourney(journeyLocalId:Int):Int
  @Query("UPDATE journey_outbox SET state='ENVIADA',sentAt=:now,lastError='' WHERE id=:id") suspend fun markSent(id:Long,now:Long)
  @Query("UPDATE journey_outbox SET state=:state,attempts=attempts+1,nextRetryAt=:nextRetry,lastError=:error WHERE id=:id") suspend fun markFailed(id:Long,state:String,nextRetry:Long,error:String)
+ @Query("UPDATE journey_outbox SET state='RESUELTA_REMOTO',sentAt=COALESCE(sentAt,:now),lastError='' WHERE journeyLocalId=:journeyLocalId AND state IN ('CONFLICTO','RECHAZADA')") suspend fun resolveTerminalOutboxFromRemote(journeyLocalId:Int,now:Long):Int
  @Query("UPDATE journeys SET syncStatus=:state,updatedAt=:now WHERE localId=:localId") suspend fun markJourneySyncState(localId:Int,state:String,now:Long)
  @Query("UPDATE journeys SET remoteId=COALESCE(:remoteId,remoteId),syncVersion=:version,lastSyncedAt=:now WHERE localId=:localId") suspend fun recordRemoteAckMetadata(localId:Int,remoteId:String?,version:Long,now:Long)
  @Query("UPDATE journeys SET remoteId=:remoteId,status=:status,startedAt=:startedAt,pauseStartedAt=:pauseStartedAt,pauseEndedAt=:pauseEndedAt,finishedAt=:finishedAt,workedMinutes=:workedMinutes,breakMinutes=:breakMinutes,syncStatus='ENVIADA',syncVersion=:version,lastSyncedAt=:now,createdOffline=0,updatedAt=:now WHERE localId=:localId") suspend fun applyRemote(localId:Int,remoteId:String?,status:String,startedAt:String?,pauseStartedAt:String?,pauseEndedAt:String?,finishedAt:String?,workedMinutes:Int,breakMinutes:Int,version:Long,now:Long)
@@ -68,11 +70,8 @@ object JourneyRemoteHydrationPolicy {
    recordRemoteAckMetadata(local.localId,remoteId,maxOf(local.syncVersion,version),now)
    return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.BLOCKED_PENDING,local.localId,local.status,local.status,local.syncVersion,maxOf(local.syncVersion,version))
   }
-  if(conflictingCountForJourney(local.localId)>0){
-   markJourneySyncState(local.localId,"CONFLICTO",now)
-   return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.VERSION_CONFLICT,local.localId,local.status,local.status,local.syncVersion,local.syncVersion)
-  }
   applyRemote(local.localId,remoteId,status,startedAt,pauseStartedAt,pauseEndedAt,finishedAt,workedMinutes,breakMinutes,version,now)
+  resolveTerminalOutboxFromRemote(local.localId,now)
   resolveOpenConflictsFromRemote(local.localId,now)
   return JourneyRemoteHydrationResult(JourneyRemoteHydrationDecision.UPDATE,local.localId,local.status,status,local.syncVersion,version)
  }
@@ -91,8 +90,7 @@ object JourneyRemoteHydrationPolicy {
  ):JourneyRemoteHydrationResult{
   val local=find(employeeLocalId,workDate)
   val pending=local?.let{pendingCountForJourney(it.localId)>0}?:false
-  val unresolvedConflict=local?.let{conflictingCountForJourney(it.localId)>0}?:false
-  return when(val decision=JourneyRemoteHydrationPolicy.decide(local,pending,unresolvedConflict,version)){
+  return when(val decision=JourneyRemoteHydrationPolicy.decide(local,pending,version)){
    JourneyRemoteHydrationDecision.INSERT->{
     val value=JourneyEntity(remoteId=remoteId,employeeLocalId=employeeLocalId,employeeRemoteId=employeeRemoteId,deviceId=deviceId,workDate=workDate,status=status,startedAt=startedAt,pauseStartedAt=pauseStartedAt,pauseEndedAt=pauseEndedAt,finishedAt=finishedAt,workedMinutes=workedMinutes,breakMinutes=breakMinutes,syncStatus="ENVIADA",syncVersion=version,lastSyncedAt=now,createdOffline=false,updatedAt=now)
     val id=insertJourney(value).toInt()
@@ -102,12 +100,14 @@ object JourneyRemoteHydrationPolicy {
     val current=requireNotNull(local)
     val updated=current.copy(remoteId=remoteId?:current.remoteId,employeeRemoteId=employeeRemoteId,status=status,startedAt=startedAt,pauseStartedAt=pauseStartedAt,pauseEndedAt=pauseEndedAt,finishedAt=finishedAt,workedMinutes=workedMinutes,breakMinutes=breakMinutes,syncStatus="ENVIADA",syncVersion=version,lastSyncedAt=now,createdOffline=false,updatedAt=now)
     updateJourney(updated)
+    resolveTerminalOutboxFromRemote(current.localId,now)
     resolveOpenConflictsFromRemote(current.localId,now)
     JourneyRemoteHydrationResult(decision,current.localId,current.status,status,current.syncVersion,version)
    }
    JourneyRemoteHydrationDecision.KEEP_LOCAL->{
     val current=requireNotNull(local)
     applyRemote(current.localId,remoteId?:current.remoteId,status,startedAt,pauseStartedAt,pauseEndedAt,finishedAt,workedMinutes,breakMinutes,version,now)
+    resolveTerminalOutboxFromRemote(current.localId,now)
     resolveOpenConflictsFromRemote(current.localId,now)
     JourneyRemoteHydrationResult(decision,current.localId,current.status,status,current.syncVersion,version)
    }

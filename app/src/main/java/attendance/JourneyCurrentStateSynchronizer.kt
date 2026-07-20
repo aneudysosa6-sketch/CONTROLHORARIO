@@ -66,21 +66,6 @@ class JourneyCurrentStateSynchronizer(
             employeeLocalId,employeeRemoteId,session.deviceId,requestedAt,localBeforeFlush?.workDate.orEmpty(),
             localBeforeFlush?.status.orEmpty(),pendingBefore,null,null,null,null,localBeforeFlush?.status.orEmpty(),"STARTED"
         )
-        val blockedBeforeFlush=localBeforeFlush
-        if(
-            pendingBefore&&blockedBeforeFlush!=null&&
-            journeyDao.conflictingCountForJourney(blockedBeforeFlush.localId)>0
-        ){
-            val result=JourneyCurrentStateRefreshResult(
-                blockedBeforeFlush.workDate,
-                blockedBeforeFlush.remoteId!=null,
-                blockedBeforeFlush.syncVersion,
-                JourneyCurrentStateOutcome.CONFLICT
-            )
-            stateLog(employeeLocalId,employeeRemoteId,session.deviceId,requestedAt,result.workDate,blockedBeforeFlush.status,true,null,null,null,blockedBeforeFlush.syncVersion,blockedBeforeFlush.status,result.finalResult.name)
-            return result
-        }
-
         var flushConflict=false
         var flushRemoteVersion:Long?=null
         var flushHttpStatus:Int?=null
