@@ -45,7 +45,7 @@ enum class AdministrationSection(val wireName: String, val title: String, val de
     BRANCHES("sucursales", "Sucursales", "Ubicaciones, contacto y estado"),
     DEPARTMENTS("departamentos", "Departamentos", "Estructura por sucursal y supervisores"),
     POSITIONS("cargos", "Cargos", "Cargos laborales y departamentos"),
-    USERS("usuarios", "Usuarios", "Administradores, supervisores, roles y permisos"),
+    USERS("usuarios", "Accesos", "Cuentas vinculadas a empleados, roles y estado"),
     SCHEDULES("horarios", "Horarios", "Turnos, días, tolerancia y almuerzo"),
     JOURNEYS("jornadas", "Jornadas", "Reglas, pendientes, incidencias y ADMIN-OFF/ON"),
     DEVICES("dispositivos", "Dispositivos", "Android registrados y sincronización"),

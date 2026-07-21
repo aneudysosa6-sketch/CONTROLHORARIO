@@ -10,7 +10,7 @@ const cards:{key:AdminSection;title:string;description:string;icon:(p:{size?:num
  {key:'sucursales',title:'Sucursales',description:'Ubicaciones, contacto, zona horaria y estado.',icon:GitBranch,count:'branches'},
  {key:'departamentos',title:'Departamentos',description:'Estructura por sucursal y supervisores asignados.',icon:UsersRound,count:'departments'},
  {key:'cargos',title:'Cargos',description:'Cargos laborales por departamento y estado.',icon:ContactRound,count:'positions'},
- {key:'usuarios',title:'Usuarios',description:'Administradores, supervisores, roles y permisos.',icon:KeyRound,count:'profiles'},
+ {key:'usuarios',title:'Accesos',description:'Credenciales vinculadas a empleados, roles y permisos.',icon:KeyRound,count:'profiles'},
  {key:'horarios',title:'Horarios',description:'Turnos, días, almuerzo y tolerancia.',icon:CalendarClock,count:'schedules'},
  {key:'jornadas',title:'Jornadas',description:'Pendientes, incidencias y reglas operativas.',icon:Activity,count:'pending_journeys'},
  {key:'dispositivos',title:'Dispositivos',description:'Android registrados, sincronización y revocación.',icon:Smartphone,count:'devices'},
@@ -24,7 +24,7 @@ const defaultDepartment={name:'',code:'',branch_id:'',description:'',is_active:t
 const defaultPosition={name:'',code:'',department_id:'',description:'',level:1,is_active:true};
 
 export function SystemAdministrationPage({section}: {section?:AdminSection}){
- const nav=useNavigate(),{session,hasPermission}=useAuth();const[overview,setOverview]=useState<AdministrationOverview|null>(null),[organization,setOrganization]=useState<OrganizationData>(emptyOrg),[schedules,setSchedules]=useState<Schedule[]>([]),[audit,setAudit]=useState<AuditEvent[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const nav=useNavigate(),{hasPermission}=useAuth();const[overview,setOverview]=useState<AdministrationOverview|null>(null),[organization,setOrganization]=useState<OrganizationData>(emptyOrg),[schedules,setSchedules]=useState<Schedule[]>([]),[audit,setAudit]=useState<AuditEvent[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  async function load(){setLoading(true);setError('');try{const summary=await administrationService.overview();setOverview(summary);if(section&&['sucursales','departamentos','cargos','usuarios','horarios'].includes(section))setOrganization(await administrationService.organization());if(section==='horarios')setSchedules(await administrationService.schedules());if(section==='seguridad')setAudit(await administrationService.audit())}catch(e){setError(errorText(e))}finally{setLoading(false)}}
  useEffect(()=>{void load()},[section]);
  async function run(action:()=>Promise<unknown>,ok:string){setBusy(true);setError('');try{await action();setMessage(ok);await load();return true}catch(e){setError(errorText(e));return false}finally{setBusy(false)}}
@@ -33,10 +33,10 @@ export function SystemAdministrationPage({section}: {section?:AdminSection}){
  if(!section)return <AdministrationHub overview={overview}/>;
  if(!overview.sections[section])return <AdminShell title={cards.find(x=>x.key===section)?.title??section} onBack={()=>nav('/administracion')}><div className="error">Permisos insuficientes para abrir este módulo. La navegación administrativa permanece disponible.</div></AdminShell>;
  const common={overview,organization,busy,run};
- return <>{error&&<div className="error admin-floating-error"><b>Error real de Supabase</b><span>{error}</span></div>}{section==='empresa'&&<CompanySection {...common}/>} {section==='sucursales'&&<BranchesSection {...common}/>} {section==='departamentos'&&<DepartmentsSection {...common}/>} {section==='cargos'&&<PositionsSection {...common}/>} {section==='usuarios'&&<UsersSection {...common} currentId={session?.id??''} hasPermission={hasPermission}/>} {section==='horarios'&&<SchedulesSection schedules={schedules} organization={organization}/>} {section==='jornadas'&&<JourneysSection overview={overview}/>} {section==='seguridad'&&<SecuritySection overview={overview} audit={audit}/>} {section==='apariencia'&&<AppearanceSection {...common}/>}<Toast message={message}/></>;
+ return <>{error&&<div className="error admin-floating-error"><b>Error real de Supabase</b><span>{error}</span></div>}{section==='empresa'&&<CompanySection {...common}/>} {section==='sucursales'&&<BranchesSection {...common}/>} {section==='departamentos'&&<DepartmentsSection {...common}/>} {section==='cargos'&&<PositionsSection {...common}/>} {section==='usuarios'&&<UsersSection {...common} hasPermission={hasPermission}/>} {section==='horarios'&&<SchedulesSection schedules={schedules} organization={organization}/>} {section==='jornadas'&&<JourneysSection overview={overview}/>} {section==='seguridad'&&<SecuritySection overview={overview} audit={audit}/>} {section==='apariencia'&&<AppearanceSection {...common}/>}<Toast message={message}/></>;
 }
 
-function AdministrationHub({overview}:{overview:AdministrationOverview}){return <><PageHeader eyebrow="CONTROL CENTRAL" title="Administración del sistema" description={`${overview.company.name} · Configuración segura por permisos efectivos y aislamiento multiempresa.`}/><section className="admin-cards">{cards.filter(c=>overview.sections[c.key]).map(({key,title,description,icon:Icon,count})=><Link className="admin-card panel" to={`/administracion/${key}`} key={key}><span className="admin-card-icon"><Icon size={22}/></span><div><h2>{title}</h2><p>{description}</p>{count&&<Badge tone="blue">{overview.counts[count]} registros</Badge>}</div><ChevronRight/></Link>)}</section></>}
+function AdministrationHub({overview}:{overview:AdministrationOverview}){return <><PageHeader eyebrow="CONTROL CENTRAL" title="Administración del sistema" description={`${overview.company.name} · Configuración segura por permisos efectivos y aislamiento multiempresa.`}/><section className="admin-cards">{cards.filter(c=>overview.sections[c.key]).map(({key,title,description,icon:Icon,count})=><Link className="admin-card panel" to={key==='usuarios'?'/accesos':`/administracion/${key}`} key={key}><span className="admin-card-icon"><Icon size={22}/></span><div><h2>{title}</h2><p>{description}</p>{count&&<Badge tone="blue">{overview.counts[count]} registros</Badge>}</div><ChevronRight/></Link>)}</section></>}
 function AdminShell({title,children,action}:{title:string;children:ReactNode;action?:ReactNode;onBack?:()=>void}){return <><PageHeader eyebrow="ADMINISTRACIÓN DEL SISTEMA" title={title} description="Datos reales de la empresa autenticada y operaciones protegidas por permisos." action={<div className="button-row"><Link className="secondary" to="/administracion"><ArrowLeft/>Administración</Link>{action}</div>}/>{children}</>}
 
 type Common={overview:AdministrationOverview;organization:OrganizationData;busy:boolean;run:(action:()=>Promise<unknown>,ok:string)=>Promise<boolean>};
@@ -52,10 +52,8 @@ function UsersSection({
   organization,
   busy,
   run,
-  currentId,
   hasPermission,
 }: Common & {
-  currentId: string;
   hasPermission: (permission: string) => boolean;
 }) {
   const [reason, setReason] = useState('');
@@ -129,15 +127,6 @@ function UsersSection({
     setSelectedPermissions(rolePermissionIds(role.id));
   }
 
-  async function status(id: string, value: string) {
-    if (!reason.trim()) return;
-
-    await run(
-      () => administrationService.updateUserStatus(id, value, reason),
-      'Estado de usuario actualizado',
-    );
-  }
-
   async function saveRole(event: FormEvent) {
     event.preventDefault();
 
@@ -165,7 +154,7 @@ function UsersSection({
       );
       const nextPermissions = new Set(selectedPermissions);
       const permissionReason = created
-        ? 'Creación inicial de usuario'
+        ? 'Creación inicial del rol'
         : reason;
 
       for (const permission of organization.permissions) {
@@ -235,11 +224,11 @@ function UsersSection({
   }
 
   return (
-    <AdminShell title="Usuarios">
+    <AdminShell title="Roles y permisos">
       <div className="admin-users-actions">
         {hasPermission('usuarios.administrar') && (
-          <Link className="primary" to="/usuarios/sincronizar">
-            Crear o sincronizar usuario
+          <Link className="primary" to="/accesos">
+            Administrar accesos
           </Link>
         )}
 
@@ -252,64 +241,6 @@ function UsersSection({
           />
         </label>
       </div>
-
-      <SimpleTable
-        headers={['Usuario', 'Rol', 'Estado', 'Acciones']}
-        rows={organization.profiles.map((profile) => [
-          <b key={`${profile.id}-name`}>{profile.full_name}</b>,
-          <select
-            key={`${profile.id}-role`}
-            value={profile.role_id}
-            disabled={
-              profile.id === currentId ||
-              !hasPermission('usuarios.administrar') ||
-              !reason
-            }
-            onChange={(event) =>
-              void run(
-                () =>
-                  administrationService.updateUserRole(
-                    profile.id,
-                    event.target.value,
-                    reason,
-                  ),
-                'Rol actualizado',
-              )
-            }
-          >
-            {organization.roles
-              .filter((role) => role.is_active)
-              .map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-          </select>,
-          <Badge
-            key={`${profile.id}-status`}
-            tone={profile.status === 'active' ? 'green' : 'gray'}
-          >
-            {profile.status}
-          </Badge>,
-          profile.id === currentId ? (
-            'Sesión actual'
-          ) : (
-            <button
-              key={`${profile.id}-action`}
-              className="secondary"
-              disabled={!reason || busy}
-              onClick={() =>
-                void status(
-                  profile.id,
-                  profile.status === 'active' ? 'inactive' : 'active',
-                )
-              }
-            >
-              {profile.status === 'active' ? 'Desactivar' : 'Activar'}
-            </button>
-          ),
-        ])}
-      />
 
       {canManageRoles && (
         <>

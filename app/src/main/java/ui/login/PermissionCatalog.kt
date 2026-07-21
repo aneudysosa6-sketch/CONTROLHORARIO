@@ -14,7 +14,7 @@ object PermissionCatalog {
     const val EMPLOYEE_PERMISSION_REQUESTS = "Permisos Empleados"
     const val REPORTS = "Reportes"
     const val SETTINGS = "Configuración"
-    const val USER_PERMISSIONS = "Usuarios y Permisos"
+    const val USER_PERMISSIONS = "Accesos y Permisos"
     const val EMPLOYEE_PORTAL = "Portal del Empleado"
     const val INCIDENTS = "Incidencias"
     const val PIN_MODE = "Activar Modo PIN"

@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -24,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -94,6 +92,10 @@ import com.example.controlhorario.ui.administration.SystemAdministrationViewMode
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminScreen
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminViewModel
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminViewModelFactory
+import com.example.controlhorario.ui.access.AccessManagementScreen
+import com.example.controlhorario.ui.access.AccessCapabilities
+import com.example.controlhorario.ui.access.AccessManagementViewModel
+import com.example.controlhorario.ui.access.AccessManagementViewModelFactory
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationScreen
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModel
 import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModelFactory
@@ -461,25 +463,7 @@ fun AppNavigation(
         }
 
         composable(Route.USER_PERMISSIONS_ADMIN) {
-            val context = LocalContext.current
-            val db = DatabaseProvider.getDatabase(context)
-            val vm: AppUserViewModel = viewModel(
-                factory = AppUserViewModelFactory(AppUserRepository(db.appUserDao()))
-            )
-            val employeeVm: EmployeeViewModel = viewModel(
-                factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao()))
-            )
-            val branchVm: BranchViewModel = viewModel(
-                factory = BranchViewModelFactory(BranchRepository(db.branchDao()))
-            )
-            val employees by employeeVm.employees.collectAsState()
-            val branches by branchVm.branches.collectAsState()
-            UserManagementScreen(
-                viewModel = vm,
-                employees = employees,
-                branches = branches,
-                onBack = { navController.popBackStack() }
-            )
+            AccessManagementRoute(onBack = { navController.popBackStack() })
         }
 
         composable(Route.EMPLOYEE_PORTAL) {
@@ -1184,7 +1168,7 @@ fun AppNavigation(
         composable(Route.ADMIN_SUCURSALES) { SystemAdministrationDetailRoute(AdministrationSection.BRANCHES) { navController.popBackStack() } }
         composable(Route.ADMIN_DEPARTAMENTOS) { SystemAdministrationDetailRoute(AdministrationSection.DEPARTMENTS) { navController.popBackStack() } }
         composable(Route.ADMIN_CARGOS) { SystemAdministrationDetailRoute(AdministrationSection.POSITIONS) { navController.popBackStack() } }
-        composable(Route.ADMIN_USUARIOS) { SystemAdministrationDetailRoute(AdministrationSection.USERS) { navController.popBackStack() } }
+        composable(Route.ADMIN_USUARIOS) { AccessManagementRoute { navController.popBackStack() } }
         composable(Route.ADMIN_HORARIOS) { SystemAdministrationDetailRoute(AdministrationSection.SCHEDULES) { navController.popBackStack() } }
         composable(Route.ADMIN_JORNADAS) { SystemAdministrationDetailRoute(AdministrationSection.JOURNEYS) { navController.popBackStack() } }
         composable(Route.ADMIN_DISPOSITIVOS) { SystemAdministrationDetailRoute(AdministrationSection.DEVICES) { navController.popBackStack() } }
@@ -1438,7 +1422,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.BRANCH_MANAGER)) { OSINETActionCard("Panel Encargado", "Eventos y empleados de mi sucursal", onClick = onBranchManager); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.PAYROLL)) { OSINETActionCard("GENERAL NÓMINA", "Generación, plantillas y exportación", onClick = onGeneralPayroll); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.REPORTS)) { OSINETActionCard("Reportes", "Consultas generales del sistema", onClick = onReports); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Administración del sistema", "Empresa, organización, usuarios, seguridad y apariencia", onClick = onSettings); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Administración del sistema", "Empresa, organización, accesos, seguridad y apariencia", onClick = onSettings); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Vacaciones", "Solicitudes y seguimiento", onClick = onVacations); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.LOANS)) { OSINETActionCard("Préstamos", "Solicitudes, aprobación, entrega y balance", onClick = onLoans); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)) { OSINETActionCard("Permisos Empleados", "Solicitudes, archivos, aprobación y rechazo", onClick = onEmployeePermissions); Spacer(Modifier.height(10.dp)) }
@@ -1496,175 +1480,38 @@ private fun SystemAdministrationDetailRoute(
     SystemAdministrationDetailScreen(section = section, state = state, onBack = onBack)
 }
 
-
-
 @Composable
-private fun UserManagementScreen(
-    viewModel: AppUserViewModel,
-    employees: List<com.example.controlhorario.model.Employee>,
-    branches: List<com.example.controlhorario.database.BranchEntity>,
-    onBack: () -> Unit
-) {
-    val users by viewModel.users.collectAsState(initial = emptyList())
-    var fullName by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("EMPLEADO") }
-    var employeeSearch by remember { mutableStateOf("") }
-    var selectedEmployeeId by remember { mutableStateOf(0) }
-    var selectedBranchId by remember { mutableStateOf(0) }
-    var message by remember { mutableStateOf("") }
-    var selectedPermissions by remember { mutableStateOf(setOf<String>()) }
-
-    val filteredEmployees = employees
-        .filter { employee ->
-            val q = employeeSearch.trim()
-            q.isBlank() ||
-                employee.employeeCode.contains(q, ignoreCase = true) ||
-                employee.pin.contains(q, ignoreCase = true) ||
-                employee.nombre.contains(q, ignoreCase = true)
-        }
-        .sortedBy { it.employeeCode.padStart(8, '0') }
-        .take(8)
-
-    fun setRole(newRole: String) {
-        role = newRole
-        selectedPermissions = when (newRole) {
-            "ADMINISTRADOR" -> PermissionCatalog.all.toSet()
-            "SUPERVISOR" -> setOf(PermissionCatalog.ATTENDANCE, PermissionCatalog.INCIDENTS, PermissionCatalog.PIN_MODE, PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)
-            "ENCARGADO" -> setOf(PermissionCatalog.BRANCH_MANAGER, PermissionCatalog.ATTENDANCE, PermissionCatalog.ATTENDANCE_DASHBOARD, PermissionCatalog.INCIDENTS, PermissionCatalog.PIN_MODE, PermissionCatalog.REPORTS, PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)
-            "ASISTENTE" -> setOf(PermissionCatalog.EMPLOYEES, PermissionCatalog.REPORTS)
-            else -> setOf(PermissionCatalog.EMPLOYEE_PORTAL)
-        }
-    }
-
-    OSINETScreen {
-        OSINETHeader(
-            title = "Usuarios",
-            subtitle = "Crear usuarios y asignar permisos por módulo"
+private fun AccessManagementRoute(onBack: () -> Unit) {
+    val principal by AuthSessionStore.principal.collectAsState()
+    val current = principal
+    if (current == null) {
+        ModuleScreen(
+            title = "Accesos no disponibles",
+            detail = "Se requiere una sesión administrativa válida.",
+            onBack = onBack,
         )
-        Spacer(Modifier.height(14.dp))
-        OSINETCard {
-            Text("Crear usuario", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-            Spacer(Modifier.height(8.dp))
-            OSINETTextField(fullName, { fullName = it }, "Nombre completo", Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            OSINETTextField(username, { username = it }, "Usuario", Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            OSINETTextField(email, { email = it }, "Correo de acceso", Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            OSINETTextField(password, { password = it }, "Contraseña", Modifier.fillMaxWidth())
-            Spacer(Modifier.height(10.dp))
-            OSINETActionCard("Administrador", "Acceso total", onClick = { setRole("ADMINISTRADOR") })
-            Spacer(Modifier.height(6.dp))
-            OSINETActionCard("Supervisor", "Operación por departamentos", onClick = { setRole("SUPERVISOR") })
-            Spacer(Modifier.height(6.dp))
-            OSINETActionCard("Encargado", "Eventos y empleados de una sucursal, sin nómina", onClick = { setRole("ENCARGADO") })
-            Spacer(Modifier.height(6.dp))
-            OSINETActionCard("Asistente", "Permisos configurables", onClick = { setRole("ASISTENTE") })
-            Spacer(Modifier.height(6.dp))
-            OSINETActionCard("Empleado", "Portal del empleado", onClick = { setRole("EMPLEADO") })
-            Spacer(Modifier.height(8.dp))
-            Text("Rol seleccionado: $role", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
-        }
-        Spacer(Modifier.height(12.dp))
-        if (role == "ENCARGADO") {
-            OSINETCard {
-                Text("Sucursal del encargado", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                Text("El encargado solo verá eventos y empleados de la sucursal seleccionada. No recibe permisos de nómina.", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
-                Spacer(Modifier.height(8.dp))
-                branches.forEach { branch ->
-                    OSINETActionCard(
-                        title = branch.name,
-                        subtitle = "${branch.code} · ${if (selectedBranchId == branch.id) "Seleccionada" else "Tocar para asignar"}",
-                        onClick = { selectedBranchId = branch.id }
-                    )
-                    Spacer(Modifier.height(6.dp))
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-        OSINETCard {
-            Text("Asignar empleado registrado", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-            Text("La búsqueda interna permite código, PIN o nombre. El ponchador usa PIN + rostro.", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
-            Spacer(Modifier.height(8.dp))
-            OSINETTextField(employeeSearch, { employeeSearch = it }, "Buscar empleado por código, PIN o nombre", Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            filteredEmployees.forEach { employee ->
-                OSINETActionCard(
-                    title = "${employee.employeeCode.ifBlank { employee.pin }} · ${employee.nombre}",
-                    subtitle = "${employee.departamento} · ${if (selectedEmployeeId == employee.id) "Seleccionado" else "Tocar para asignar"}",
-                    onClick = { selectedEmployeeId = employee.id; email = employee.email.trim().lowercase() }
-                )
-                Spacer(Modifier.height(6.dp))
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        OSINETCard {
-            Text("Permisos por módulo", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-            PermissionCatalog.all.forEach { permission ->
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = selectedPermissions.contains(permission),
-                        onCheckedChange = { checked ->
-                            selectedPermissions = if (checked) selectedPermissions + permission else selectedPermissions - permission
-                        }
-                    )
-                    Text(permission, color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        OSINETButton(
-            text = "GUARDAR USUARIO",
-            enabled = fullName.isNotBlank() && username.isNotBlank() && password.isNotBlank() && (role != "ENCARGADO" || selectedBranchId != 0),
-            onClick = {
-                viewModel.saveUser(
-                    com.example.controlhorario.database.AppUserEntity(
-                        fullName = fullName.trim(),
-                        username = username.trim(),
-                        email = email.trim().lowercase(),
-                        password = password,
-                        role = role,
-                        permissionsCsv = selectedPermissions.joinToString(","),
-                        employeeId = selectedEmployeeId,
-                        branchId = selectedBranchId,
-                        createdAt = System.currentTimeMillis().toString(),
-                        updatedAt = System.currentTimeMillis().toString()
-                    )
-                )
-                message = "Usuario guardado correctamente."
-                fullName = ""
-                username = ""
-                email = ""
-                password = ""
-                selectedEmployeeId = 0
-                selectedBranchId = 0
-                employeeSearch = ""
-            }
-        )
-        if (message.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Text(message, color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
-        }
-        Spacer(Modifier.height(14.dp))
-        Text("Usuarios activos", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-        users.forEach { user ->
-            OSINETCard {
-                Text("${user.fullName} · ${user.role}", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                Text("Usuario: ${user.username} · Correo: ${user.email.ifBlank { "Sin vincular" }} · Empleado ID: ${if (user.employeeId == 0) "No asignado" else user.employeeId}", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
-            }
-            Spacer(Modifier.height(6.dp))
-        }
-        Spacer(Modifier.height(18.dp))
-        OSINETSecondaryButton("Volver", onBack)
+        return
     }
+    val capabilities = AccessCapabilities.from(current.permissionCodes)
+    if (!capabilities.canView) {
+        ModuleScreen(
+            title = "Accesos no disponibles",
+            detail = "No tienes permiso para consultar accesos.",
+            onBack = onBack,
+        )
+        return
+    }
+    val viewModel: AccessManagementViewModel = viewModel(
+        key = "access-management-${current.authUid}",
+        factory = AccessManagementViewModelFactory(current),
+    )
+    AccessManagementScreen(
+        viewModel = viewModel,
+        currentProfileId = current.authUid,
+        capabilities = capabilities,
+        onBack = onBack,
+    )
 }
-
 @Composable
 private fun EmployeePortalScreen(
     viewModel: EmployeePermissionRequestsViewModel,

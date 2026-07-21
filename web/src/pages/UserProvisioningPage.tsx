@@ -1,3 +1,123 @@
-import{useEffect,useState}from'react';import{RefreshCw,Send,UserRoundCheck}from'lucide-react';import{Badge,Empty,PageHeader,Toast}from'../components/UI';import{type PendingAuthUser,type ProvisioningState,userProvisioningService}from'../modules/userProvisioning/userProvisioningService';
-const empty:ProvisioningState={users:[],companies:[],roles:[],employees:[]};
-export function UserProvisioningPage(){const[state,setState]=useState(empty),[company,setCompany]=useState(''),[selected,setSelected]=useState<PendingAuthUser|null>(null),[role,setRole]=useState(''),[employee,setEmployee]=useState(''),[name,setName]=useState(''),[inviteEmail,setInviteEmail]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');async function load(companyId?:string){setBusy(true);setError('');try{const data=await userProvisioningService.list(companyId);setState(data);const next=companyId||data.companies[0]?.id||'';setCompany(next);if(!companyId&&next)setState(await userProvisioningService.list(next))}catch(e){setError(e instanceof Error?e.message:'No fue posible sincronizar usuarios.')}finally{setBusy(false)}}useEffect(()=>{load()},[]);function choose(u:PendingAuthUser){setSelected(u);setName(u.full_name);setRole('');setEmployee('');setError('')}async function execute(fn:()=>Promise<unknown>,ok:string){if(!company||!role||!name.trim()){setError('Empresa, rol y nombre son obligatorios.');return}setBusy(true);setError('');try{await fn();setMessage(ok);setSelected(null);setName('');setRole('');setEmployee('');await load(company)}catch(e){setError(e instanceof Error?e.message:'Falló el aprovisionamiento.')}finally{setBusy(false)}}async function saveExisting(){if(selected)await execute(()=>userProvisioningService.provision({user_id:selected.id,full_name:name,company_id:company,role_id:role,employee_id:employee||undefined,status:'active'}),'Profile creado y usuario sincronizado.')}async function invite(){await execute(()=>userProvisioningService.invite({email:inviteEmail,full_name:name,company_id:company,role_id:role,employee_id:employee||undefined,status:'invited'}),'Invitación enviada y profile creado.');setInviteEmail('')}return <><PageHeader eyebrow="IDENTIDAD Y ACCESO" title="Sincronizar usuarios Auth" description="Detecta identidades sin profile y las aprovisiona mediante el servicio seguro." action={<button className="secondary" onClick={()=>load(company)} disabled={busy}><RefreshCw/>Sincronizar usuarios Auth</button>}/>{error&&<div className="error provisioning-error">{error}</div>}<section className="provision-grid"><div className="panel"><div className="panel-title"><div><span className="eyebrow">PENDIENTES</span><h2>Auth sin profile</h2></div><Badge tone={state.users.length?'amber':'green'}>{state.users.length}</Badge></div>{state.users.length?state.users.map(u=><button className={`pending-user ${selected?.id===u.id?'selected':''}`} key={u.id} onClick={()=>choose(u)}><UserRoundCheck/><span><b>{u.full_name||'Sin nombre'}</b><small>{u.email}</small></span></button>):<Empty text="Todos los usuarios Auth tienen profile."/>}</div><form className="panel provisioning-form" onSubmit={e=>{e.preventDefault();selected?saveExisting():invite()}}><div className="panel-title"><div><span className="eyebrow">USER PROVISIONING</span><h2>{selected?'Crear profile':'Invitar usuario'}</h2></div></div>{!selected&&<label>Correo de invitación<input type="email" required value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)}/></label>}<label>Nombre completo<input required value={name} onChange={e=>setName(e.target.value)}/></label><label>Empresa<select required value={company} onChange={e=>{setCompany(e.target.value);load(e.target.value)}}><option value="">Seleccionar</option>{state.companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Rol<select required value={role} onChange={e=>setRole(e.target.value)}><option value="">Seleccionar</option>{state.roles.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><label>Empleado (opcional)<select value={employee} onChange={e=>setEmployee(e.target.value)}><option value="">Sin enlace</option>{state.employees.map(x=><option key={x.id} value={x.id}>{x.codigo_empleado} · {x.nombre_completo}</option>)}</select></label><div className="button-row">{selected&&<button type="button" className="secondary" onClick={()=>{setSelected(null);setName('')}}>Cancelar</button>}<button className="primary" disabled={busy}><Send/>{busy?'Procesando…':selected?'Crear profile':'Enviar invitación'}</button></div></form></section><Toast message={message}/></>}
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ArrowLeft, KeyRound, Save } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Empty, PageHeader } from '../components/UI';
+import {
+  type ManagedAccessStatus,
+  type AccessesState,
+  userProvisioningService,
+} from '../modules/userProvisioning/userProvisioningService';
+
+const empty: AccessesState = { accesses: [], employees: [], roles: [] };
+
+export function UserProvisioningPage() {
+  const navigate = useNavigate();
+  const [catalog, setCatalog] = useState(empty);
+  const [employeeId, setEmployeeId] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [roleId, setRoleId] = useState('');
+  const [status, setStatus] = useState<ManagedAccessStatus>('active');
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    userProvisioningService.listAccesses()
+      .then((data) => { if (active) setCatalog(data); })
+      .catch((failure) => {
+        if (active) setError(failure instanceof Error ? failure.message : 'No fue posible cargar los datos para crear el acceso.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const employees = useMemo(
+    () => catalog.employees.filter((employee) => !employee.perfil_id),
+    [catalog.employees],
+  );
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError('');
+    const normalizedUsername = username.trim().toLowerCase();
+    if (!employeeId || !normalizedUsername || !password || !roleId || !status) {
+      setError('Empleado, usuario, contraseña, rol y estado son obligatorios.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedUsername)) {
+      setError('El usuario debe ser un correo válido para conservar compatibilidad con Supabase Auth.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('La contraseña debe contener al menos 8 caracteres.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await userProvisioningService.createAccess({
+        employee_id: employeeId,
+        username: normalizedUsername,
+        password,
+        role_id: roleId,
+        status,
+      });
+      navigate('/accesos', { replace: true, state: { message: 'Acceso creado correctamente.' } });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'No fue posible crear el acceso.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) return <Empty text="Cargando empleados y roles…" />;
+
+  return <>
+    <PageHeader
+      eyebrow="CONTROL DE ACCESOS"
+      title="Crear acceso"
+      description="La identidad personal y laboral se toma automáticamente del empleado seleccionado."
+      action={<Link className="secondary" to="/accesos"><ArrowLeft />Volver</Link>}
+    />
+    {error && <div className="error" role="alert">{error}</div>}
+    <form className="form-panel access-form" onSubmit={submit}>
+      <div className="access-form-heading">
+        <span className="admin-card-icon"><KeyRound size={22} /></span>
+        <div><h2>Credenciales y autorización</h2><p>Un empleado solo puede tener un acceso.</p></div>
+      </div>
+      <div className="form-grid access-form-grid">
+        <label>Empleado
+          <select value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} required>
+            <option value="">Seleccionar empleado</option>
+            {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.codigo_empleado} · {employee.nombre_completo}</option>)}
+          </select>
+        </label>
+        <label>Usuario
+          <input type="email" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="usuario@empresa.com" required />
+        </label>
+        <label>Contraseña
+          <input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
+        </label>
+        <label>Rol
+          <select value={roleId} onChange={(event) => setRoleId(event.target.value)} required>
+            <option value="">Seleccionar rol</option>
+            {catalog.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+          </select>
+        </label>
+        <label>Estado
+          <select value={status} onChange={(event) => setStatus(event.target.value as ManagedAccessStatus)} required>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+            <option value="suspended">Suspendido</option>
+          </select>
+        </label>
+      </div>
+      {!employees.length && <div className="access-empty-note">No hay empleados activos sin acceso. Crea o libera un empleado antes de continuar.</div>}
+      <div className="form-actions">
+        <button className="primary" disabled={busy || !employees.length}><Save />{busy ? 'Creando…' : 'Crear acceso'}</button>
+      </div>
+    </form>
+  </>;
+}

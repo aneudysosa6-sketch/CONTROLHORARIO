@@ -76,7 +76,7 @@ fun SupervisorAdminScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("SUPERVISORES", style = MaterialTheme.typography.headlineMedium)
-            Text("Crear usuarios supervisores y asignar departamentos. No se asignan sucursales directamente.")
+            Text("Crear accesos de supervisores y asignar departamentos. No se asignan sucursales directamente.")
 
             ElevatedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

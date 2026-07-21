@@ -305,14 +305,14 @@ export const navigationItems: NavigationItem[] = [
     icon: Settings,
   },
   {
-    to: '/usuarios',
-    label: 'Usuarios',
+    to: '/accesos',
+    label: 'Accesos',
     section: 'Administración',
-    permission: 'usuarios.view',
+    permission: ['usuarios.view', 'usuarios.administrar'],
     icon: UserCog,
   },
   {
-    to: '/administracion/usuarios',
+    to: '/administracion/accesos',
     label: 'Roles y permisos',
     section: 'Administración',
     permission: [
@@ -358,10 +358,10 @@ export const navigationItems: NavigationItem[] = [
     icon: Settings,
   },
   {
-    to: '/usuarios/sincronizar',
-    label: 'Sincronizar usuarios',
+    to: '/accesos/nuevo',
+    label: 'Nuevo acceso',
     section: 'Administración',
-    permission: 'usuarios.administrar',
+    permission: ['usuarios.create', 'usuarios.administrar'],
     icon: UserCog,
   },
   {
