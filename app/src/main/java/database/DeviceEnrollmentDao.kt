@@ -11,4 +11,6 @@ import kotlinx.coroutines.flow.Flow
  @Query("UPDATE device_enrollment SET lastEmployeeSyncAt=:at WHERE deviceId=:deviceId") suspend fun markSynced(deviceId:String,at:Long)
  @Query("UPDATE device_enrollment SET lastEmployeeSyncAt=:at, employeeSyncCursorUpdatedAt=:cursorUpdatedAt, employeeSyncCursorId=:cursorId WHERE deviceId=:deviceId")
  suspend fun recordEmployeeSync(deviceId:String,at:Long,cursorUpdatedAt:String?,cursorId:String?)
+ @Query("UPDATE device_enrollment SET companyId=:companyId, branchId=:branchId WHERE deviceId=:deviceId")
+ suspend fun recordScope(deviceId:String,companyId:String,branchId:String?)
 }

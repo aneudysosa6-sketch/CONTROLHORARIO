@@ -45,7 +45,7 @@ fun Rc2EmployeeAttendanceScreen(
         remotePresentation.access == JourneyRemoteAccess.PENDING -> remotePresentation.message
         status == JourneyStatus.FINALIZADA -> "La jornada de hoy ya fue finalizada."
         authorized -> "Rostro validado. Registra una sola acción."
-        else -> "Autorización vencida. Vuelva al PIN."
+        else -> "Autorización vencida. Confirme su rostro nuevamente."
     }
 
     OSINETScreen {

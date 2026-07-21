@@ -9,6 +9,7 @@ import android.graphics.pdf.PdfDocument
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import com.example.controlhorario.database.CompanySettingsEntity
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.PayrollResult
@@ -76,6 +77,7 @@ object PayrollPdfEngine {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun saveWithMediaStore(
         context: Context,
         document: PdfDocument,

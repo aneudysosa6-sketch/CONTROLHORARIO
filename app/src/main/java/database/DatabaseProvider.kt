@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34,MIGRATION_34_35,MIGRATION_35_36).build()
 
             INSTANCE = instance
 
@@ -100,4 +100,14 @@ val MIGRATION_33_34=object:Migration(33,34){override fun migrate(db:SupportSQLit
  db.execSQL("CREATE INDEX index_employee_sync_outbox_employeeLocalId ON employee_sync_outbox(employeeLocalId)")
  db.execSQL("CREATE INDEX index_employee_sync_outbox_status_nextRetryAt ON employee_sync_outbox(status,nextRetryAt)")
  db.execSQL("CREATE UNIQUE INDEX index_employee_sync_outbox_idempotencyKey ON employee_sync_outbox(idempotencyKey)")
+}}
+
+val MIGRATION_34_35=object:Migration(34,35){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN companyId TEXT")
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN branchId TEXT")
+ db.execSQL("CREATE TABLE IF NOT EXISTS kiosk_settings (companyId TEXT NOT NULL, deviceId TEXT NOT NULL, faceOnlyEnabled INTEGER NOT NULL, pinFallbackEnabled INTEGER NOT NULL, faceMatchThreshold REAL NOT NULL, faceMatchMargin REAL, remoteUpdatedAt TEXT NOT NULL, lastSyncedAt INTEGER NOT NULL, PRIMARY KEY(companyId,deviceId))")
+}}
+
+val MIGRATION_35_36=object:Migration(35,36){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteCompanyId TEXT")
 }}

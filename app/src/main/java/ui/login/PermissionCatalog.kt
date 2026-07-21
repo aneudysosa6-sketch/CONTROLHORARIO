@@ -24,6 +24,7 @@ object PermissionCatalog {
     const val EDIT_ATTENDANCE = "Editar Jornadas"
     const val APPROVE_ATTENDANCE = "Aprobar Jornadas"
     const val CHANGE_SCHEDULES = "Modificar Horarios"
+    const val KIOSK_PIN_FALLBACK_MANAGE = "kiosk.pin_fallback.manage"
 
     val all = listOf(
         DASHBOARD,
@@ -48,7 +49,8 @@ object PermissionCatalog {
         EXPORT_EXCEL,
         EDIT_ATTENDANCE,
         APPROVE_ATTENDANCE,
-        CHANGE_SCHEDULES
+        CHANGE_SCHEDULES,
+        KIOSK_PIN_FALLBACK_MANAGE
     )
 }
 

@@ -1,13 +1,13 @@
 package com.example.controlhorario.ui.punch
 
-enum class KioskDestination { PIN, EXIT_AUTH, ADMIN_PANEL }
+enum class KioskDestination { FACE_IDENTIFICATION, EXIT_AUTH, ADMIN_PANEL }
 
 object KioskModePolicy {
-    fun afterActivation() = KioskDestination.PIN
+    fun afterActivation() = KioskDestination.FACE_IDENTIFICATION
     fun afterBackPressed() = KioskDestination.EXIT_AUTH
     fun afterAuthentication(validCredentials: Boolean) =
-        if (validCredentials) KioskDestination.ADMIN_PANEL else KioskDestination.PIN
-    fun afterAttendance() = KioskDestination.PIN
+        if (validCredentials) KioskDestination.ADMIN_PANEL else KioskDestination.FACE_IDENTIFICATION
+    fun afterAttendance() = KioskDestination.FACE_IDENTIFICATION
     fun startDestination(kioskActive: Boolean) =
-        if (kioskActive) KioskDestination.PIN else KioskDestination.ADMIN_PANEL
+        if (kioskActive) KioskDestination.FACE_IDENTIFICATION else KioskDestination.ADMIN_PANEL
 }

@@ -54,7 +54,6 @@ import com.example.controlhorario.ui.components.OSINETScreen
 fun EmployeePunchScreen(
     viewModel: EmployeePunchViewModel,
     onVerified: (Int) -> Unit,
-    onRegisterFace: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
@@ -130,20 +129,6 @@ fun EmployeePunchScreen(
                         modifier = Modifier.fillMaxWidth().height(58.dp)
                     ) { Text("Reintentar sincronización", fontWeight = FontWeight.Bold) }
                 }
-                val employeeWithoutFace = state.employee?.takeUnless { state.hasFaceTemplate || !state.faceSyncCompleted }
-                if (employeeWithoutFace != null) {
-                    Button(
-                        onClick = { onRegisterFace(employeeWithoutFace.id) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(58.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = OSINETColors.Green,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(18.dp)
-                    ) { Text("Registrar rostro", fontWeight = FontWeight.Bold) }
-                }
                 TextButton(
                     onClick = onBack,
                     modifier = Modifier.semantics { contentDescription = "Salir del modo PIN" }
@@ -178,7 +163,7 @@ private fun PinHeader() {
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "Ingresa tu código PIN",
+                "El PIN identifica; el rostro confirma",
                 color = Color(0xFFEAEAEA),
                 style = MaterialTheme.typography.bodyLarge
             )

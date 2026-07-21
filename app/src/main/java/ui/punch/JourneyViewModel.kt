@@ -66,7 +66,7 @@ class JourneyViewModel(
         isPunchAuthorized.value = authorized
         logAuth(employee.id, authorized, action)
         if (!authorized) {
-            error.value = "Debe verificar PIN y rostro antes de cada acción."
+            error.value = "Debe confirmar su rostro antes de cada acción."
             return
         }
 
@@ -118,7 +118,7 @@ class JourneyViewModel(
                 error.value = when (it.message) {
                     "ATTENDANCE_DISABLED" -> "Tu registro de jornada está deshabilitado."
                     "ALREADY_FINALIZED" -> "La jornada de hoy ya fue finalizada."
-                    "BIOMETRIC_PROOF_REQUIRED" -> "Debe verificar PIN y rostro antes de cada acción."
+                    "BIOMETRIC_PROOF_REQUIRED" -> "Debe confirmar su rostro antes de cada acción."
                     else -> it.message ?: "No fue posible registrar la jornada."
                 }
             }
@@ -221,7 +221,7 @@ class JourneyViewModel(
         if (BuildConfig.DEBUG) {
             Log.d(
                 "PUNCH_AUTH",
-                "employeeId=$targetEmployeeId pinVerified=true faceVerified=$authorized " +
+                "employeeId=$targetEmployeeId faceVerified=$authorized " +
                     "authorizedEmployeeId=$employeeId authorizationConsumed=${!authorized} " +
                     "isPunchAuthorized=$authorized action=${action?.name.orEmpty()}"
             )

@@ -91,4 +91,7 @@ interface EmployeeDao {
 
     @Query("UPDATE employees SET syncStatus=:status,lastSyncError=:error WHERE id=:employeeId")
     suspend fun setSyncStatus(employeeId:Int,status:String,error:String?=null)
+
+    @Query("UPDATE employees SET remoteCompanyId=:companyId WHERE remoteId IS NOT NULL AND remoteCompanyId IS NULL")
+    suspend fun backfillRemoteCompanyScope(companyId:String):Int
 }

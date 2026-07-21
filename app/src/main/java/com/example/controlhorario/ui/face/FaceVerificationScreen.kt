@@ -126,7 +126,7 @@ fun FaceVerificationScreen(
             is FaceVerificationState.Error -> Message((state as FaceVerificationState.Error).message, onCancel)
             FaceVerificationState.Recognized -> VerificationResult(
                 success = true,
-                message = "Rostro reconocido"
+                message = "Identidad confirmada"
             )
             FaceVerificationState.AttemptsExhausted -> VerificationResult(
                 success = false,
@@ -134,15 +134,15 @@ fun FaceVerificationScreen(
             )
             else -> {
                 val displayMessage = when (state) {
-                    FaceVerificationState.Processing -> "Verificando rostro"
+                    FaceVerificationState.Processing -> "Verificando rostro del empleado"
                     FaceVerificationState.NotRecognized -> "Rostro no reconocido. Intente nuevamente."
                     else -> guidance
                 }
                 VerificationAttemptIndicator(attempt = visualAttempt)
                 Spacer(Modifier.height(12.dp))
                 if (cameraGranted) {
-                    FaceVerificationCamera(
-                        onEmbedding = viewModel::score,
+                    FaceEmbeddingCamera(
+                        onEmbedding = { embedding, _ -> viewModel.score(embedding) },
                         onGuidance = { guidance = it },
                         visualState = state,
                         message = displayMessage,
@@ -257,8 +257,8 @@ private fun VerificationResult(success: Boolean, message: String) {
 
 @Composable
 @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
-private fun FaceVerificationCamera(
-    onEmbedding: (FloatArray) -> Unit,
+internal fun FaceEmbeddingCamera(
+    onEmbedding: (FloatArray, Long) -> Unit,
     onGuidance: (String) -> Unit,
     visualState: FaceVerificationState,
     message: String,
@@ -361,14 +361,16 @@ private fun FaceVerificationCamera(
                                             }
                                             else -> {
                                                 verifyLight(quality, bounds, rotationDegrees, attempt, "PASS")
+                                                val embeddingStartedAt = System.nanoTime()
                                                 runCatching { currentEngine.embedding(frameBitmap, bounds) }
                                                     .onSuccess {
+                                                        val embeddingMs = ((System.nanoTime() - embeddingStartedAt) / 1_000_000L).coerceAtLeast(0L)
                                                         verifyLog(
                                                             "FACE_VERIFY_QUALITY",
                                                             "contrast=${quality.contrast} sharpness=${quality.sharpness} " +
                                                                 "attempt=$attempt result=EMBEDDING_READY"
                                                         )
-                                                        onEmbedding(it)
+                                                        onEmbedding(it, embeddingMs)
                                                     }
                                                     .onFailure { error ->
                                                         verifyLog(

@@ -13,7 +13,8 @@ class JourneyBiometricGateTest {
   assertTrue(JourneyBiometricGate.isAuthorized(7,"device-a",1))
   val proof=JourneyBiometricGate.prepareProof(7,"device-a",JourneyAction.INICIAR,1)
   assertEquals(JourneyAction.INICIAR,proof?.action)
-  assertTrue(JourneyBiometricGate.isAuthorized(7,"device-a",2))
+  assertFalse(JourneyBiometricGate.isAuthorized(7,"device-a",2))
+  assertNull(JourneyBiometricGate.prepareProof(7,"device-a",JourneyAction.FINALIZAR,2))
   assertTrue(JourneyBiometricGate.consumeAfterSuccess(requireNotNull(proof).id))
   assertFalse(JourneyBiometricGate.isAuthorized(7,"device-a",2))
  }

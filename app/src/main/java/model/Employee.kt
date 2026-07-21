@@ -31,6 +31,7 @@ data class Employee(
     val updatedAt: Long = System.currentTimeMillis(),
     val isActive: Boolean = true,
     val remoteId: String? = null,
+    val remoteCompanyId: String? = null,
     val remoteBranchId: String? = null,
     val remoteBranchName: String = "",
     val remoteDepartmentId: String? = null,

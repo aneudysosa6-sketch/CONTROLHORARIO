@@ -48,13 +48,28 @@ Deno.serve(async request=>{
     console.log('EmployeeSync company_id leído',{request_id:requestId,company_id:auth.empresa_id})
     let deviceResult
     try{
-      deviceResult=await admin.from('dispositivos_android').select('id,empresa_id').eq('id',deviceId).eq('empresa_id',auth.empresa_id).eq('estado','activo').maybeSingle()
+      deviceResult=await admin.from('dispositivos_android').select('id,empresa_id,sucursal_id').eq('id',deviceId).eq('empresa_id',auth.empresa_id).eq('estado','activo').maybeSingle()
       console.log('EmployeeSync respuesta PostgREST dispositivo',{request_id:requestId,data:deviceResult.data,error:deviceResult.error,status:deviceResult.status,statusText:deviceResult.statusText})
     }catch(error){return stageFailure(requestId,'validacion_dispositivo',error,auth.empresa_id)}
     if(deviceResult.error)return stageFailure(requestId,'validacion_dispositivo',deviceResult.error,auth.empresa_id,deviceResult.status||500)
     const device=deviceResult.data
     if(!device)return json({error:'Dispositivo revocado o empresa incorrecta'},403)
     console.log('EmployeeSync dispositivo activo validado',{request_id:requestId,device_id:device.id,company_id:device.empresa_id})
+
+    let settingsResult
+    try{
+      settingsResult=await admin.from('company_settings').select('face_only_enabled,pin_fallback_enabled,face_match_threshold,face_match_margin,updated_at').eq('company_id',auth.empresa_id).maybeSingle()
+    }catch(error){return stageFailure(requestId,'consulta_company_settings',error,auth.empresa_id)}
+    if(settingsResult.error)return stageFailure(requestId,'consulta_company_settings',settingsResult.error,auth.empresa_id,settingsResult.status||500)
+    let companySettings=settingsResult.data
+    if(!companySettings){
+      let defaultSettingsResult
+      try{
+        defaultSettingsResult=await admin.from('company_settings').upsert({company_id:auth.empresa_id},{onConflict:'company_id'}).select('face_only_enabled,pin_fallback_enabled,face_match_threshold,face_match_margin,updated_at').single()
+      }catch(error){return stageFailure(requestId,'crear_company_settings',error,auth.empresa_id)}
+      if(defaultSettingsResult.error)return stageFailure(requestId,'crear_company_settings',defaultSettingsResult.error,auth.empresa_id,defaultSettingsResult.status||500)
+      companySettings=defaultSettingsResult.data
+    }
 
     const body=await request.json().catch(()=>({})) as Record<string,unknown>
     const targeted=Object.prototype.hasOwnProperty.call(body,'employee_code'),employeeCode=text(body.employee_code)
@@ -117,6 +132,6 @@ Deno.serve(async request=>{
     console.log('EmployeeSync empleados enviados',{request_id:requestId,company_id:auth.empresa_id,active_sent:employees.length,inactive_sent:inactive.length,has_more:changed.length>page.length})
     await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)
     await admin.from('credenciales_dispositivo').update({ultima_uso_at:now}).eq('dispositivo_id',deviceId).eq('empresa_id',auth.empresa_id)
-    return json({employees,inactive,cursor:targeted?null:(last?{updated_at:last.updated_at,id:last.id}:{updated_at:cursorUpdatedAt,id:cursorId}),has_more:targeted?false:changed.length>page.length,targeted,synced_at:now,company_id:auth.empresa_id,diagnostic_request_id:requestId})
+    return json({employees,inactive,cursor:targeted?null:(last?{updated_at:last.updated_at,id:last.id}:{updated_at:cursorUpdatedAt,id:cursorId}),has_more:targeted?false:changed.length>page.length,targeted,synced_at:now,company_id:auth.empresa_id,device_branch_id:device.sucursal_id,company_settings:companySettings,diagnostic_request_id:requestId})
   }catch(error){return stageFailure(requestId,'excepcion_no_controlada',error,diagnosticCompanyId)}
 })

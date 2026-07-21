@@ -42,9 +42,10 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         AppEventEntity::class
         ,DeviceEnrollmentEntity::class,
         EmployeeSyncOutboxEntity::class,
-        EmployeeFaceBiometricEntity::class
+        EmployeeFaceBiometricEntity::class,
+        KioskSettingsEntity::class
     ],
-    version = 34,
+    version = 36,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -101,4 +102,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun deviceEnrollmentDao():DeviceEnrollmentDao
     abstract fun employeeFaceBiometricDao(): EmployeeFaceBiometricDao
     abstract fun employeeSyncOutboxDao(): EmployeeSyncOutboxDao
+    abstract fun kioskSettingsDao(): KioskSettingsDao
 }

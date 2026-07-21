@@ -15,9 +15,14 @@ data class RemoteEmployee(
  val remoteEmbeddingPresent:Boolean=false,val remoteEmbeddingDimension:Int?=null
 )
 data class RemoteInactiveEmployee(val id:String,val updatedAt:String)
+data class RemoteKioskSettings(
+ val companyId:String,val faceOnlyEnabled:Boolean,val pinFallbackEnabled:Boolean,
+ val faceMatchThreshold:Float,val faceMatchMargin:Float?,val updatedAt:String
+)
 data class EmployeeSyncPage(
  val employees:List<RemoteEmployee>,val inactive:List<RemoteInactiveEmployee>,
- val cursor:EmployeeSyncCursor?,val hasMore:Boolean,val syncedAt:String,val httpStatus:Int=200
+ val cursor:EmployeeSyncCursor?,val hasMore:Boolean,val syncedAt:String,val httpStatus:Int=200,
+ val companyId:String?=null,val deviceBranchId:String?=null,val companySettings:RemoteKioskSettings?=null
 )
 
 class EmployeeSyncClient(private val endpoint:String){
@@ -64,8 +69,21 @@ class EmployeeSyncClient(private val endpoint:String){
   val inactive=(0 until (inactiveRows?.length()?:0)).map{inactiveRows!!.getJSONObject(it)}.map{RemoteInactiveEmployee(it.getString("remote_id"),it.getString("updated_at"))}
   val cursorJson=json.optJSONObject("cursor")
   val cursor=cursorJson?.optString("updated_at")?.takeIf{it.isNotBlank()}?.let{EmployeeSyncCursor(it,cursorJson.optString("id"))}
-  return EmployeeSyncPage(employees,inactive,cursor,json.optBoolean("has_more"),json.optString("synced_at"),httpStatus)
+  val settingsJson=json.optJSONObject("company_settings")
+  val companyId=json.optNullableString("company_id")?.takeIf{UUID_REGEX.matches(it)}
+  val deviceBranchId=json.optNullableString("device_branch_id")?.takeIf{UUID_REGEX.matches(it)}
+  val companySettings=settingsJson?.let{settings->
+   val threshold=settings.optDouble("face_match_threshold",Double.NaN).toFloat()
+   val margin=if(settings.isNull("face_match_margin"))null else settings.optDouble("face_match_margin",Double.NaN).toFloat()
+   if(companyId==null||!threshold.isFinite()||threshold !in 0f..1f||margin?.let{!it.isFinite()||it !in 0f..2f}==true)null
+   else RemoteKioskSettings(
+    companyId=companyId,faceOnlyEnabled=settings.optBoolean("face_only_enabled",true),
+    pinFallbackEnabled=settings.optBoolean("pin_fallback_enabled",true),faceMatchThreshold=threshold,
+    faceMatchMargin=margin,updatedAt=settings.optString("updated_at")
+   )
+  }
+  return EmployeeSyncPage(employees,inactive,cursor,json.optBoolean("has_more"),json.optString("synced_at"),httpStatus,companyId,deviceBranchId,companySettings)
  }
  private fun JSONObject.optNullableString(name:String)=if(isNull(name))null else optString(name).takeIf{it.isNotBlank()}
- private companion object{const val TAG="EmployeeSync"}
+ private companion object{const val TAG="EmployeeSync";val UUID_REGEX=Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")}
 }

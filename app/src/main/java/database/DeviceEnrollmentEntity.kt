@@ -11,5 +11,7 @@ data class DeviceEnrollmentEntity(
     val enrolledAt:Long=System.currentTimeMillis(),
     val lastEmployeeSyncAt:Long?=null,
     val employeeSyncCursorUpdatedAt:String?=null,
-    val employeeSyncCursorId:String?=null
+    val employeeSyncCursorId:String?=null,
+    val companyId:String?=null,
+    val branchId:String?=null
 )

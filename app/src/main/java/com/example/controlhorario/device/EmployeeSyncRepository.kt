@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import android.util.Log
 import com.example.controlhorario.database.AppDatabase
 import com.example.controlhorario.database.EmployeeFaceBiometricEntity
+import com.example.controlhorario.database.KioskSettingsEntity
 import com.example.controlhorario.face.FaceEmbeddingCipher
 import com.example.controlhorario.model.Employee
 import kotlinx.coroutines.sync.Mutex
@@ -28,14 +29,29 @@ class EmployeeSyncRepository(private val database:AppDatabase){
   if(employeeCode!=null)Log.d(FACE_TAG,"employeeCode=$employeeCode targetedSyncStarted=true")
   do{
    val page=client.download(deviceId,credential,cursor,employeeCode);val syncedAt=System.currentTimeMillis()
+   val remoteCompanyId=page.companyId?:enrollment?.companyId?:error("employee_sync_company_scope_missing")
    Log.d(TAG,"Room recibe página: activos=${page.employees.size}, inactivos=${page.inactive.size}, cursor_respuesta=${page.cursor}")
    database.withTransaction{
+    page.companySettings?.let{settings->
+     database.kioskSettingsDao().save(KioskSettingsEntity(
+      companyId=settings.companyId,deviceId=deviceId,faceOnlyEnabled=settings.faceOnlyEnabled,
+      pinFallbackEnabled=settings.pinFallbackEnabled,faceMatchThreshold=settings.faceMatchThreshold,
+      faceMatchMargin=settings.faceMatchMargin,remoteUpdatedAt=settings.updatedAt,lastSyncedAt=syncedAt
+     ))
+     Log.d(KIOSK_TAG,"companyId=${settings.companyId} deviceId=$deviceId pinFallbackEnabled=${settings.pinFallbackEnabled} faceOnlyEnabled=${settings.faceOnlyEnabled} settingsSynced=true")
+    }
     val dao=database.employeeDao()
+    val scopedEmployees=dao.backfillRemoteCompanyScope(remoteCompanyId)
+    if(scopedEmployees>0)Log.d(KIOSK_TAG,"companyId=$remoteCompanyId employeeScopeBackfilled=$scopedEmployees")
     page.employees.forEach{row->
      val remoteMatch=dao.findByRemoteId(row.id);val codeMatch=if(remoteMatch==null)dao.findAnyByEmployeeCode(row.code)else null;val current=remoteMatch?:codeMatch
+     if(current?.remoteCompanyId!=null&&current.remoteCompanyId!=remoteCompanyId){
+      database.employeeFaceBiometricDao().deleteForEmployee(current.id)
+      Log.w(TAG,"plantilla local aislada por cambio de empresa: local_id=${current.id}, remote_id=${row.id}")
+     }
      var localId=current?.id
      if(current?.remoteUpdatedAt==null||current.remoteUpdatedAt<=row.updatedAt){
-      val value=EmployeeSyncMapper.merge(current,row,syncedAt)
+      val value=EmployeeSyncMapper.merge(current,row,syncedAt,remoteCompanyId)
       localId=if(current==null){dao.insertEmployee(value).toInt().also{inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${row.code}")}}else{dao.updateEmployee(value);updated++;current.id}
       if(current?.isActive!=true)activated++
      }else{discarded++;Log.w(TAG,"descartado remote_id=${row.id}: updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}")}
@@ -56,8 +72,9 @@ class EmployeeSyncRepository(private val database:AppDatabase){
       if(current.isActive)deactivated++
      }else{discarded++;Log.w(TAG,"descartado tombstone remote_id=${row.id}: ${if(current==null)"no existe en Room" else "updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}"}")}
     }
-    downloaded+=page.employees.size+page.inactive.size
+   downloaded+=page.employees.size+page.inactive.size
    }
+   page.companyId?.let{database.deviceEnrollmentDao().recordScope(deviceId,it,page.deviceBranchId)}
    if(employeeCode==null)cursor=page.cursor
   }while(employeeCode==null&&page.hasMore)
   val completedAt=System.currentTimeMillis()
@@ -65,7 +82,7 @@ class EmployeeSyncRepository(private val database:AppDatabase){
   Log.d(TAG,"Room sync final: recibidos=$downloaded, insertados=$inserted, actualizados=$updated, descartados=$discarded, activados=$activated, desactivados=$deactivated, cursor_guardado=$cursor")
   return EmployeeSyncSummary(downloaded,activated,deactivated,completedAt)
  }
- private companion object{const val TAG="EmployeeSync";const val FACE_TAG="FACE_CROSS_DEVICE_SYNC";val SYNC_MUTEX=Mutex()}
+ private companion object{const val TAG="EmployeeSync";const val FACE_TAG="FACE_CROSS_DEVICE_SYNC";const val KIOSK_TAG="KIOSK_SETTINGS_SYNC";val SYNC_MUTEX=Mutex()}
 }
 
 object FacePersistencePolicy{
@@ -78,10 +95,10 @@ object EmployeeSyncCursorPolicy{
 }
 
 object EmployeeSyncMapper{
- fun merge(current:Employee?,row:RemoteEmployee,syncedAt:Long):Employee=
+ fun merge(current:Employee?,row:RemoteEmployee,syncedAt:Long,remoteCompanyId:String?=current?.remoteCompanyId):Employee=
   (current?:Employee(employeeCode=row.code,pin="")).copy(
    employeeCode=row.code,nombre=row.name,telefono=row.phone,email=row.email,cargo=row.positionName,departamento=row.departmentName,
-   sueldo=row.salary?:0.0,isActive=true,remoteId=row.id,remoteBranchId=row.branchId,remoteBranchName=row.branchName,
+   sueldo=row.salary?:0.0,isActive=true,remoteId=row.id,remoteCompanyId=remoteCompanyId,remoteBranchId=row.branchId,remoteBranchName=row.branchName,
    remoteDepartmentId=row.departmentId,remoteDepartmentName=row.departmentName,remotePositionId=row.positionId,remotePositionName=row.positionName,
    remoteSupervisorId=row.supervisorId,remoteSupervisorName=row.supervisorName,employmentStatus=row.status,jornadaEnabled=row.jornadaEnabled,
    remoteScheduleStart=row.scheduleStart,remoteScheduleEnd=row.scheduleEnd,remoteLunchStart=row.lunchStart,remoteLunchDurationMinutes=row.lunchDurationMinutes,
