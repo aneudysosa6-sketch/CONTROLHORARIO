@@ -1,14 +1,115 @@
-import { useState } from 'react';
-import { NavLink,Outlet,useLocation,useNavigate } from 'react-router-dom';
-import { Bell,KeyRound,LogOut,Menu,X } from 'lucide-react';
-import { navigationItems,navigationSections } from '../app/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { navigationItems, navigationSections } from '../app/navigation';
 import { useAuth } from '../context/AuthContext';
-import { createPermissionReader,isAdministratorRole,visibleNavigationItems } from '../infrastructure/permissions/permissionAdapter';
+import { createPermissionReader, isAdministratorRole, visibleNavigationItems } from '../infrastructure/permissions/permissionAdapter';
 
-export function AdminLayout(){
- const[open,setOpen]=useState(false);const{session,logout}=useAuth();const nav=useNavigate(),location=useLocation();
- const administrator=isAdministratorRole(session?.roleCode,session?.role);
- const items=visibleNavigationItems(navigationItems,createPermissionReader(session?.permissions),administrator);const current=`${location.pathname}${location.search}`;
- async function closeSession(){await logout();nav('/login')}
- return <div className="shell"><aside className={open?'sidebar open':'sidebar'}><div className="brand"><span className="brand-mark">O</span><div><b>OSINET</b><small>TIME ERP ENTERPRISE</small></div><button className="icon mobile" onClick={()=>setOpen(false)} aria-label="Cerrar menú"><X/></button></div><nav>{navigationSections.map(section=>{const children=items.filter(item=>item.section===section);return children.length?<div className="nav-section" key={section}><span>{section}</span>{children.map(({to,label,icon:Icon})=><NavLink key={to} to={to} className={current===to?'active':undefined} onClick={()=>setOpen(false)}><Icon size={19}/>{label}</NavLink>)}</div>:null})}<div className="nav-section"><span>Cuenta</span><NavLink to="/cambiar-password"><KeyRound size={19}/>Cambiar contraseña</NavLink></div></nav><button className="logout" onClick={closeSession}><LogOut size={18}/>Cerrar sesión</button></aside><div className="workspace"><header className="topbar"><button className="icon mobile" onClick={()=>setOpen(true)} aria-label="Abrir menú"><Menu/></button><div className="company"><span className="live-dot"/>OSINET · sesión protegida</div><div className="user"><button className="icon" aria-label="Notificaciones" onClick={()=>nav('/dashboard')}><Bell/></button><span className="avatar">{session?.name.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()}</span><div><b>{session?.name}</b><small>{session?.role}</small></div></div></header><main><Outlet/></main></div></div>
+const dashboardShortcuts = [
+  { to: '/dashboard', label: 'Inicio' },
+  { to: '/empleados', label: 'Empleados' },
+  { to: '/jornadas', label: 'Jornadas' },
+  { to: '/nomina', label: 'Nómina' },
+  { to: '/reportes', label: 'Reportes' },
+  { to: '/administracion', label: 'Configuración' },
+] as const;
+
+export function AdminLayout() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [compact, setCompact] = useState(true);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
+  const { session, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const administrator = isAdministratorRole(session?.roleCode, session?.role);
+  const items = visibleNavigationItems(navigationItems, createPermissionReader(session?.permissions), administrator);
+  const current = `${location.pathname}${location.search}`;
+  const isExecutiveDashboard = administrator && location.pathname === '/dashboard';
+  const compactMode = isExecutiveDashboard && compact;
+  const quickItems = dashboardShortcuts.flatMap((shortcut) => {
+    const item = items.find((candidate) => candidate.to === shortcut.to);
+    return item ? [{ ...shortcut, icon: item.icon }] : [];
+  });
+  const fullNavigation = <>
+    {navigationSections.map((section) => {
+      const children = items.filter((item) => item.section === section);
+      return children.length ? <div className="nav-section" key={section}>
+        <span>{section}</span>
+        {children.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={current === to ? 'active' : undefined} onClick={afterNavigation}><Icon size={19} /><span>{label}</span></NavLink>)}
+      </div> : null;
+    })}
+    <div className="nav-section"><span>Cuenta</span><NavLink to="/cambiar-password" onClick={afterNavigation}><KeyRound size={19} /><span>Cambiar contraseña</span></NavLink></div>
+  </>;
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    mobileCloseRef.current?.focus();
+    const sidebar = document.getElementById('admin-sidebar');
+    const handleDrawerKeys = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMobileNavigation();
+        return;
+      }
+      if (event.key !== 'Tab' || !sidebar) return;
+      const focusable = [...sidebar.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')].filter((element) => element.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleDrawerKeys);
+    return () => window.removeEventListener('keydown', handleDrawerKeys);
+  }, [mobileOpen]);
+
+  function closeMobileNavigation() {
+    setMobileOpen(false);
+    window.requestAnimationFrame(() => mobileTriggerRef.current?.focus());
+  }
+
+  function afterNavigation() {
+    if (mobileOpen) closeMobileNavigation();
+  }
+
+  async function closeSession() {
+    await logout();
+    navigate('/login');
+  }
+
+  return <div className={`shell${compactMode ? ' shell-compact' : ''}`}>
+    <aside id="admin-sidebar" className={mobileOpen ? 'sidebar open' : 'sidebar'} aria-label="Navegación principal">
+      <div className="brand">
+        <span className="brand-mark">O</span>
+        <div className="brand-copy"><b>OSINET</b><small>TIME ERP ENTERPRISE</small></div>
+        {isExecutiveDashboard && <button type="button" className="icon sidebar-toggle desktop-sidebar-toggle" aria-label={compactMode ? 'Expandir navegación' : 'Compactar navegación'} aria-expanded={!compactMode} aria-controls="admin-navigation" onClick={() => setCompact((value) => !value)}>{compactMode ? <PanelLeftOpen /> : <PanelLeftClose />}</button>}
+        <button ref={mobileCloseRef} type="button" className="icon mobile" onClick={closeMobileNavigation} aria-label="Cerrar menú"><X /></button>
+      </div>
+      <nav id="admin-navigation">
+        {compactMode ? <>
+          <div className="sidebar-shortcuts">{quickItems.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} aria-label={label} title={label} onClick={afterNavigation} className={({ isActive }) => isActive ? 'active' : undefined}><Icon /><span>{label}</span></NavLink>)}</div>
+          <div className="sidebar-full-navigation">{fullNavigation}</div>
+        </> : fullNavigation}
+      </nav>
+      <button type="button" className="logout" onClick={closeSession} aria-label="Cerrar sesión"><LogOut size={18} /><span>Cerrar sesión</span></button>
+    </aside>
+    <button type="button" className={`sidebar-backdrop${mobileOpen ? ' open' : ''}`} tabIndex={-1} aria-label="Cerrar navegación" onClick={closeMobileNavigation} />
+    <div className="workspace" aria-hidden={mobileOpen || undefined}>
+      <header className="topbar">
+        <button ref={mobileTriggerRef} type="button" className="icon mobile" onClick={() => setMobileOpen(true)} aria-label="Abrir menú" aria-expanded={mobileOpen} aria-controls="admin-sidebar"><Menu /></button>
+        <div className="company"><span className="live-dot" />OSINET · sesión protegida</div>
+        <div className="user">
+          <button type="button" className="icon" aria-label="Notificaciones" onClick={() => navigate('/dashboard')}><Bell /></button>
+          <span className="avatar">{session?.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
+          <div><b>{session?.name}</b><small>{session?.role}</small></div>
+        </div>
+      </header>
+      <main><Outlet /></main>
+    </div>
+  </div>;
 }
