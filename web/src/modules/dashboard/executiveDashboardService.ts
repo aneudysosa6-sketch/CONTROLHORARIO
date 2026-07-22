@@ -11,7 +11,7 @@ export const executiveDashboardService = {
   async load(session: Session): Promise<ExecutiveDashboardData> {
     const snapshot = await dashboardService.load(session);
     const [employees, journeys, payroll, payrollDashboard] = await Promise.all([
-      employeeService.list(),
+      employeeService.listActive(),
       journeyService.list(),
       reportDataService.payroll(),
       payrollService.dashboardTotal(snapshot.workDate),

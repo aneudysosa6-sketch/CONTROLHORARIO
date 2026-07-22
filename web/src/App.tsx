@@ -20,7 +20,8 @@ import{ReportsCenterPage}from'./pages/ReportsCenterPage';
 import{JourneyReportPage}from'./pages/JourneyReportPage';
 import{AttendanceReportPage}from'./pages/AttendanceReportPage';
 import{OvertimeReportPage}from'./pages/OvertimeReportPage';
-import{HolidaysReportPage,IncidentsReportPage,LoansReportPage,PayrollReportPage,PermissionsReportPage,ProductivityReportPage,TerminatedEmployeesReportPage}from'./pages/RemainingReportsPages';
+import{HolidaysReportPage,IncidentsReportPage,LoansReportPage,PayrollReportPage,PermissionsReportPage,ProductivityReportPage}from'./pages/RemainingReportsPages';
+import{TerminatedEmployeesPage}from'./pages/TerminatedEmployeesPage';
 import{AttendancePage,JourneysPage}from'./pages/JourneyPages';
 import{SupervisorAuditPage,SupervisorDashboardPage,SupervisorEmployeesPage,SupervisorIncidentsPage,SupervisorJourneysPage,SupervisorSchedulesPage}from'./pages/SupervisorPages';
 import{UserProvisioningPage}from'./pages/UserProvisioningPage';
@@ -54,6 +55,7 @@ export default function App(){return <Routes>
   <Route path="/supervisor/horarios" element={<RequirePermission permission="horarios.ver_asignados"><SupervisorSchedulesPage/></RequirePermission>}/>
   <Route path="/supervisor/auditoria" element={<RequirePermission permission="jornadas.ver_asignadas"><SupervisorAuditPage/></RequirePermission>}/>
   <Route path="/empleados" element={<RequirePermission permission="empleados.view"><EmployeesPage/></RequirePermission>}/>
+  <Route path="/empleados/bajas" element={<RequireAnyPermission permissions={['empleados.view','reportes.empleados_baja']}><TerminatedEmployeesPage/></RequireAnyPermission>}/>
   <Route path="/eventos" element={<RequirePermission permission="eventos.view"><EventsPage/></RequirePermission>}/><Route path="/eventos/:id" element={<RequirePermission permission="eventos.view"><EventsPage detail/></RequirePermission>}/>
   <Route path="/supervisores" element={<RequirePermission permission="supervisores.view"><SupervisorsManagementPage/></RequirePermission>}/><Route path="/supervisores/:id" element={<RequirePermission permission="supervisores.edit"><SupervisorsManagementPage detail/></RequirePermission>}/>
   <Route path="/empresas" element={<RequirePermission permission="empresas.view"><CompaniesPage/></RequirePermission>}/><Route path="/sucursales" element={<RequirePermission permission="sucursales.view"><BranchesPage/></RequirePermission>}/><Route path="/departamentos" element={<RequirePermission permission="departamentos.view"><DepartmentsPage/></RequirePermission>}/>
@@ -67,7 +69,7 @@ export default function App(){return <Routes>
   <Route path="/reportes/prestamos" element={<RequirePermission permission="reportes.prestamos"><LoansReportPage/></RequirePermission>}/>
   <Route path="/reportes/productividad" element={<RequirePermission permission="reportes.productividad"><ProductivityReportPage/></RequirePermission>}/>
   <Route path="/reportes/incidencias" element={<RequirePermission permission="reportes.incidencias"><IncidentsReportPage/></RequirePermission>}/>
-  <Route path="/reportes/empleados-baja" element={<RequirePermission permission="reportes.empleados_baja"><TerminatedEmployeesReportPage/></RequirePermission>}/>
+  <Route path="/reportes/empleados-baja" element={<Navigate to="/empleados/bajas" replace/>}/>
   <Route path="/reportes/dias-festivos" element={<RequirePermission permission="reportes.dias_festivos"><HolidaysReportPage/></RequirePermission>}/>
   <Route path="/reportes/permisos" element={<RequirePermission permission="reportes.permisos"><PermissionsReportPage/></RequirePermission>}/>
   <Route path="/nomina/pagos" element={<RequirePermission permission="nomina.ver"><PayrollPaymentsPage/></RequirePermission>}/>

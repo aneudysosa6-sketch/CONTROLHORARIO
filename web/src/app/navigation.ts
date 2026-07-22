@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Smartphone,
   UserCog,
+  UserX,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -52,6 +53,13 @@ export const navigationItems: NavigationItem[] = [
     section: 'Personal',
     permission: 'empleados.view',
     icon: Users,
+  },
+  {
+    to: '/empleados/bajas',
+    label: 'Empleados dados de baja',
+    section: 'Personal',
+    permission: ['empleados.view', 'reportes.empleados_baja'],
+    icon: UserX,
   },
   {
     to: '/equipo',
@@ -252,13 +260,6 @@ export const navigationItems: NavigationItem[] = [
     section: 'Reportes',
     permission: 'reportes.incidencias',
     icon: AlertTriangle,
-  },
-  {
-    to: '/reportes/empleados-baja',
-    label: 'Empleados dados de baja',
-    section: 'Reportes',
-    permission: 'reportes.empleados_baja',
-    icon: Users,
   },
   {
     to: '/reportes/dias-festivos',

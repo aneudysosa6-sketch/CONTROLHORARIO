@@ -58,6 +58,7 @@ import com.example.controlhorario.employeeportal.EmployeeSelfServiceScreen
 import com.example.controlhorario.dashboard.DashboardRoutePolicy
 import com.example.controlhorario.dashboard.DashboardState
 import com.example.controlhorario.security.DeviceIdentityManager
+import com.example.controlhorario.session.EmployeeAccessRevocationBus
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.EmployeePermissionRequestEntity
 import com.example.controlhorario.model.EmployeeDeviceScope
@@ -239,6 +240,14 @@ fun AppNavigation(
             KioskModeManager.isActive.value -> Route.EMPLOYEE_PUNCH
             UserSessionManager.isLoggedIn() -> "home"
             else -> Route.ADMIN_LOGIN
+        }
+    }
+    LaunchedEffect(navController) {
+        EmployeeAccessRevocationBus.events.collect {
+            navController.navigate(Route.ADMIN_LOGIN) {
+                popUpTo(0)
+                launchSingleTop = true
+            }
         }
     }
     NavHost(navController = navController, startDestination = start) {
@@ -783,6 +792,7 @@ fun AppNavigation(
             val journeyRepository = remember(db, appContext) {
                 JourneyRepository(
                     db.journeyDao(),
+                    db.employeeDao(),
                     JourneyCurrentStateSynchronizer(
                         journeyDao = db.journeyDao(),
                         employeeDao = db.employeeDao(),

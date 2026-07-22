@@ -21,7 +21,7 @@ interface EmployeeDao {
     @Update
     suspend fun updateEmployee(employee: Employee)
 
-    @Query("SELECT * FROM employees WHERE isActive = 1 ORDER BY id DESC")
+    @Query("SELECT * FROM employees WHERE isActive = 1 AND LOWER(TRIM(employmentStatus)) != 'desvinculado' ORDER BY id DESC")
     fun getAllEmployees(): Flow<List<Employee>>
 
     @Query("SELECT * FROM employees WHERE id = :employeeId LIMIT 1")
@@ -72,10 +72,10 @@ interface EmployeeDao {
     @Query("SELECT * FROM employees WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findByRemoteId(remoteId: String): Employee?
 
-    @Query("SELECT * FROM employees WHERE departmentId IN (:departmentIds) ORDER BY employeeCode ASC")
+    @Query("SELECT * FROM employees WHERE departmentId IN (:departmentIds) AND isActive = 1 AND LOWER(TRIM(employmentStatus)) != 'desvinculado' ORDER BY employeeCode ASC")
     fun getEmployeesByDepartments(departmentIds: List<Int>): Flow<List<Employee>>
 
-    @Query("SELECT * FROM employees WHERE branchId = :branchId ORDER BY employeeCode ASC")
+    @Query("SELECT * FROM employees WHERE branchId = :branchId AND isActive = 1 AND LOWER(TRIM(employmentStatus)) != 'desvinculado' ORDER BY employeeCode ASC")
     fun getEmployeesByBranch(branchId: Int): Flow<List<Employee>>
 
     @Query("UPDATE employees SET isActive = :active, updatedAt = :updatedAt WHERE id = :employeeId")
@@ -87,10 +87,10 @@ interface EmployeeDao {
     @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL")
     fun observeSyncedTotal(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL AND isActive = 1")
+    @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL AND isActive = 1 AND LOWER(TRIM(employmentStatus)) != 'desvinculado'")
     fun observeSyncedActive(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL AND isActive = 0")
+    @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL AND (isActive = 0 OR LOWER(TRIM(employmentStatus)) = 'desvinculado')")
     fun observeSyncedInactive(): Flow<Int>
 
     @Query("UPDATE employees SET pin='',remoteId=:remoteId,syncStatus='SYNCED',lastSyncError=NULL,remoteUpdatedAt=:remoteUpdatedAt,lastSyncedAt=:now WHERE id=:employeeId")
@@ -105,6 +105,15 @@ interface EmployeeDao {
 
     @Query("UPDATE employees SET syncStatus=:status,lastSyncError=:error WHERE id=:employeeId")
     suspend fun setSyncStatus(employeeId:Int,status:String,error:String?=null)
+
+    /** Upload workers must never overwrite the authoritative tombstone state. */
+    @Query("""
+        UPDATE employees
+        SET syncStatus=:status,lastSyncError=:error
+        WHERE id=:employeeId
+          AND NOT (isActive = 0 AND LOWER(TRIM(employmentStatus)) = 'desvinculado')
+    """)
+    suspend fun setUploadSyncStatus(employeeId:Int,status:String,error:String?=null):Int
 
     @Query("UPDATE employees SET remoteCompanyId=:companyId WHERE remoteId IS NOT NULL AND remoteCompanyId IS NULL")
     suspend fun backfillRemoteCompanyScope(companyId:String):Int

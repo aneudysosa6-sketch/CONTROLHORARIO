@@ -14,11 +14,17 @@ import com.example.controlhorario.face.FaceTemplateInvalidationBus
 import com.example.controlhorario.face.InitialFaceEnrollmentAudit
 import com.example.controlhorario.face.InitialFaceValidationMode
 import com.example.controlhorario.face.InitialFaceUploadRejectionPolicy
+import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.security.DeviceIdentityManager
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
+
+object EmployeeTerminationUploadPolicy {
+    fun isTerminated(employee: Employee): Boolean =
+        !employee.isActive && employee.employmentStatus.trim().equals("desvinculado", ignoreCase = true)
+}
 
 class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
@@ -35,7 +41,17 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         val deviceId = identity.deviceId ?: return Result.failure()
         val credential = identity.credential() ?: return Result.failure()
         val employeeDao = database.employeeDao()
-        val items = outbox.pending(startedAt)
+        val pendingItems = outbox.pending(startedAt)
+        if (pendingItems.isEmpty()) return Result.success()
+        val items = buildList {
+            pendingItems.forEach { item ->
+                if (discardIfTerminated(database, item, startedAt)) return@forEach
+                if (outbox.markSyncing(item.id, startedAt) == 1) {
+                    employeeDao.setUploadSyncStatus(item.employeeLocalId, "SYNCING")
+                    add(item)
+                }
+            }
+        }
         if (items.isEmpty()) return Result.success()
         val batchTracker = EmployeeUploadBatchTracker(items)
         Log.d(
@@ -45,10 +61,6 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         )
 
         return try {
-            items.forEach {
-                outbox.markSyncing(it.id, System.currentTimeMillis())
-                employeeDao.setSyncStatus(it.employeeLocalId, "SYNCING")
-            }
             val results = EmployeeUploadClient(
                 applicationContext.getString(R.string.employee_upsert_url)
             ).upload(deviceId, credential, items)
@@ -62,10 +74,14 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                     )
                     return@forEach
                 }
+                if (discardIfTerminated(database, item, System.currentTimeMillis())) {
+                    batchTracker.markHandled(item.id, item.idempotencyKey)
+                    return@forEach
+                }
                 when {
                     result.result == "accepted" || result.result == "duplicate" -> {
                         if (!EmployeeUploadAuthorityPolicy.accepts(item.operation, result.employeeCode)) {
-                            employeeDao.setSyncStatus(
+                            employeeDao.setUploadSyncStatus(
                                 item.employeeLocalId,
                                 "FAILED",
                                 EMPLOYEE_CODE_AUTHORITY_MISSING
@@ -101,7 +117,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                                 result = result
                             )
                             if (!reconciled) {
-                                employeeDao.setSyncStatus(
+                                employeeDao.setUploadSyncStatus(
                                     item.employeeLocalId,
                                     "FAILED",
                                     FACE_RECONCILIATION_FAILED
@@ -117,7 +133,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                             throw cancelled
                         } catch (error: Exception) {
                             retryNeeded = true
-                            employeeDao.setSyncStatus(
+                            employeeDao.setUploadSyncStatus(
                                 item.employeeLocalId,
                                 "FAILED",
                                 FACE_RECONCILIATION_RETRY
@@ -143,7 +159,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                         // Unknown/database rejections may be transient. Keep the offline template
                         // and retry; only the explicit business codes above revoke it.
                         retryNeeded = true
-                        employeeDao.setSyncStatus(
+                        employeeDao.setUploadSyncStatus(
                             item.employeeLocalId,
                             "FAILED",
                             result.error ?: "INITIAL_FACE_UPLOAD_RETRY"
@@ -156,7 +172,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                         )
                     }
                     else -> {
-                        employeeDao.setSyncStatus(item.employeeLocalId, "FAILED", result.error)
+                        employeeDao.setUploadSyncStatus(item.employeeLocalId, "FAILED", result.error)
                         outbox.markFailed(
                             item.id,
                             result.error ?: "REJECTED",
@@ -168,8 +184,14 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                 batchTracker.markHandled(item.id, item.idempotencyKey)
             }
             val omittedItems = batchTracker.unresolvedItems()
+            var omittedRetryNeeded = false
             omittedItems.forEach { item ->
-                employeeDao.setSyncStatus(
+                if (discardIfTerminated(database, item, System.currentTimeMillis())) {
+                    batchTracker.markHandled(item.id, item.idempotencyKey)
+                    return@forEach
+                }
+                omittedRetryNeeded = true
+                employeeDao.setUploadSyncStatus(
                     item.employeeLocalId,
                     "FAILED",
                     UPLOAD_RESPONSE_MISSING
@@ -186,32 +208,59 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                     "stage=upload_response_missing localEmployeeId=${item.employeeLocalId}"
                 )
             }
-            if (omittedItems.isNotEmpty()) retryNeeded = true
+            if (omittedRetryNeeded) retryNeeded = true
             Log.d("FACE_REGISTRATION_CRASH", "stage=upload_finished results=${results.size}")
             if (retryNeeded) Result.retry() else Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            var uncancelledFailure = false
             batchTracker.unresolvedItems().forEach {
+                if (discardIfTerminated(database, it, System.currentTimeMillis())) {
+                    batchTracker.markHandled(it.id, it.idempotencyKey)
+                    return@forEach
+                }
+                uncancelledFailure = true
                 outbox.markFailed(
                     it.id,
                     error.message ?: "NETWORK_ERROR",
                     System.currentTimeMillis() + RETRY_DELAY_MILLIS,
                     System.currentTimeMillis()
                 )
-                employeeDao.setSyncStatus(it.employeeLocalId, "FAILED", error.message)
+                employeeDao.setUploadSyncStatus(it.employeeLocalId, "FAILED", error.message)
             }
             Log.e(
                 "FACE_REGISTRATION_CRASH",
                 "stage=error file=EmployeeUploadWorker.kt pipelineStage=upload message=${error.message}",
                 error
             )
-            if (error is EmployeeUploadHttpException && error.status in 400..499) {
+            if (!uncancelledFailure) {
+                Result.success()
+            } else if (error is EmployeeUploadHttpException && error.status in 400..499) {
                 Result.failure()
             } else {
                 Result.retry()
             }
         }
+    }
+
+    private suspend fun discardIfTerminated(
+        database: AppDatabase,
+        item: EmployeeSyncOutboxEntity,
+        now: Long
+    ): Boolean {
+        val employee = database.employeeDao().findByLocalId(item.employeeLocalId)
+            ?: return false
+        if (!EmployeeTerminationUploadPolicy.isTerminated(employee)) return false
+        val discarded = database.employeeSyncOutboxDao()
+            .discardOperationalForTerminated(item.employeeLocalId, now)
+        if (discarded > 0) {
+            Log.i(
+                "EMPLOYEE_TERMINATION",
+                "localEmployeeId=${item.employeeLocalId} discardedOperationalOutbox=$discarded"
+            )
+        }
+        return true
     }
 
     /**
@@ -259,7 +308,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
             return false
         }
 
-        database.employeeDao().setSyncStatus(employee.id, "SYNCED")
+        database.employeeDao().setUploadSyncStatus(employee.id, "SYNCED")
         database.employeeSyncOutboxDao().markSynced(item.id, System.currentTimeMillis())
         try {
             val enrollment = database.deviceEnrollmentDao().current()
@@ -317,7 +366,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         val removed = database.employeeFaceBiometricDao()
             .deleteInitialSelfEnrollment(item.employeeLocalId)
         FaceTemplateInvalidationBus.invalidate()
-        database.employeeDao().setSyncStatus(
+        database.employeeDao().setUploadSyncStatus(
             item.employeeLocalId,
             "FAILED",
             result.error ?: "INITIAL_FACE_REJECTED"
@@ -387,8 +436,15 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
     ) {
         val remoteId = requireNotNull(result.remoteId) { "employee_upsert_remote_id_missing" }
         val now = System.currentTimeMillis()
-        database.withTransaction {
+        val completed = database.withTransaction {
+            val outbox = database.employeeSyncOutboxDao()
+            if (outbox.syncingCount(item.id) != 1) return@withTransaction false
             val employeeDao = database.employeeDao()
+            val current = employeeDao.findByLocalId(item.employeeLocalId)
+            if (current != null && EmployeeTerminationUploadPolicy.isTerminated(current)) {
+                outbox.discardOperationalForTerminated(item.employeeLocalId, now)
+                return@withTransaction false
+            }
             if (item.operation == "CREATE") {
                 val authoritativeCode = requireNotNull(
                     EmployeeUploadAuthorityPolicy.authoritativeCode(
@@ -452,9 +508,9 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                     now
                 )
             }
-            database.employeeSyncOutboxDao().markSynced(item.id,now)
+            outbox.markSynced(item.id,now) == 1
         }
-        if (item.operation == "CREATE") FaceTemplateInvalidationBus.invalidate()
+        if (completed && item.operation == "CREATE") FaceTemplateInvalidationBus.invalidate()
     }
 
     private suspend fun rewritePendingEmployeePayloads(

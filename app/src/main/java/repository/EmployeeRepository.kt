@@ -8,6 +8,7 @@ import com.example.controlhorario.database.EmployeeSyncOutboxDao
 import com.example.controlhorario.database.EmployeeSyncOutboxEntity
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.EmployeeCodePolicy
+import com.example.controlhorario.model.EmployeeEmploymentPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,7 +26,7 @@ class EmployeeRepository(
 
     suspend fun findActiveByLocalId(employeeId: Int): Employee? =
         employeeDao.findByLocalId(employeeId)?.takeIf {
-            it.isActive && it.remoteId != null
+            EmployeeEmploymentPolicy.isEmploymentActive(it) && it.remoteId != null
         }
 
     suspend fun findAnyByLocalId(employeeId: Int): Employee? = employeeDao.findByLocalId(employeeId)

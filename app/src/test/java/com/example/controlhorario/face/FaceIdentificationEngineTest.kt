@@ -50,6 +50,26 @@ class FaceIdentificationEngineTest {
     }
 
     @Test
+    fun `one template above threshold can never be ambiguous`() = runBlocking {
+        val diagnostics = mutableListOf<FaceIdentificationPerformance>()
+        val engine = engine(
+            records = listOf(record(employeeId = 1, encryptedEmbedding = "only")),
+            embeddings = mapOf("only" to unit(0.80f)),
+            margin = 0.10f,
+            performanceLogger = FaceIdentificationPerformanceLogger(diagnostics::add)
+        )
+
+        val result = engine.identify(unit(1f), scope, embeddingMs = 0L)
+
+        assertTrue(result is FaceIdentificationResult.MatchConfirmed)
+        assertEquals(1, diagnostics.single().templatesLoaded)
+        assertEquals(1, diagnostics.single().uniqueCandidates)
+        assertEquals(null, diagnostics.single().secondScore)
+        assertEquals(null, diagnostics.single().margin)
+        engine.close()
+    }
+
+    @Test
     fun `two close candidates above threshold return ambiguous`() = runBlocking {
         val engine = engine(
             records = listOf(
@@ -63,6 +83,67 @@ class FaceIdentificationEngineTest {
         val result = engine.identify(unit(1f), scope, embeddingMs = 0L)
 
         assertTrue(result is FaceIdentificationResult.MatchAmbiguous)
+        engine.close()
+    }
+
+    @Test
+    fun `second candidate below threshold cannot make the only real match ambiguous`() = runBlocking {
+        val diagnostics = mutableListOf<FaceIdentificationPerformance>()
+        val engine = engine(
+            records = listOf(
+                record(employeeId = 1, encryptedEmbedding = "only-match"),
+                record(employeeId = 2, encryptedEmbedding = "below-threshold")
+            ),
+            embeddings = mapOf(
+                "only-match" to unit(0.80f),
+                "below-threshold" to unit(0.74f)
+            ),
+            margin = 0.10f,
+            performanceLogger = FaceIdentificationPerformanceLogger(diagnostics::add)
+        )
+
+        val result = engine.identify(unit(1f), scope, embeddingMs = 0L)
+
+        assertTrue(result is FaceIdentificationResult.MatchConfirmed)
+        assertEquals(
+            1,
+            (result as FaceIdentificationResult.MatchConfirmed).employee.localEmployeeId
+        )
+        assertEquals(1, diagnostics.single().firstCandidateEmployeeId)
+        assertEquals(2, diagnostics.single().secondCandidateEmployeeId)
+        assertEquals(0.75f, diagnostics.single().matchThreshold)
+        assertEquals(0.10f, diagnostics.single().configuredMatchMargin)
+        assertTrue(requireNotNull(diagnostics.single().margin) <= 0.10f)
+        engine.close()
+    }
+
+    @Test
+    fun `duplicate template rows for one employee are one candidate`() = runBlocking {
+        val diagnostics = mutableListOf<FaceIdentificationPerformance>()
+        val records = listOf(
+            record(employeeId = 1, encryptedEmbedding = "first-row"),
+            record(employeeId = 1, encryptedEmbedding = "duplicate-row")
+        )
+        val cache = FaceTemplateCache(
+            loader = FaceTemplateLoader { records },
+            decryptor = FaceTemplateDecryptor { value, _ ->
+                if (value == "first-row") unit(0.90f) else unit(0.89f)
+            },
+            ioDispatcher = Dispatchers.Unconfined
+        )
+        val engine = FaceIdentificationEngine(
+            cache = cache,
+            config = FaceIdentificationConfig(matchMargin = 0.10f),
+            compareDispatcher = Dispatchers.Unconfined,
+            performanceLogger = FaceIdentificationPerformanceLogger(diagnostics::add)
+        )
+
+        val result = engine.identify(unit(1f), scope, embeddingMs = 0L)
+
+        assertTrue(result is FaceIdentificationResult.MatchConfirmed)
+        assertEquals(1, diagnostics.single().uniqueCandidates)
+        assertEquals(1, diagnostics.single().duplicateTemplateRows)
+        assertEquals(null, diagnostics.single().secondCandidateEmployeeId)
         engine.close()
     }
 
@@ -276,7 +357,9 @@ class FaceIdentificationEngineTest {
     private fun engine(
         records: List<FaceIdentificationTemplateRecord>,
         embeddings: Map<String, FloatArray>,
-        margin: Float
+        margin: Float,
+        performanceLogger: FaceIdentificationPerformanceLogger =
+            FaceIdentificationPerformanceLogger { }
     ): FaceIdentificationEngine {
         val cache = FaceTemplateCache(
             loader = FaceTemplateLoader { records },
@@ -287,7 +370,7 @@ class FaceIdentificationEngineTest {
             cache = cache,
             config = FaceIdentificationConfig(matchMargin = margin),
             compareDispatcher = Dispatchers.Unconfined,
-            performanceLogger = FaceIdentificationPerformanceLogger { }
+            performanceLogger = performanceLogger
         )
     }
 

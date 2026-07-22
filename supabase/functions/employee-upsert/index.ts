@@ -282,15 +282,46 @@ Deno.serve(async (request) => {
         });
       }
 
-      // Flujo legacy/admin: conserva el upsert existente y su capacidad de reemplazo.
+      if (operation === "UPDATE") {
+        const existingResult = await admin.from("empleados")
+          .select("id,activo,estado_laboral")
+          .eq("id", employeeRemoteId)
+          .eq("empresa_id", auth.empresa_id)
+          .eq("codigo_empleado", employeeCode)
+          .maybeSingle();
+        if (existingResult.error || !existingResult.data) {
+          results.push({
+            idempotency_key: idempotencyKey,
+            employee_code: employeeCode,
+            result: "rejected",
+            error_code: existingResult.error?.code || "EMPLOYEE_IDENTITY_MISMATCH",
+          });
+          continue;
+        }
+        if (existingResult.data.activo !== true ||
+          existingResult.data.estado_laboral !== "activo") {
+          results.push({
+            idempotency_key: idempotencyKey,
+            employee_code: employeeCode,
+            result: "rejected",
+            error_code: "EMPLOYEE_INACTIVE",
+          });
+          continue;
+        }
+      }
+
+      // El dispositivo nunca decide el ciclo laboral. CREATE nace activo y
+      // UPDATE conserva activo/estado_laboral remotos; una baja o reactivacion
+      // solo puede pasar por las RPC administrativas auditadas.
       const record = {
         empresa_id: auth.empresa_id,
         codigo_empleado: employeeCode,
         nombre_completo: name,
         telefono: text(operationPayload.phone) || null,
         correo: text(operationPayload.email).toLowerCase() || null,
-        activo: operationPayload.active !== false,
-        estado_laboral: operationPayload.active === false ? "desvinculado" : "activo",
+        ...(operation === "CREATE"
+          ? { activo: true, estado_laboral: "activo" }
+          : {}),
         sucursal_id: device.sucursal_id,
         ...(embedding === undefined ? {} : { face_embedding: embedding }),
       };
@@ -301,7 +332,9 @@ Deno.serve(async (request) => {
         : admin.from("empleados").update(record)
           .eq("id", employeeRemoteId)
           .eq("empresa_id", auth.empresa_id)
-          .eq("codigo_empleado", employeeCode);
+          .eq("codigo_empleado", employeeCode)
+          .eq("activo", true)
+          .eq("estado_laboral", "activo");
       const { data: employee, error } = await write
         .select("id,codigo_empleado,updated_at,face_embedding")
         .single();
@@ -315,7 +348,9 @@ Deno.serve(async (request) => {
           idempotency_key: idempotencyKey,
           employee_code: employeeCode,
           result: "rejected",
-          error_code: error.code || "DATABASE_ERROR",
+          error_code: operation === "UPDATE" && error.code === "PGRST116"
+            ? "EMPLOYEE_INACTIVE"
+            : error.code || "DATABASE_ERROR",
         });
         continue;
       }

@@ -8,7 +8,7 @@ export type IncidentReportRow = { id: string; journey: Journey; type: string; se
 export const reportDataService = {
   journeys: () => journeyService.list(),
   employees: () => employeeService.list(),
-  inactiveEmployees: async () => (await employeeService.list()).filter((employee) => employee.status === 'desvinculado' || !employee.active),
+  inactiveEmployees: () => employeeService.listTerminated(),
   permissionsAndLicenses: async () => (await employeeService.list()).filter((employee) => employee.status === 'licencia'),
   payroll: async (): Promise<ReportPayrollData> => {
     const periods = await payrollService.listPeriods();

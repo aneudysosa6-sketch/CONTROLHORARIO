@@ -32,6 +32,7 @@ interface EmployeeFaceBiometricDao {
         WHERE face.isActive = 1
           AND employee.isActive = 1
           AND employee.jornadaEnabled = 1
+          AND LOWER(TRIM(employee.employmentStatus)) IN ('activo', 'active')
           AND employee.remoteCompanyId = :remoteCompanyId
           AND (:remoteBranchId IS NULL OR employee.remoteBranchId = :remoteBranchId)
         ORDER BY employee.employeeCode ASC

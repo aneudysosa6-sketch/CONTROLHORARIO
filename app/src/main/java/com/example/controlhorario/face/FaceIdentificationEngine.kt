@@ -1,6 +1,7 @@
 package com.example.controlhorario.face
 
 import android.util.Log
+import com.example.controlhorario.model.EmployeeCodePolicy
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -17,7 +18,15 @@ data class FaceIdentificationPerformance(
     val result: FaceIdentificationStatus,
     val topScore: Float?,
     val secondScore: Float?,
-    val margin: Float?
+    val margin: Float?,
+    val uniqueCandidates: Int = 0,
+    val duplicateTemplateRows: Int = 0,
+    val firstCandidateEmployeeId: Int? = null,
+    val firstCandidateCode: String? = null,
+    val secondCandidateEmployeeId: Int? = null,
+    val secondCandidateCode: String? = null,
+    val matchThreshold: Float? = null,
+    val configuredMatchMargin: Float? = null,
 )
 
 fun interface FaceIdentificationPerformanceLogger {
@@ -33,10 +42,24 @@ fun interface FaceIdentificationPerformanceLogger {
                     "compareMs=${performance.compareMs} " +
                     "totalMs=${performance.totalMs} " +
                     "result=${performance.result} " +
+                    "firstCandidate=${performance.candidateLabel(first = true)} " +
+                    "secondCandidate=${performance.candidateLabel(first = false)} " +
                     "topScore=${performance.topScore.logValue()} " +
                     "secondScore=${performance.secondScore.logValue()} " +
-                    "margin=${performance.margin.logValue()}"
+                    "margin=${performance.margin.logValue()} " +
+                    "threshold=${performance.matchThreshold.logValue()} " +
+                    "configuredMargin=${performance.configuredMatchMargin.logValue()} " +
+                    "uniqueCandidates=${performance.uniqueCandidates} " +
+                    "duplicateTemplateRows=${performance.duplicateTemplateRows}"
             )
+        }
+
+        private fun FaceIdentificationPerformance.candidateLabel(first: Boolean): String {
+            val employeeId = if (first) firstCandidateEmployeeId else secondCandidateEmployeeId
+            val code = if (first) firstCandidateCode else secondCandidateCode
+            return employeeId?.let {
+                "$it/${EmployeeCodePolicy.maskForLog(code.orEmpty())}"
+            } ?: "NA"
         }
 
         private fun Float?.logValue(): String =
@@ -79,7 +102,9 @@ class FaceIdentificationEngine(
                         result = result.status,
                         topScore = null,
                         secondScore = null,
-                        margin = null
+                        margin = null,
+                        matchThreshold = config.matchThreshold,
+                        configuredMatchMargin = config.matchMargin,
                     )
                 )
             }
@@ -146,7 +171,7 @@ class FaceIdentificationEngine(
             }
 
             val compareStartedAt = System.nanoTime()
-            val ranked = withContext(compareDispatcher) {
+            val scoredTemplates = withContext(compareDispatcher) {
                 snapshot.templates
                     .map { template ->
                         ScoredTemplate(
@@ -154,12 +179,18 @@ class FaceIdentificationEngine(
                             score = FaceEmbeddingEngine.cosine(template.embedding, embedding)
                         )
                     }
-                    .sortedByDescending(ScoredTemplate::score)
             }
+            // Ambiguity is a comparison between employees, not between rows. Keep only
+            // the strongest template for each employee before choosing top and second.
+            val ranked = scoredTemplates
+                .groupBy { it.template.employee.localEmployeeId }
+                .mapNotNull { (_, candidates) -> candidates.maxByOrNull(ScoredTemplate::score) }
+                .sortedByDescending(ScoredTemplate::score)
             val compareMs = elapsedMillis(compareStartedAt)
             val top = ranked.first()
             val second = ranked.getOrNull(1)
             val margin = second?.let { top.score - it.score }
+            val duplicateTemplateRows = snapshot.templates.size - ranked.size
 
             val result = when {
                 top.score < config.matchThreshold -> FaceIdentificationResult.NoMatch(
@@ -168,7 +199,11 @@ class FaceIdentificationEngine(
                     scoreMargin = margin
                 )
 
-                second != null && margin != null && margin <= config.matchMargin ->
+                second != null &&
+                    second.template.employee.localEmployeeId != top.template.employee.localEmployeeId &&
+                    second.score >= config.matchThreshold &&
+                    margin != null &&
+                    margin <= config.matchMargin ->
                     FaceIdentificationResult.MatchAmbiguous(
                         topScore = top.score,
                         secondScore = second.score,
@@ -188,7 +223,9 @@ class FaceIdentificationEngine(
                 loadMs = snapshot.loadMs,
                 embeddingMs = safeEmbeddingMs,
                 compareMs = compareMs,
-                startedAt = startedAt
+                startedAt = startedAt,
+                ranked = ranked,
+                duplicateTemplateRows = duplicateTemplateRows,
             )
         } finally {
             identificationMutex.unlock()
@@ -206,7 +243,9 @@ class FaceIdentificationEngine(
         loadMs: Long,
         embeddingMs: Long,
         compareMs: Long,
-        startedAt: Long
+        startedAt: Long,
+        ranked: List<ScoredTemplate> = emptyList(),
+        duplicateTemplateRows: Int = 0,
     ): FaceIdentificationResult = result.also {
         performanceLogger.log(
             FaceIdentificationPerformance(
@@ -218,7 +257,15 @@ class FaceIdentificationEngine(
                 result = result.status,
                 topScore = result.topScore,
                 secondScore = result.secondScore,
-                margin = result.scoreMargin
+                margin = result.scoreMargin,
+                uniqueCandidates = ranked.size,
+                duplicateTemplateRows = duplicateTemplateRows,
+                firstCandidateEmployeeId = ranked.getOrNull(0)?.template?.employee?.localEmployeeId,
+                firstCandidateCode = ranked.getOrNull(0)?.template?.employee?.employeeCode,
+                secondCandidateEmployeeId = ranked.getOrNull(1)?.template?.employee?.localEmployeeId,
+                secondCandidateCode = ranked.getOrNull(1)?.template?.employee?.employeeCode,
+                matchThreshold = config.matchThreshold,
+                configuredMatchMargin = config.matchMargin,
             )
         )
     }

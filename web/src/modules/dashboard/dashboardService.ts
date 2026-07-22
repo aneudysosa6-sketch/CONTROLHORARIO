@@ -2,7 +2,7 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../../infrastructure/supabase/client';
 import type { Session } from '../../types';
 
-type EmployeeRow = { id: string; nombre_completo: string; codigo_empleado: string; activo: boolean; jornada_habilitada: boolean };
+type EmployeeRow = { id: string; nombre_completo: string; codigo_empleado: string; activo: boolean; jornada_habilitada: boolean; estado_laboral: string };
 type JourneyRow = { id: string; empleado_id: string; fecha_laboral: string; estado: string; minutos_trabajados: number | null; revision_pendiente: boolean; severidad: string; actualizada_en: string };
 type IncidentRow = { id: string; jornada_id: string; empleado_id: string; tipo: string; severidad: string; mensaje: string; leida: boolean; resuelta: boolean; creada_en: string };
 
@@ -76,7 +76,7 @@ export const dashboardService = {
     });
 
     const [employeeResult, journeyResult, incidentResult] = await Promise.all([
-      supabase.from('empleados').select('id,nombre_completo,codigo_empleado,activo,jornada_habilitada').eq('empresa_id', session.companyId),
+      supabase.from('empleados').select('id,nombre_completo,codigo_empleado,activo,jornada_habilitada,estado_laboral').eq('empresa_id', session.companyId),
       supabase.from('jornadas').select('id,empleado_id,fecha_laboral,estado,minutos_trabajados,revision_pendiente,severidad,actualizada_en').eq('empresa_id', session.companyId).eq('fecha_laboral', workDate).order('actualizada_en', { ascending: false }),
       supabase.from('jornada_incidencias').select('id,jornada_id,empleado_id,tipo,severidad,mensaje,leida,resuelta,creada_en').eq('empresa_id', session.companyId).eq('resuelta', false).eq('leida', false).order('creada_en', { ascending: false }),
     ]);
@@ -89,7 +89,7 @@ export const dashboardService = {
     const incidents = (incidentResult.data ?? []) as IncidentRow[];
     const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
     const employeesWithJourney = new Set(journeys.map((journey) => journey.empleado_id));
-    const eligible = employees.filter((employee) => employee.activo && employee.jornada_habilitada);
+    const eligible = employees.filter((employee) => employee.activo && employee.jornada_habilitada && employee.estado_laboral !== 'desvinculado');
     dashboardLog('ACTIVE_JOURNEY_QUERY', {
       companyId: session.companyId,
       workDate,

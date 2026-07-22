@@ -116,6 +116,7 @@ class JourneyViewModel(
                 isPunchAuthorized.value = currentAuthorization()
                 logAction(employee.id, action, "failed type=${it.javaClass.simpleName}")
                 error.value = when (it.message) {
+                    "EMPLOYEE_INACTIVE" -> "Empleado desvinculado o inactivo. No puede registrar jornada."
                     "ATTENDANCE_DISABLED" -> "Tu registro de jornada está deshabilitado."
                     "ALREADY_FINALIZED" -> "La jornada de hoy ya fue finalizada."
                     "BIOMETRIC_PROOF_REQUIRED" -> "Debe confirmar su rostro antes de cada acción."

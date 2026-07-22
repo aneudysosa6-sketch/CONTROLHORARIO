@@ -231,6 +231,12 @@ class FaceIdentificationViewModel(
         // The legacy faceOnlyEnabled flag no longer selects a code-first flow. Employee mode
         // always starts with 1:N facial identification; code is offered only after no match.
         val margin = settings?.faceMatchMargin
+        Log.d(
+            TAG,
+            "stage=config settingsPresent=${settings != null} " +
+                "threshold=${settings?.faceMatchThreshold ?: "UNAVAILABLE"} " +
+                "configuredMargin=${margin ?: "NULL"}"
+        )
         if (margin == null) {
             mutableState.value = FaceIdentificationUiState(
                 phase = FaceIdentificationPhase.CONFIGURATION_REQUIRED,

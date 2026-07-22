@@ -16,7 +16,13 @@ data class RemoteEmployee(
  val remoteEmbeddingPresent:Boolean=false,val remoteEmbeddingDimension:Int?=null,
  val remoteEmbeddingValid:Boolean=faceEmbedding!=null
 )
-data class RemoteInactiveEmployee(val id:String,val updatedAt:String)
+data class RemoteInactiveEmployee(
+ val id:String,
+ val updatedAt:String,
+ val status:String="desvinculado",
+ val jornadaEnabled:Boolean=false,
+ val profileId:String?=null
+)
 data class RemoteKioskSettings(
  val companyId:String,val faceOnlyEnabled:Boolean,val pinFallbackEnabled:Boolean,
  val faceMatchThreshold:Float,val faceMatchMargin:Float?,val updatedAt:String
@@ -75,7 +81,15 @@ class EmployeeSyncClient(private val endpoint:String){
    )
   }
   val inactiveRows=json.optJSONArray("inactive")
-  val inactive=(0 until (inactiveRows?.length()?:0)).map{inactiveRows!!.getJSONObject(it)}.map{RemoteInactiveEmployee(it.getString("remote_id"),it.getString("updated_at"))}
+  val inactive=(0 until (inactiveRows?.length()?:0)).map{inactiveRows!!.getJSONObject(it)}.map{
+   RemoteInactiveEmployee(
+    id=it.getString("remote_id"),
+    updatedAt=it.getString("updated_at"),
+    status=it.optString("status","desvinculado").ifBlank{"desvinculado"},
+    jornadaEnabled=it.optBoolean("jornada_enabled",false),
+    profileId=it.optString("profile_id").takeIf(String::isNotBlank)
+   )
+  }
   val cursorJson=json.optJSONObject("cursor")
   val cursor=cursorJson?.optString("updated_at")?.takeIf{it.isNotBlank()}?.let{EmployeeSyncCursor(it,cursorJson.optString("id"))}
   val settingsJson=json.optJSONObject("company_settings")

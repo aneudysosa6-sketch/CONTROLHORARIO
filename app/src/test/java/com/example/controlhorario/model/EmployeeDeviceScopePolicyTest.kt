@@ -32,4 +32,21 @@ class EmployeeDeviceScopePolicyTest {
     @Test fun `inactive employee is denied`() {
         assertFalse(EmployeeDeviceScopePolicy.allows(employee.copy(isActive = false), scope))
     }
+
+    @Test fun `terminated status is denied even if active flag is inconsistent`() {
+        assertFalse(
+            EmployeeDeviceScopePolicy.allows(
+                employee.copy(isActive = true, employmentStatus = "desvinculado"),
+                scope
+            )
+        )
+    }
+
+    @Test fun `suspended employee cannot use the operational attendance flow`() {
+        assertFalse(
+            EmployeeEmploymentPolicy.canRegisterAttendance(
+                employee.copy(employmentStatus = "suspendido")
+            )
+        )
+    }
 }

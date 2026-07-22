@@ -88,7 +88,7 @@ Deno.serve(async request=>{
     if(cursorUpdatedAt&&Number.isNaN(Date.parse(cursorUpdatedAt)))return json({error:'Cursor updated_at inválido'},400)
     if(cursorId&&!validUuid(cursorId))return json({error:'Cursor id inválido'},400)
 
-    let query=admin.from('empleados').select('id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,jornada_habilitada,updated_at,face_embedding').eq('empresa_id',auth.empresa_id)
+    let query=admin.from('empleados').select('id,perfil_id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,jornada_habilitada,updated_at,face_embedding').eq('empresa_id',auth.empresa_id)
     if(targeted)query=query.eq('codigo_empleado',employeeCode).limit(1)
     else{query=query.order('updated_at').order('id').limit(1001);if(cursorUpdatedAt)query=query.gte('updated_at',cursorUpdatedAt)}
     let employeeResult
@@ -124,7 +124,7 @@ Deno.serve(async request=>{
     const positionNames=new Map((positionResult.data??[]).map(row=>[row.id,row.name]))
     const supervisorNames=new Map((supervisorResult.data??[]).map(row=>[row.id,row.nombre_completo]))
     const schedules=new Map<string,Record<string,unknown>>();for(const row of scheduleResult.data??[]){if(!schedules.has(String(row.empleado_id)))schedules.set(String(row.empleado_id),row)}
-    const employees=page.filter(row=>row.activo===true).map(row=>{const schedule=schedules.get(row.id),rawEmbeddingPresent=row.face_embedding!==null&&row.face_embedding!==undefined,rawEmbeddingDimension=Array.isArray(row.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid=validEmbedding(row.face_embedding);return({
+    const employees=page.filter(row=>row.activo===true&&row.estado_laboral==='activo').map(row=>{const schedule=schedules.get(row.id),rawEmbeddingPresent=row.face_embedding!==null&&row.face_embedding!==undefined,rawEmbeddingDimension=Array.isArray(row.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid=validEmbedding(row.face_embedding);return({
       remote_id:row.id,code:row.codigo_empleado,name:row.nombre_completo,email:row.correo??'',phone:row.telefono??'',
       branch_id:row.sucursal_id,branch_name:branchNames.get(row.sucursal_id)??'',
       department_id:row.departamento_id,department_name:departmentNames.get(row.departamento_id)??'',
@@ -139,7 +139,13 @@ Deno.serve(async request=>{
       face_embedding_dimension:rawEmbeddingDimension,
       face_embedding_valid:remoteEmbeddingValid,
     })})
-    const inactive=page.filter(row=>row.activo!==true).map(row=>({remote_id:row.id,updated_at:row.updated_at}))
+    const inactive=page.filter(row=>row.activo!==true||row.estado_laboral!=='activo').map(row=>({
+      remote_id:row.id,
+      profile_id:row.perfil_id??null,
+      updated_at:row.updated_at,
+      status:row.estado_laboral,
+      jornada_enabled:row.activo===true&&row.estado_laboral==='activo'&&row.jornada_habilitada!==false,
+    }))
     if(targeted){const row=page[0],rawEmbeddingPresent=row?.face_embedding!==null&&row?.face_embedding!==undefined;console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode:maskedEmployeeCode(employeeCode),remoteId:row?.id??null,remoteEmbeddingPresent:rawEmbeddingPresent,remoteEmbeddingDimension:Array.isArray(row?.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid:validEmbedding(row?.face_embedding),httpStatus:200,finalResult:row?'FOUND':'NOT_FOUND'})}
     console.log('EmployeeSync empleados enviados',{request_id:requestId,company_id:auth.empresa_id,active_sent:employees.length,inactive_sent:inactive.length,has_more:changed.length>page.length})
     await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)

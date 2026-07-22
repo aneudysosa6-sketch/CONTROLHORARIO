@@ -6,8 +6,13 @@ import com.example.controlhorario.database.AppDatabase
 import com.example.controlhorario.database.EmployeeFaceBiometricEntity
 import com.example.controlhorario.database.KioskSettingsEntity
 import com.example.controlhorario.face.FaceEmbeddingCipher
+import com.example.controlhorario.face.FaceTemplateInvalidationBus
+import com.example.controlhorario.auth.AuthSessionStore
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.EmployeeCodePolicy
+import com.example.controlhorario.session.EmployeeAccessRevocationBus
+import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.ui.punch.JourneyBiometricGate
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -18,7 +23,48 @@ data class EmployeeSyncSummary(
  val targetedRemoteEmbeddingValid:Boolean?=null
 )
 
-class EmployeeSyncRepository(private val database:AppDatabase){
+object EmployeeTerminationSessionPolicy {
+ fun shouldInvalidate(
+  status:String,
+  remoteProfileId:String?,
+  principalAuthUid:String?,
+  currentUserEmployeeId:Int?,
+  localEmployeeId:Int?
+ ):Boolean {
+  if(!status.trim().equals("desvinculado",ignoreCase=true))return false
+  val profileMatches=!remoteProfileId.isNullOrBlank()&&
+   remoteProfileId.equals(principalAuthUid,ignoreCase=true)
+  val localEmployeeMatches=localEmployeeId!=null&&localEmployeeId>0&&
+   currentUserEmployeeId==localEmployeeId
+  return profileMatches||localEmployeeMatches
+ }
+}
+
+fun interface EmployeeTerminationSessionInvalidator {
+ fun invalidate(remoteProfileId:String?,localEmployeeId:Int?,status:String)
+}
+
+object ProcessEmployeeTerminationSessionInvalidator:EmployeeTerminationSessionInvalidator {
+ override fun invalidate(remoteProfileId:String?,localEmployeeId:Int?,status:String){
+  if(EmployeeTerminationSessionPolicy.shouldInvalidate(
+    status=status,
+    remoteProfileId=remoteProfileId,
+    principalAuthUid=AuthSessionStore.principal.value?.authUid,
+    currentUserEmployeeId=UserSessionManager.getCurrentUser()?.employeeId,
+    localEmployeeId=localEmployeeId
+   )){
+   Log.i("EMPLOYEE_TERMINATION","activeSessionInvalidated=true localEmployeeId=${localEmployeeId?:-1}")
+   JourneyBiometricGate.clear()
+   UserSessionManager.logout()
+   EmployeeAccessRevocationBus.notifyRevoked()
+  }
+ }
+}
+
+class EmployeeSyncRepository(
+ private val database:AppDatabase,
+ private val sessionInvalidator:EmployeeTerminationSessionInvalidator=ProcessEmployeeTerminationSessionInvalidator
+){
  suspend fun sync(client:EmployeeSyncClient,deviceId:String,credential:String):EmployeeSyncSummary=
   SYNC_MUTEX.withLock{syncLocked(client,deviceId,credential,null)}
 
@@ -45,6 +91,8 @@ class EmployeeSyncRepository(private val database:AppDatabase){
     targetedEmbeddingValid=activeRow?.remoteEmbeddingValid
    }
    val remoteCompanyId=page.companyId?:enrollment?.companyId?:error("employee_sync_company_scope_missing")
+   var identificationTemplatesChanged=false
+   val terminationSessions=mutableListOf<Triple<String?,Int?,String>>()
    Log.d(TAG,"Room recibe página: activos=${page.employees.size}, inactivos=${page.inactive.size}, cursor_respuesta=${page.cursor}")
    database.withTransaction{
     page.companySettings?.let{settings->
@@ -57,7 +105,7 @@ class EmployeeSyncRepository(private val database:AppDatabase){
     }
     val dao=database.employeeDao()
     val scopedEmployees=dao.backfillRemoteCompanyScope(remoteCompanyId)
-    if(scopedEmployees>0)Log.d(KIOSK_TAG,"companyId=$remoteCompanyId employeeScopeBackfilled=$scopedEmployees")
+    if(scopedEmployees>0){identificationTemplatesChanged=true;Log.d(KIOSK_TAG,"companyId=$remoteCompanyId employeeScopeBackfilled=$scopedEmployees")}
     page.employees.forEach{row->
      val remoteMatch=dao.findByRemoteId(row.id)
      val candidates=EmployeeCodePolicy.lookupCandidates(row.code)
@@ -75,34 +123,50 @@ class EmployeeSyncRepository(private val database:AppDatabase){
       codeMatch
      }
      if(current?.remoteCompanyId!=null&&current.remoteCompanyId!=remoteCompanyId){
-      database.employeeFaceBiometricDao().deleteForEmployee(current.id)
+       database.employeeFaceBiometricDao().deleteForEmployee(current.id)
+       identificationTemplatesChanged=true
       Log.w(TAG,"plantilla local aislada por cambio de empresa: local_id=${current.id}, remote_id=${row.id}")
      }
      var localId=current?.id
      if(current?.remoteUpdatedAt==null||current.remoteUpdatedAt<=row.updatedAt){
-      val value=EmployeeSyncMapper.merge(current,row,syncedAt,remoteCompanyId)
-      localId=if(current==null){dao.insertEmployee(value).toInt().also{inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${EmployeeCodePolicy.maskForLog(row.code)}")}}else{dao.updateEmployee(value);updated++;current.id}
+       val value=EmployeeSyncMapper.merge(current,row,syncedAt,remoteCompanyId)
+       localId=if(current==null){dao.insertEmployee(value).toInt().also{inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${EmployeeCodePolicy.maskForLog(row.code)}")}}else{dao.updateEmployee(value);updated++;current.id}
+       identificationTemplatesChanged=true
       if(current?.isActive!=true)activated++
      }else{discarded++;Log.w(TAG,"descartado remote_id=${row.id}: updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}")}
      val resolvedLocalId=localId ?: error("local_employee_id_unresolved")
      val localFaceBefore=database.employeeFaceBiometricDao().activeForEmployee(resolvedLocalId)!=null
      if(FacePersistencePolicy.shouldStore(row.faceEmbedding,localFaceBefore)){
-      val embedding=requireNotNull(row.faceEmbedding)
-      database.employeeFaceBiometricDao().replaceForEmployee(EmployeeFaceBiometricEntity(employeeId=resolvedLocalId,encryptedEmbedding=FaceEmbeddingCipher().encrypt(embedding),embeddingVersion=1,modelName="FaceNet-128",embeddingDimension=128,registeredAt=row.updatedAt,registeredBy="SUPABASE",updatedAt=row.updatedAt))
+       val embedding=requireNotNull(row.faceEmbedding)
+       database.employeeFaceBiometricDao().replaceForEmployee(EmployeeFaceBiometricEntity(employeeId=resolvedLocalId,encryptedEmbedding=FaceEmbeddingCipher().encrypt(embedding),embeddingVersion=1,modelName="FaceNet-128",embeddingDimension=128,registeredAt=row.updatedAt,registeredBy="SUPABASE",updatedAt=row.updatedAt))
+       identificationTemplatesChanged=true
      }
      val localFaceAfter=database.employeeFaceBiometricDao().activeForEmployee(resolvedLocalId)!=null
      Log.d(FACE_TAG,"employeeCode=${EmployeeCodePolicy.maskForLog(row.code)} remoteId=${row.id} localEmployeeId=$resolvedLocalId localFaceBefore=$localFaceBefore remoteEmbeddingPresent=${row.remoteEmbeddingPresent} remoteEmbeddingDimension=${row.remoteEmbeddingDimension} localFaceAfter=$localFaceAfter finalResult=${if(localFaceAfter)"LOCAL_FACE_AVAILABLE" else "REMOTE_FACE_MISSING"}")
     }
     page.inactive.forEach{row->
      val current=dao.findByRemoteId(row.id)
-     if(current!=null&&(current.remoteUpdatedAt==null||current.remoteUpdatedAt<=row.updatedAt)){
-      dao.updateEmployee(EmployeeSyncMapper.mergeInactive(current,row,syncedAt))
+      if(current!=null&&(current.remoteUpdatedAt==null||current.remoteUpdatedAt<=row.updatedAt)){
+       dao.updateEmployee(EmployeeSyncMapper.mergeInactive(current,row,syncedAt))
+       if(row.status.trim().equals("desvinculado",ignoreCase=true)){
+        val discarded=database.employeeSyncOutboxDao().discardOperationalForTerminated(current.id,syncedAt)
+        if(discarded>0)Log.i("EMPLOYEE_TERMINATION","localEmployeeId=${current.id} discardedOperationalOutbox=$discarded")
+        terminationSessions+=Triple(row.profileId,current.id,row.status)
+       }
+       identificationTemplatesChanged=true
       updated++;Log.d(TAG,"actualizado inactivo remote_id=${row.id}, local_id=${current.id}")
       if(current.isActive)deactivated++
-     }else{discarded++;Log.w(TAG,"descartado tombstone remote_id=${row.id}: ${if(current==null)"no existe en Room" else "updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}"}")}
+     }else if(current==null){
+      if(row.status.trim().equals("desvinculado",ignoreCase=true))terminationSessions+=Triple(row.profileId,null,row.status)
+      discarded++;Log.w(TAG,"descartado tombstone remote_id=${row.id}: no existe en Room")
+     }else{discarded++;Log.w(TAG,"descartado tombstone remote_id=${row.id}: updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}")}
     }
-   downloaded+=page.employees.size+page.inactive.size
+    downloaded+=page.employees.size+page.inactive.size
    }
+   terminationSessions.distinct().forEach{(profileId,localId,status)->
+    sessionInvalidator.invalidate(profileId,localId,status)
+   }
+   if(identificationTemplatesChanged)FaceTemplateInvalidationBus.invalidate()
    page.companyId?.let{database.deviceEnrollmentDao().recordScope(deviceId,it,page.deviceBranchId)}
    if(employeeCode==null)cursor=page.cursor
   }while(employeeCode==null&&page.hasMore)
@@ -136,5 +200,5 @@ object EmployeeSyncMapper{
    remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt,syncStatus="SYNCED",lastSyncError=null
   )
  }
- fun mergeInactive(current:Employee,row:RemoteInactiveEmployee,syncedAt:Long)=current.copy(pin="",isActive=false,employmentStatus="desvinculado",remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt,syncStatus="SYNCED",lastSyncError=null)
+ fun mergeInactive(current:Employee,row:RemoteInactiveEmployee,syncedAt:Long)=current.copy(pin="",isActive=false,employmentStatus=row.status,jornadaEnabled=false,remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt,syncStatus="SYNCED",lastSyncError=null)
 }
