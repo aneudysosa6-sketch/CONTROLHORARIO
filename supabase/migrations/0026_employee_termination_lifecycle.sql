@@ -675,12 +675,12 @@ select e.empresa_id,
        e.jornada_habilitada,
        false,
        e.perfil_id,
-       p.status,
-       case when p.status = 'active' and p.access_deleted_at is null
+       case when p.id is null then null else p.status end,
+       case when p.id is not null and p.status = 'active' and p.access_deleted_at is null
          then 'inactive' else p.status end,
-       p.status = 'active' and p.access_deleted_at is null,
+       coalesce(p.id is not null and p.status = 'active' and p.access_deleted_at is null, false),
        case
-         when p.status = 'active' and p.access_deleted_at is null
+         when p.id is not null and p.status = 'active' and p.access_deleted_at is null
            then 'PENDING_BAN'
          else 'NOT_APPLICABLE'
        end
