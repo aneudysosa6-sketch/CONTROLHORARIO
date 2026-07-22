@@ -24,7 +24,7 @@ object PermissionCatalog {
     const val EDIT_ATTENDANCE = "Editar Jornadas"
     const val APPROVE_ATTENDANCE = "Aprobar Jornadas"
     const val CHANGE_SCHEDULES = "Modificar Horarios"
-    const val KIOSK_PIN_FALLBACK_MANAGE = "kiosk.pin_fallback.manage"
+    const val KIOSK_PIN_FALLBACK_MANAGE = "kiosk.pin_fallback_manage"
 
     val all = listOf(
         DASHBOARD,

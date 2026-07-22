@@ -10,7 +10,12 @@ import com.example.controlhorario.model.Employee
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-data class EmployeeSyncSummary(val downloaded:Int,val activated:Int,val deactivated:Int,val syncedAt:Long)
+data class EmployeeSyncSummary(
+ val downloaded:Int,val activated:Int,val deactivated:Int,val syncedAt:Long,
+ val targetedEmployeeFound:Boolean?=null,val targetedEmployeeActive:Boolean?=null,
+ val targetedRemoteEmbeddingPresent:Boolean?=null,val targetedRemoteEmbeddingDimension:Int?=null,
+ val targetedRemoteEmbeddingValid:Boolean?=null
+)
 
 class EmployeeSyncRepository(private val database:AppDatabase){
  suspend fun sync(client:EmployeeSyncClient,deviceId:String,credential:String):EmployeeSyncSummary=
@@ -25,10 +30,19 @@ class EmployeeSyncRepository(private val database:AppDatabase){
   val enrollment=database.deviceEnrollmentDao().current()
   var cursor=EmployeeSyncCursorPolicy.forRequest(enrollment?.employeeSyncCursorUpdatedAt?.let{EmployeeSyncCursor(it,enrollment.employeeSyncCursorId.orEmpty())},employeeCode)
   var downloaded=0;var activated=0;var deactivated=0;var inserted=0;var updated=0;var discarded=0
+  var targetedEmployeeFound:Boolean?=null;var targetedEmployeeActive:Boolean?=null
+  var targetedEmbeddingPresent:Boolean?=null;var targetedEmbeddingDimension:Int?=null;var targetedEmbeddingValid:Boolean?=null
   Log.d(TAG,"Room sync inicio: device_id=$deviceId, cursor=$cursor, last_sync=${enrollment?.lastEmployeeSyncAt}")
   if(employeeCode!=null)Log.d(FACE_TAG,"employeeCode=$employeeCode targetedSyncStarted=true")
   do{
    val page=client.download(deviceId,credential,cursor,employeeCode);val syncedAt=System.currentTimeMillis()
+   if(employeeCode!=null){
+    val activeRow=page.employees.firstOrNull();val inactiveRow=page.inactive.firstOrNull()
+    targetedEmployeeFound=activeRow!=null||inactiveRow!=null;targetedEmployeeActive=activeRow!=null
+    targetedEmbeddingPresent=activeRow?.remoteEmbeddingPresent
+    targetedEmbeddingDimension=activeRow?.remoteEmbeddingDimension
+    targetedEmbeddingValid=activeRow?.remoteEmbeddingValid
+   }
    val remoteCompanyId=page.companyId?:enrollment?.companyId?:error("employee_sync_company_scope_missing")
    Log.d(TAG,"Room recibe página: activos=${page.employees.size}, inactivos=${page.inactive.size}, cursor_respuesta=${page.cursor}")
    database.withTransaction{
@@ -80,7 +94,7 @@ class EmployeeSyncRepository(private val database:AppDatabase){
   val completedAt=System.currentTimeMillis()
   if(employeeCode==null)database.deviceEnrollmentDao().recordEmployeeSync(deviceId,completedAt,cursor?.updatedAt,cursor?.id)
   Log.d(TAG,"Room sync final: recibidos=$downloaded, insertados=$inserted, actualizados=$updated, descartados=$discarded, activados=$activated, desactivados=$deactivated, cursor_guardado=$cursor")
-  return EmployeeSyncSummary(downloaded,activated,deactivated,completedAt)
+  return EmployeeSyncSummary(downloaded,activated,deactivated,completedAt,targetedEmployeeFound,targetedEmployeeActive,targetedEmbeddingPresent,targetedEmbeddingDimension,targetedEmbeddingValid)
  }
  private companion object{const val TAG="EmployeeSync";const val FACE_TAG="FACE_CROSS_DEVICE_SYNC";const val KIOSK_TAG="KIOSK_SETTINGS_SYNC";val SYNC_MUTEX=Mutex()}
 }

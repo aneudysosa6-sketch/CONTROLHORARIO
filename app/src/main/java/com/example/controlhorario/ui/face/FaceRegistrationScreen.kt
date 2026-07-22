@@ -53,6 +53,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
@@ -83,7 +86,9 @@ fun FaceRegistrationScreen(
     initialEmployeeCode: String = "",
     initialEmployeeId: Int? = null,
     onRegistered: ((Int) -> Unit)? = null,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    backLabel: String = "Volver",
+    initialRegistrationOnly: Boolean = false,
 ) {
     val state by viewModel.state.collectAsState()
     var cameraGranted by remember { mutableStateOf(false) }
@@ -109,7 +114,10 @@ fun FaceRegistrationScreen(
 
     OSINETScreen {
         val colors = MaterialTheme.colorScheme
-        OSINETHeader("Registro facial", "Cinco poses distintas requeridas")
+        OSINETHeader(
+            if (initialRegistrationOnly) "Registro inicial de rostro" else "Registro facial",
+            "Cinco poses distintas requeridas",
+        )
         Text("Advertencia: esta versión no detecta fotografías impresas ni pantallas.", color = colors.error)
         Spacer(Modifier.height(12.dp))
         Text("Empleado: ${state.employee?.employeeCode ?: initialEmployeeCode}", color = colors.onSurface)
@@ -130,7 +138,20 @@ fun FaceRegistrationScreen(
             enter = fadeIn(tween(300)) + scaleIn(tween(300)),
             exit = fadeOut(tween(180)) + scaleOut(tween(180))
         ) { Text("✓ Pose completada", color = colors.primary, style = MaterialTheme.typography.labelLarge) }
-        Text(state.message, color = if (state.cameraError) colors.error else colors.onSurfaceVariant)
+        Text(
+            state.message,
+            color = if (state.cameraError) colors.error else colors.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        val initialRegistrationLocked = initialRegistrationOnly && state.registered
+        if (initialRegistrationLocked) {
+            Text(
+                "Este empleado ya tiene un rostro registrado.\n" +
+                    "Solicite a un administrador si necesita reemplazarlo.",
+                color = colors.error,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
@@ -138,9 +159,18 @@ fun FaceRegistrationScreen(
                     viewModel.beginCapture()
                     permission.launch(Manifest.permission.CAMERA)
                 },
-                enabled = state.employee != null && !state.capturing && !state.saving
-            ) { Text(if (state.cameraError) "Reintentar" else if (state.registered) "Actualizar rostro" else "Registrar rostro") }
-            OutlinedButton(onClick = { viewModel.remove() }, enabled = state.registered && !state.capturing && !state.saving) { Text("Eliminar rostro") }
+                enabled = state.employee != null && !state.capturing && !state.saving && !initialRegistrationLocked
+            ) {
+                Text(
+                    if (initialRegistrationLocked) "Rostro ya registrado"
+                    else if (state.cameraError) "Reintentar"
+                    else if (state.registered) "Actualizar rostro"
+                    else "Registrar rostro"
+                )
+            }
+            if (!initialRegistrationOnly) {
+                OutlinedButton(onClick = { viewModel.remove() }, enabled = state.registered && !state.capturing && !state.saving) { Text("Eliminar rostro") }
+            }
         }
         if (state.capturing && cameraGranted) {
             FaceRegistrationCamera(
@@ -153,7 +183,7 @@ fun FaceRegistrationScreen(
         } else if (state.capturing) {
             Text("Se necesita permiso de cámara para registrar el rostro.", color = colors.error)
         }
-        if (state.cameraError) {
+        if (state.cameraError && !initialRegistrationOnly) {
             Spacer(Modifier.height(12.dp))
             Text("No se pudo iniciar el registro facial.", color = colors.error)
             OutlinedButton(onClick = onBack) { Text("Volver al PIN") }
@@ -169,7 +199,7 @@ fun FaceRegistrationScreen(
             }
         }
         Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = onBack) { Text("Volver") }
+        OutlinedButton(onClick = onBack) { Text(backLabel) }
     }
 }
 

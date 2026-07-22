@@ -1,7 +1,7 @@
 begin;
 
 insert into public.permisos(codigo,nombre,descripcion,modulo,activo) values
-('kiosk.pin_fallback.manage','Administrar PIN alternativo del kiosk','Permite activar o desactivar el PIN alternativo; el rostro sigue siendo obligatorio.','kiosk',true)
+('kiosk.pin_fallback_manage','Administrar PIN alternativo del kiosk','Permite activar o desactivar el PIN alternativo; el rostro sigue siendo obligatorio.','kiosk',true)
 on conflict(codigo) do update set
  nombre=excluded.nombre,
  descripcion=excluded.descripcion,
@@ -11,7 +11,7 @@ on conflict(codigo) do update set
 insert into public.rol_permisos(rol_id,permiso_id,permitido,alcance)
 select r.id,p.id,true,'empresa'
 from public.roles r
-join public.permisos p on p.codigo='kiosk.pin_fallback.manage'
+join public.permisos p on p.codigo='kiosk.pin_fallback_manage'
 where r.is_active
   and upper(translate(trim(coalesce(r.code,r.name)),'ÁÉÍÓÚáéíóú','AEIOUaeiou')) in ('ADMIN','ADMINISTRADOR','ADMINISTRATOR')
 on conflict(rol_id,permiso_id) do update set permitido=true,alcance='empresa';
@@ -91,7 +91,7 @@ begin
  if v_empresa is null then
   raise exception using errcode='42501',message='COMPANY_CONTEXT_REQUIRED';
  end if;
- if not public.tiene_permiso('kiosk.pin_fallback.manage') then
+ if not public.tiene_permiso('kiosk.pin_fallback_manage') then
   raise exception using errcode='42501',message='KIOSK_PIN_FALLBACK_PERMISSION_DENIED';
  end if;
  if p_pin_fallback_enabled is null then

@@ -18,6 +18,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -35,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.controlhorario.database.DatabaseProvider
+import com.example.controlhorario.face.AndroidInitialFaceEnrollmentFactory
 import com.example.controlhorario.BuildConfig
 import com.example.controlhorario.attendance.AttendanceDeviceSession
 import com.example.controlhorario.attendance.AttendanceSyncClient
@@ -102,6 +104,7 @@ import com.example.controlhorario.ui.biometrics.FingerprintRegistrationViewModel
 import com.example.controlhorario.ui.face.FaceRegistrationScreen
 import com.example.controlhorario.ui.face.FaceRegistrationViewModel
 import com.example.controlhorario.ui.face.FaceRegistrationViewModelFactory
+import com.example.controlhorario.ui.face.FaceRegistrationMode
 import com.example.controlhorario.ui.face.FaceVerificationScreen
 import com.example.controlhorario.ui.face.FaceVerificationViewModel
 import com.example.controlhorario.ui.face.FaceVerificationViewModelFactory
@@ -109,6 +112,7 @@ import com.example.controlhorario.ui.face.FaceIdentificationScreen
 import com.example.controlhorario.ui.face.FaceIdentificationViewModel
 import com.example.controlhorario.ui.face.FaceIdentificationViewModelFactory
 import com.example.controlhorario.ui.face.FaceTemplateSyncGateway
+import com.example.controlhorario.ui.face.InitialFaceEnrollmentScreen
 import com.example.controlhorario.ui.branchmanager.BranchManagerScreen
 import com.example.controlhorario.ui.branchmanager.BranchManagerViewModel
 import com.example.controlhorario.ui.branchmanager.BranchManagerViewModelFactory
@@ -211,6 +215,7 @@ import java.util.Date
 import java.util.Locale
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -514,7 +519,7 @@ fun AppNavigation(
             )
         }
 
-        composable(Route.EMPLOYEE_PUNCH) {
+        composable(Route.EMPLOYEE_PUNCH) { backStackEntry ->
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
             val faceRepository = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
@@ -528,6 +533,15 @@ fun AppNavigation(
                 return@composable
             }
             LaunchedEffect(deviceId) { JourneyBiometricGate.clear() }
+            val registrationRevision by remember(backStackEntry) {
+                backStackEntry.savedStateHandle.getStateFlow(INITIAL_FACE_REGISTRATION_REVISION, 0L)
+            }.collectAsState()
+            LaunchedEffect(registrationRevision) {
+                if (registrationRevision > 0L) {
+                    delay(INITIAL_FACE_SUCCESS_MESSAGE_MILLIS)
+                    backStackEntry.savedStateHandle[INITIAL_FACE_REGISTRATION_REVISION] = 0L
+                }
+            }
             val identificationVm: FaceIdentificationViewModel = viewModel(
                 factory = FaceIdentificationViewModelFactory(
                     deviceId = deviceId,
@@ -567,9 +581,19 @@ fun AppNavigation(
                 onUsePin = {
                     navController.navigate(Route.EMPLOYEE_PIN_FALLBACK) { launchSingleTop = true }
                 },
+                onRegisterInitialFace = {
+                    navController.navigate(Route.FACE_KIOSK_REGISTRATION) {
+                        launchSingleTop = true
+                    }
+                },
                 onCancel = {
                     JourneyBiometricGate.clear()
                     navController.navigate(Route.KIOSK_EXIT_AUTH) { launchSingleTop = true }
+                },
+                registrationSuccessMessage = if (registrationRevision > 0L) {
+                    "Rostro registrado correctamente."
+                } else {
+                    null
                 },
             )
         }
@@ -641,30 +665,51 @@ fun AppNavigation(
             )
         }
 
-        composable(
-            route = "${Route.FACE_KIOSK_REGISTRATION}/{employeeId}",
-            arguments = listOf(navArgument("employeeId") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val employeeId = backStackEntry.arguments?.getInt("employeeId") ?: 0
+        composable(Route.FACE_KIOSK_REGISTRATION) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
+            val initialEnrollment = remember(context, db) {
+                AndroidInitialFaceEnrollmentFactory.create(context, db)
+            }
             val vm: FaceRegistrationViewModel = viewModel(
                 factory = FaceRegistrationViewModelFactory(
                     context,
                     EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao()),
-                    EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
+                    EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao()),
+                    mode = FaceRegistrationMode.PUBLIC_INITIAL,
+                    initialEnrollment = initialEnrollment
                 )
             )
-            FaceRegistrationScreen(
-                viewModel = vm,
-                initialEmployeeId = employeeId,
-                onRegistered = { employeeId ->
-                    navController.navigate("${Route.FACE_VERIFICATION}/$employeeId") {
-                        popUpTo(Route.FACE_KIOSK_REGISTRATION) { inclusive = true }
-                    }
-                },
-                onBack = { navController.popBackStack(Route.EMPLOYEE_PUNCH, false) }
-            )
+            val registrationState by vm.state.collectAsState()
+            var initialEmployeeCode by rememberSaveable { mutableStateOf("") }
+            if (registrationState.employee == null) {
+                InitialFaceEnrollmentScreen(
+                    code = initialEmployeeCode,
+                    busy = registrationState.validating,
+                    message = registrationState.message,
+                    onCodeChange = { initialEmployeeCode = it },
+                    onContinue = { vm.find(initialEmployeeCode) },
+                    onCancel = { navController.popBackStack(Route.EMPLOYEE_PUNCH, false) },
+                )
+            } else {
+                FaceRegistrationScreen(
+                    viewModel = vm,
+                    onRegistered = {
+                        JourneyBiometricGate.clear()
+                        navController.navigate(Route.EMPLOYEE_PUNCH) {
+                            popUpTo(Route.EMPLOYEE_PUNCH) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            INITIAL_FACE_REGISTRATION_REVISION,
+                            System.currentTimeMillis(),
+                        )
+                    },
+                    onBack = { navController.popBackStack(Route.EMPLOYEE_PUNCH, false) },
+                    backLabel = "Volver a identificación",
+                    initialRegistrationOnly = true,
+                )
+            }
         }
 
         composable(
@@ -1710,6 +1755,9 @@ private fun MenuButton(title: String, onClick: () -> Unit) {
 
 private fun portalNow(): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+
+private const val INITIAL_FACE_REGISTRATION_REVISION = "initial_face_registration_revision"
+private const val INITIAL_FACE_SUCCESS_MESSAGE_MILLIS = 4_000L
 
 private object Route {
     const val DEVICE_ENROLLMENT = "device_enrollment"

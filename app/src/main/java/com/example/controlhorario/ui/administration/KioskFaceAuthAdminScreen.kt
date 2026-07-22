@@ -222,7 +222,7 @@ class KioskFaceAuthAdminViewModel(
     }
 
     private fun deny() {
-        mutableState.value = KioskFaceAuthAdminState.AccessDenied("No tiene el permiso kiosk.pin_fallback.manage.")
+        mutableState.value = KioskFaceAuthAdminState.AccessDenied("No tiene el permiso kiosk.pin_fallback_manage.")
     }
 }
 

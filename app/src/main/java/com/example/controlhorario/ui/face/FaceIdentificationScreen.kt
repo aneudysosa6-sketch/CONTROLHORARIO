@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -20,12 +22,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.ui.components.OSINETHeader
+import com.example.controlhorario.ui.components.OSINETCard
 import com.example.controlhorario.ui.components.OSINETScreen
 import kotlinx.coroutines.delay
 
@@ -34,32 +41,54 @@ fun FaceIdentificationScreen(
     viewModel: FaceIdentificationViewModel,
     onIdentified: (Int) -> Unit,
     onUsePin: () -> Unit,
+    onRegisterInitialFace: () -> Unit,
     onCancel: () -> Unit,
+    registrationSuccessMessage: String? = null,
 ) {
     val state by viewModel.state.collectAsState()
     var cameraGranted by remember { mutableStateOf(false) }
-    var navigationConsumed by remember { mutableStateOf(false) }
+    var navigationConsumed by rememberSaveable { mutableStateOf(false) }
     var guidance by remember { mutableStateOf("Mire a la cámara para identificarse") }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         cameraGranted = it
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.start()
         permission.launch(Manifest.permission.CAMERA)
     }
     LaunchedEffect(state.employee?.id) {
-        val employee = state.employee ?: return@LaunchedEffect
+        val employee = state.employee
+        if (employee == null) {
+            navigationConsumed = false
+            return@LaunchedEffect
+        }
         if (!navigationConsumed) {
-            navigationConsumed = true
             delay(650)
-            onIdentified(employee.id)
+            if (!navigationConsumed) {
+                navigationConsumed = true
+                onIdentified(employee.id)
+            }
         }
     }
 
     OSINETScreen {
         OSINETHeader("Identificación facial", "Mire a la cámara para identificarse")
         Spacer(Modifier.height(16.dp))
+        if (!registrationSuccessMessage.isNullOrBlank()) {
+            OSINETCard {
+                Text(
+                    text = registrationSuccessMessage,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    },
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
         when (state.phase) {
             FaceIdentificationPhase.PREPARING,
             FaceIdentificationPhase.SYNCING -> IdentificationProgress(state.message)
@@ -90,6 +119,12 @@ fun FaceIdentificationScreen(
                 } else {
                     IdentificationMessage("Se necesita permiso de cámara para identificar el rostro.")
                 }
+                IdentificationEntryActions(
+                    canUsePin = state.canUsePin,
+                    enabled = state.phase == FaceIdentificationPhase.SEARCHING,
+                    onUsePin = onUsePin,
+                    onRegisterInitialFace = onRegisterInitialFace,
+                )
             }
 
             else -> IdentificationActions(
@@ -97,6 +132,7 @@ fun FaceIdentificationScreen(
                 onRetry = viewModel::retry,
                 onSynchronize = viewModel::synchronizeTemplates,
                 onUsePin = onUsePin,
+                onRegisterInitialFace = onRegisterInitialFace,
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -135,6 +171,7 @@ private fun IdentificationActions(
     onRetry: () -> Unit,
     onSynchronize: () -> Unit,
     onUsePin: () -> Unit,
+    onRegisterInitialFace: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
@@ -151,8 +188,33 @@ private fun IdentificationActions(
                 Text("Reintentar rostro")
             }
         }
-        if (state.canUsePin) {
-            Button(onClick = onUsePin, modifier = Modifier.fillMaxWidth()) {
+        IdentificationEntryActions(
+            canUsePin = state.canUsePin,
+            enabled = true,
+            onUsePin = onUsePin,
+            onRegisterInitialFace = onRegisterInitialFace,
+        )
+    }
+}
+
+@Composable
+private fun IdentificationEntryActions(
+    canUsePin: Boolean,
+    enabled: Boolean,
+    onUsePin: () -> Unit,
+    onRegisterInitialFace: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (canUsePin) {
+            Button(
+                onClick = onUsePin,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text("Usar PIN")
             }
             Text(
@@ -160,6 +222,19 @@ private fun IdentificationActions(
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
             )
+        }
+        HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
+        Text(
+            "¿Es tu primera vez?",
+            style = MaterialTheme.typography.titleSmall,
+            textAlign = TextAlign.Center,
+        )
+        FilledTonalButton(
+            onClick = onRegisterInitialFace,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Registrar rostro por primera vez")
         }
     }
 }

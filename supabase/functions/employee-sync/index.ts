@@ -116,7 +116,7 @@ Deno.serve(async request=>{
     const positionNames=new Map((positionResult.data??[]).map(row=>[row.id,row.name]))
     const supervisorNames=new Map((supervisorResult.data??[]).map(row=>[row.id,row.nombre_completo]))
     const schedules=new Map<string,Record<string,unknown>>();for(const row of scheduleResult.data??[]){if(!schedules.has(String(row.empleado_id)))schedules.set(String(row.empleado_id),row)}
-    const employees=page.filter(row=>row.activo===true).map(row=>{const schedule=schedules.get(row.id);return({
+    const employees=page.filter(row=>row.activo===true).map(row=>{const schedule=schedules.get(row.id),rawEmbeddingPresent=row.face_embedding!==null&&row.face_embedding!==undefined,rawEmbeddingDimension=Array.isArray(row.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid=validEmbedding(row.face_embedding);return({
       remote_id:row.id,code:row.codigo_empleado,name:row.nombre_completo,email:row.correo??'',phone:row.telefono??'',
       branch_id:row.sucursal_id,branch_name:branchNames.get(row.sucursal_id)??'',
       department_id:row.departamento_id,department_name:departmentNames.get(row.departamento_id)??'',
@@ -125,10 +125,14 @@ Deno.serve(async request=>{
       status:row.estado_laboral,jornada_enabled:row.jornada_habilitada!==false,
       schedule_start:schedule?.hora_entrada??null,schedule_end:schedule?.hora_salida??null,lunch_start:schedule?.inicio_almuerzo??null,
       lunch_duration_minutes:schedule?.duracion_almuerzo_min??null,work_days:schedule?.dias_laborales??null,tolerance_minutes:schedule?.tolerancia_min??null,
-      start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,face_embedding:validEmbedding(row.face_embedding)?row.face_embedding:null,
+      start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
+      face_embedding:remoteEmbeddingValid?row.face_embedding:null,
+      face_embedding_present:rawEmbeddingPresent,
+      face_embedding_dimension:rawEmbeddingDimension,
+      face_embedding_valid:remoteEmbeddingValid,
     })})
     const inactive=page.filter(row=>row.activo!==true).map(row=>({remote_id:row.id,updated_at:row.updated_at}))
-    if(targeted){const row=page[0];console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode,remoteId:row?.id??null,remoteEmbeddingPresent:validEmbedding(row?.face_embedding),remoteEmbeddingDimension:Array.isArray(row?.face_embedding)?row.face_embedding.length:null,httpStatus:200,finalResult:row?'FOUND':'NOT_FOUND'})}
+    if(targeted){const row=page[0],rawEmbeddingPresent=row?.face_embedding!==null&&row?.face_embedding!==undefined;console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode,remoteId:row?.id??null,remoteEmbeddingPresent:rawEmbeddingPresent,remoteEmbeddingDimension:Array.isArray(row?.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid:validEmbedding(row?.face_embedding),httpStatus:200,finalResult:row?'FOUND':'NOT_FOUND'})}
     console.log('EmployeeSync empleados enviados',{request_id:requestId,company_id:auth.empresa_id,active_sent:employees.length,inactive_sent:inactive.length,has_more:changed.length>page.length})
     await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)
     await admin.from('credenciales_dispositivo').update({ultima_uso_at:now}).eq('dispositivo_id',deviceId).eq('empresa_id',auth.empresa_id)

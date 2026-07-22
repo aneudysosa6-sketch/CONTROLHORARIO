@@ -20,6 +20,13 @@ class EmployeeRepository(
     suspend fun findActiveByLocalId(employeeId: Int): Employee? =
         employeeDao.findByLocalId(employeeId)?.takeIf { it.isActive }
 
+    suspend fun findAnyByLocalId(employeeId: Int): Employee? = employeeDao.findByLocalId(employeeId)
+
+    /** Exact employee-code lookup; unlike the kiosk PIN lookup it never strips characters or
+     * falls back to the PIN column. This is intentionally used by public face enrollment. */
+    suspend fun findAnyByExactEmployeeCode(employeeCode: String): Employee? =
+        employeeDao.findAnyByEmployeeCode(employeeCode)
+
     suspend fun findForEdit(employeeKey: String): Employee? =
         employeeDao.findByRemoteId(employeeKey) ?: employeeKey.toIntOrNull()?.let { employeeDao.findByLocalId(it) }
 

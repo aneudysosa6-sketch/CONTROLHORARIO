@@ -10,6 +10,7 @@ import com.example.controlhorario.face.FaceIdentificationEngine
 import com.example.controlhorario.face.FaceIdentificationError
 import com.example.controlhorario.face.FaceIdentificationResult
 import com.example.controlhorario.face.FaceTemplateCache
+import com.example.controlhorario.face.FaceTemplateInvalidationBus
 import com.example.controlhorario.face.FaceTemplateScope
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.repository.EmployeeFaceBiometricRepository
@@ -18,11 +19,15 @@ import com.example.controlhorario.repository.KioskSettingsRepository
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 enum class FaceIdentificationPhase {
     PREPARING,
@@ -68,12 +73,25 @@ class FaceIdentificationViewModel(
     val state: StateFlow<FaceIdentificationUiState> = mutableState.asStateFlow()
 
     private val identifying = AtomicBoolean(false)
+    private val templateUseMutex = Mutex()
     private val stability = FaceIdentificationSessionPolicy()
     private var engine: FaceIdentificationEngine? = null
     private var scope: FaceTemplateScope? = null
     private var pinFallbackEnabled = false
     private var started = false
     private var timeoutJob: Job? = null
+    private var identificationJob: Job? = null
+    private var observedTemplateRevision = FaceTemplateInvalidationBus.currentRevision
+
+    init {
+        viewModelScope.launch {
+            FaceTemplateInvalidationBus.revisions.collect { revision ->
+                if (revision <= observedTemplateRevision) return@collect
+                observedTemplateRevision = revision
+                invalidateTemplateSession(revision)
+            }
+        }
+    }
 
     fun start() {
         if (started) return
@@ -92,9 +110,21 @@ class FaceIdentificationViewModel(
             phase = FaceIdentificationPhase.IDENTIFYING,
             message = "Identificando empleado…",
         )
-        viewModelScope.launch {
+        val identificationRevision = FaceTemplateInvalidationBus.currentRevision
+        identificationJob = viewModelScope.launch {
             try {
-                when (val decision = stability.accept(currentEngine.identify(embedding, currentScope, embeddingMs))) {
+                if (identificationRevision != observedTemplateRevision) {
+                    // Do not combine samples collected before and after a Room face change.
+                    stability.reset()
+                }
+                val result = templateUseMutex.withLock {
+                    currentEngine.identify(embedding, currentScope, embeddingMs)
+                }
+                if (identificationRevision != FaceTemplateInvalidationBus.currentRevision) {
+                    stability.reset()
+                    return@launch
+                }
+                when (val decision = stability.accept(result)) {
                     is FaceIdentificationSessionPolicy.Decision.Continue -> {
                         mutableState.value = mutableState.value.copy(
                             phase = FaceIdentificationPhase.SEARCHING,
@@ -103,7 +133,8 @@ class FaceIdentificationViewModel(
                         )
                     }
 
-                    is FaceIdentificationSessionPolicy.Decision.Confirmed -> confirmEmployee(decision.result)
+                    is FaceIdentificationSessionPolicy.Decision.Confirmed ->
+                        confirmEmployee(decision.result, identificationRevision)
                     FaceIdentificationSessionPolicy.Decision.Ambiguous -> conclude(
                         FaceIdentificationPhase.AMBIGUOUS,
                         "Hay más de una coincidencia posible.",
@@ -134,6 +165,7 @@ class FaceIdentificationViewModel(
             } finally {
                 embedding.fill(0f)
                 identifying.set(false)
+                identificationJob = null
             }
         }
     }
@@ -149,7 +181,7 @@ class FaceIdentificationViewModel(
         mutableState.value = FaceIdentificationUiState(
             phase = FaceIdentificationPhase.SEARCHING,
             message = "Buscando rostro…",
-            canUsePin = false,
+            canUsePin = pinFallbackEnabled,
         )
         scheduleTimeout()
     }
@@ -164,8 +196,18 @@ class FaceIdentificationViewModel(
             canRetry = false,
         )
         viewModelScope.launch {
-            val synchronized = runCatching { syncGateway.synchronize() }.getOrDefault(false)
-            engine?.clearSession()
+            val synchronized = try {
+                syncGateway.synchronize()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            identificationJob?.cancelAndJoin()
+            identificationJob = null
+            identifying.set(false)
+            stability.reset()
+            templateUseMutex.withLock { engine?.clearSession() }
             if (synchronized) retry() else conclude(
                 FaceIdentificationPhase.ERROR,
                 "No se pudo sincronizar. Verifique la conexión y reintente.",
@@ -219,12 +261,20 @@ class FaceIdentificationViewModel(
         mutableState.value = FaceIdentificationUiState(
             phase = FaceIdentificationPhase.SEARCHING,
             message = "Buscando rostro…",
+            canUsePin = pinFallbackEnabled,
         )
         scheduleTimeout()
     }
 
-    private suspend fun confirmEmployee(result: FaceIdentificationResult.MatchConfirmed) {
+    private suspend fun confirmEmployee(
+        result: FaceIdentificationResult.MatchConfirmed,
+        identificationRevision: Long,
+    ) {
         val employee = employeeRepository.findActiveByLocalId(result.employee.localEmployeeId)
+        if (identificationRevision != FaceTemplateInvalidationBus.currentRevision) {
+            stability.reset()
+            return
+        }
         if (employee == null || !employee.jornadaEnabled) {
             stability.reset()
             conclude(FaceIdentificationPhase.NO_MATCH, "No pudimos identificarte.")
@@ -242,6 +292,32 @@ class FaceIdentificationViewModel(
         )
     }
 
+    /**
+     * Stop an in-flight comparison before wiping its arrays. This also clears a provisional
+     * IDENTIFIED state, cancelling the screen's short navigation delay when Room revoked it.
+     */
+    private suspend fun invalidateTemplateSession(revision: Long) {
+        val currentEngine = engine ?: return
+        if (scope == null) return
+        timeoutJob?.cancel()
+        mutableState.value = FaceIdentificationUiState(
+            phase = FaceIdentificationPhase.PREPARING,
+            message = "Actualizando rostros…",
+        )
+        identificationJob?.cancelAndJoin()
+        identificationJob = null
+        identifying.set(false)
+        stability.reset()
+        templateUseMutex.withLock { currentEngine.clearSession() }
+        mutableState.value = FaceIdentificationUiState(
+            phase = FaceIdentificationPhase.SEARCHING,
+            message = "Buscando rostro…",
+            canUsePin = pinFallbackEnabled,
+        )
+        Log.d(TAG, "templatesInvalidated=true revision=$revision")
+        scheduleTimeout()
+    }
+
     private fun conclude(
         phase: FaceIdentificationPhase,
         message: String,
@@ -252,7 +328,7 @@ class FaceIdentificationViewModel(
             phase = phase,
             message = message,
             employee = null,
-            canUsePin = pinFallbackEnabled && (phase == FaceIdentificationPhase.AMBIGUOUS || phase == FaceIdentificationPhase.NO_MATCH),
+            canUsePin = pinFallbackEnabled,
             canRetry = allowRetry,
             completedSamples = 0,
         )
@@ -271,6 +347,7 @@ class FaceIdentificationViewModel(
 
     override fun onCleared() {
         timeoutJob?.cancel()
+        identificationJob?.cancel()
         engine?.close()
         engine = null
         scope = null

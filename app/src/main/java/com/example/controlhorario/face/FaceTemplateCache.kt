@@ -35,7 +35,8 @@ data class FaceTemplateSnapshot internal constructor(
 class FaceTemplateCache(
     private val loader: FaceTemplateLoader,
     private val decryptor: FaceTemplateDecryptor,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val revisionProvider: () -> Long = { FaceTemplateInvalidationBus.currentRevision },
 ) : AutoCloseable {
     constructor(
         repository: EmployeeFaceBiometricRepository,
@@ -54,6 +55,7 @@ class FaceTemplateCache(
 
     private data class CacheEntry(
         val scope: FaceTemplateScope,
+        val revision: Long,
         val templates: List<FaceIdentificationTemplate>
     )
 
@@ -63,12 +65,13 @@ class FaceTemplateCache(
     private var closed = false
 
     suspend fun load(scope: FaceTemplateScope): FaceTemplateSnapshot = loadMutex.withLock {
+        val revision = revisionProvider()
         synchronized(stateLock) {
             check(!closed) { CACHE_CLOSED_MESSAGE }
-            cached?.takeIf { it.scope == scope }?.let {
+            cached?.takeIf { it.scope == scope && it.revision == revision }?.let {
                 return@withLock FaceTemplateSnapshot(it.templates, loadMs = 0L, fromCache = true)
             }
-            // A company/branch change invalidates the old session material before IO.
+            // A scope or Room revision change invalidates old session material before IO.
             cached?.templates?.let(::wipe)
             cached = null
         }
@@ -125,7 +128,7 @@ class FaceTemplateCache(
                 throw IllegalStateException(CACHE_CLOSED_MESSAGE)
             }
             cached?.templates?.let(::wipe)
-            cached = CacheEntry(scope, templates)
+            cached = CacheEntry(scope, revision, templates)
         }
         FaceTemplateSnapshot(templates, loadMs = loadMs, fromCache = false)
     }

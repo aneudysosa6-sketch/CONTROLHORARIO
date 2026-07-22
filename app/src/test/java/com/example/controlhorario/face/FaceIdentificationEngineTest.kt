@@ -173,6 +173,32 @@ class FaceIdentificationEngineTest {
     }
 
     @Test
+    fun `cache reloads and wipes old templates when Room revision changes`() = runBlocking {
+        val loads = AtomicInteger(0)
+        var revision = 0L
+        val cache = FaceTemplateCache(
+            loader = FaceTemplateLoader {
+                loads.incrementAndGet()
+                listOf(record(employeeId = 1, encryptedEmbedding = "face"))
+            },
+            decryptor = FaceTemplateDecryptor { _, _ -> unit(1f) },
+            ioDispatcher = Dispatchers.Unconfined,
+            revisionProvider = { revision },
+        )
+
+        val first = cache.load(scope)
+        val oldDecrypted = first.templates.single().embedding
+        revision++
+
+        val second = cache.load(scope)
+
+        assertEquals(2, loads.get())
+        assertTrue(!second.fromCache)
+        assertTrue(oldDecrypted.all { it == 0f })
+        cache.close()
+    }
+
+    @Test
     fun `corrupt template is skipped without losing valid templates`() = runBlocking {
         val invalid = FloatArray(FaceEmbeddingEngine.EMBEDDING_DIMENSION - 1) { 1f }
         val cache = FaceTemplateCache(

@@ -12,7 +12,8 @@ data class RemoteEmployee(
  val branchId:String?,val branchName:String,val departmentId:String?,val departmentName:String,
  val positionId:String?,val positionName:String,val supervisorId:String?,val supervisorName:String,
  val status:String,val jornadaEnabled:Boolean=true,val scheduleStart:String?=null,val scheduleEnd:String?=null,val lunchStart:String?=null,val lunchDurationMinutes:Int?=null,val workDays:String?=null,val toleranceMinutes:Int?=null,val startDate:String?,val salary:Double?,val payType:String?,val updatedAt:String,val faceEmbedding:FloatArray?=null,
- val remoteEmbeddingPresent:Boolean=false,val remoteEmbeddingDimension:Int?=null
+ val remoteEmbeddingPresent:Boolean=false,val remoteEmbeddingDimension:Int?=null,
+ val remoteEmbeddingValid:Boolean=faceEmbedding!=null
 )
 data class RemoteInactiveEmployee(val id:String,val updatedAt:String)
 data class RemoteKioskSettings(
@@ -58,11 +59,15 @@ class EmployeeSyncClient(private val endpoint:String){
   val employeeRows=json.optJSONArray("employees")
   val employees=(0 until (employeeRows?.length()?:0)).map{employeeRows!!.getJSONObject(it)}.map{row->
    val rawEmbedding=row.optJSONArray("face_embedding")
+   val parsedEmbedding=rawEmbedding?.takeIf{it.length()==128}?.let{values->FloatArray(128){index->values.optDouble(index,Double.NaN).toFloat()}.takeIf{it.all(Float::isFinite)}}
+   val remoteEmbeddingPresent=if(row.has("face_embedding_present"))row.optBoolean("face_embedding_present") else rawEmbedding!=null
+   val remoteEmbeddingDimension=if(row.has("face_embedding_dimension")&&!row.isNull("face_embedding_dimension"))row.optInt("face_embedding_dimension") else rawEmbedding?.length()
+   val remoteEmbeddingValid=if(row.has("face_embedding_valid"))row.optBoolean("face_embedding_valid") else parsedEmbedding!=null
    RemoteEmployee(
     id=row.getString("remote_id"),code=row.getString("code"),name=row.getString("name"),phone=row.optString("phone"),email=row.optString("email"),
     branchId=row.optNullableString("branch_id"),branchName=row.optString("branch_name"),departmentId=row.optNullableString("department_id"),departmentName=row.optString("department_name"),
     positionId=row.optNullableString("position_id"),positionName=row.optString("position_name"),supervisorId=row.optNullableString("supervisor_id"),supervisorName=row.optString("supervisor_name"),
-    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),scheduleStart=row.optNullableString("schedule_start"),scheduleEnd=row.optNullableString("schedule_end"),lunchStart=row.optNullableString("lunch_start"),lunchDurationMinutes=if(row.isNull("lunch_duration_minutes"))null else row.optInt("lunch_duration_minutes"),workDays=row.optJSONArray("work_days")?.let{days->(0 until days.length()).joinToString(","){index->days.getInt(index).toString()}},toleranceMinutes=if(row.isNull("tolerance_minutes"))null else row.optInt("tolerance_minutes"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at"),faceEmbedding=rawEmbedding?.takeIf{it.length()==128}?.let{values->FloatArray(128){index->values.optDouble(index,Double.NaN).toFloat()}.takeIf{it.all(Float::isFinite)}},remoteEmbeddingPresent=rawEmbedding!=null,remoteEmbeddingDimension=rawEmbedding?.length()
+    status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),scheduleStart=row.optNullableString("schedule_start"),scheduleEnd=row.optNullableString("schedule_end"),lunchStart=row.optNullableString("lunch_start"),lunchDurationMinutes=if(row.isNull("lunch_duration_minutes"))null else row.optInt("lunch_duration_minutes"),workDays=row.optJSONArray("work_days")?.let{days->(0 until days.length()).joinToString(","){index->days.getInt(index).toString()}},toleranceMinutes=if(row.isNull("tolerance_minutes"))null else row.optInt("tolerance_minutes"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at"),faceEmbedding=parsedEmbedding,remoteEmbeddingPresent=remoteEmbeddingPresent,remoteEmbeddingDimension=remoteEmbeddingDimension,remoteEmbeddingValid=remoteEmbeddingValid
    )
   }
   val inactiveRows=json.optJSONArray("inactive")

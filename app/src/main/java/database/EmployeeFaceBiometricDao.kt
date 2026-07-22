@@ -11,6 +11,9 @@ interface EmployeeFaceBiometricDao {
     @Query("SELECT * FROM employee_face_biometrics WHERE employeeId = :employeeId AND isActive = 1 LIMIT 1")
     suspend fun activeForEmployee(employeeId: Int): EmployeeFaceBiometricEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM employee_face_biometrics WHERE employeeId = :employeeId)")
+    suspend fun hasAnyForEmployee(employeeId: Int): Boolean
+
     @Query(
         """
         SELECT
@@ -42,8 +45,21 @@ interface EmployeeFaceBiometricDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entity: EmployeeFaceBiometricEntity): Long
 
+    /**
+     * Initial employee self-enrollment must never replace an existing template. The unique
+     * employeeId index is the final local guard against two concurrent enrollment attempts.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(entity: EmployeeFaceBiometricEntity): Long
+
     @Query("DELETE FROM employee_face_biometrics WHERE employeeId = :employeeId")
     suspend fun deleteForEmployee(employeeId: Int): Int
+
+    @Query(
+        "DELETE FROM employee_face_biometrics " +
+            "WHERE employeeId = :employeeId AND registeredBy = 'EMPLOYEE_SELF_SERVICE'"
+    )
+    suspend fun deleteInitialSelfEnrollment(employeeId: Int): Int
 
     @Transaction
     suspend fun replaceForEmployee(entity: EmployeeFaceBiometricEntity): Long {

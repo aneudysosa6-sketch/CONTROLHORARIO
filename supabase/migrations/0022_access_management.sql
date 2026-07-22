@@ -92,7 +92,7 @@ as $$
       (
         select pp.permitido
         from public.profiles pr
-        join public.permisos pe on pe.codigo = codigo and pe.activo
+        join public.permisos pe on pe.codigo = requested.codigo and pe.activo
         join public.perfil_permisos pp
           on pp.perfil_id = pr.id and pp.permiso_id = pe.id
         where pr.id = p_actor
@@ -106,7 +106,7 @@ as $$
         from public.profiles pr
         join public.roles r
           on r.id = pr.role_id and r.company_id = pr.company_id and r.is_active
-        join public.permisos pe on pe.codigo = codigo and pe.activo
+        join public.permisos pe on pe.codigo = requested.codigo and pe.activo
         join public.rol_permisos rp
           on rp.rol_id = r.id and rp.permiso_id = pe.id
         where pr.id = p_actor

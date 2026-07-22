@@ -8,7 +8,7 @@ select has_column('public','company_settings','face_match_threshold');
 select has_column('public','company_settings','face_match_margin');
 select has_function('public','actualizar_configuracion_kiosk',array['boolean','boolean','numeric','numeric','text']);
 select ok(
- exists(select 1 from public.permisos where codigo='kiosk.pin_fallback.manage' and activo),
+ exists(select 1 from public.permisos where codigo='kiosk.pin_fallback_manage' and activo),
  'existe permiso activo para administrar el fallback PIN'
 );
 select ok(
