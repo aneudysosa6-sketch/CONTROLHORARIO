@@ -40,7 +40,7 @@ import kotlinx.coroutines.delay
 fun FaceIdentificationScreen(
     viewModel: FaceIdentificationViewModel,
     onIdentified: (Int) -> Unit,
-    onUsePin: () -> Unit,
+    onUseEmployeeCode: () -> Unit,
     onRegisterInitialFace: () -> Unit,
     onCancel: () -> Unit,
     registrationSuccessMessage: String? = null,
@@ -120,9 +120,9 @@ fun FaceIdentificationScreen(
                     IdentificationMessage("Se necesita permiso de cámara para identificar el rostro.")
                 }
                 IdentificationEntryActions(
-                    canUsePin = state.canUsePin,
+                    canUseEmployeeCode = false,
                     enabled = state.phase == FaceIdentificationPhase.SEARCHING,
-                    onUsePin = onUsePin,
+                    onUseEmployeeCode = onUseEmployeeCode,
                     onRegisterInitialFace = onRegisterInitialFace,
                 )
             }
@@ -131,7 +131,7 @@ fun FaceIdentificationScreen(
                 state = state,
                 onRetry = viewModel::retry,
                 onSynchronize = viewModel::synchronizeTemplates,
-                onUsePin = onUsePin,
+                onUseEmployeeCode = onUseEmployeeCode,
                 onRegisterInitialFace = onRegisterInitialFace,
             )
         }
@@ -170,7 +170,7 @@ private fun IdentificationActions(
     state: FaceIdentificationUiState,
     onRetry: () -> Unit,
     onSynchronize: () -> Unit,
-    onUsePin: () -> Unit,
+    onUseEmployeeCode: () -> Unit,
     onRegisterInitialFace: () -> Unit,
 ) {
     Column(
@@ -189,9 +189,9 @@ private fun IdentificationActions(
             }
         }
         IdentificationEntryActions(
-            canUsePin = state.canUsePin,
+            canUseEmployeeCode = state.canUseEmployeeCode,
             enabled = true,
-            onUsePin = onUsePin,
+            onUseEmployeeCode = onUseEmployeeCode,
             onRegisterInitialFace = onRegisterInitialFace,
         )
     }
@@ -199,9 +199,9 @@ private fun IdentificationActions(
 
 @Composable
 private fun IdentificationEntryActions(
-    canUsePin: Boolean,
+    canUseEmployeeCode: Boolean,
     enabled: Boolean,
-    onUsePin: () -> Unit,
+    onUseEmployeeCode: () -> Unit,
     onRegisterInitialFace: () -> Unit,
 ) {
     Column(
@@ -209,16 +209,16 @@ private fun IdentificationEntryActions(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (canUsePin) {
+        if (canUseEmployeeCode) {
             Button(
-                onClick = onUsePin,
+                onClick = onUseEmployeeCode,
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Usar PIN")
+                Text("Usar código de empleado")
             }
             Text(
-                "El PIN identifica al empleado; el rostro seguirá siendo obligatorio.",
+                "El código sólo identifica al empleado; el rostro sigue siendo obligatorio.",
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
             )

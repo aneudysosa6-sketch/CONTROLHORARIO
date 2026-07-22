@@ -46,7 +46,9 @@ import com.example.controlhorario.device.DeviceSyncScheduler
 import com.example.controlhorario.device.EmployeeSyncDashboardScreen
 import com.example.controlhorario.device.EmployeeSyncDashboardViewModel
 import com.example.controlhorario.device.EmployeeSyncDashboardViewModelFactory
+import com.example.controlhorario.auth.AndroidAuthRepositoryFactory
 import com.example.controlhorario.auth.AuthSessionStore
+import com.example.controlhorario.auth.AuthenticatedPrincipal
 import com.example.controlhorario.dashboard.AndroidDashboardPanel
 import com.example.controlhorario.dashboard.AndroidDashboardViewModel
 import com.example.controlhorario.dashboard.AndroidDashboardViewModelFactory
@@ -58,6 +60,8 @@ import com.example.controlhorario.dashboard.DashboardState
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.database.EmployeePermissionRequestEntity
+import com.example.controlhorario.model.EmployeeDeviceScope
+import com.example.controlhorario.model.EmployeeDeviceScopeSource
 import com.example.controlhorario.repository.AttendanceRepository
 import com.example.controlhorario.repository.JourneyRepository
 import com.example.controlhorario.repository.AppEventRepository
@@ -155,7 +159,13 @@ import com.example.controlhorario.ui.loans.LoanViewModelFactory
 import com.example.controlhorario.ui.loans.LoansScreen
 import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.session.KioskModeManager
+import com.example.controlhorario.ui.punch.AuthRepositoryKioskExitAuthenticator
+import com.example.controlhorario.ui.punch.KioskExitAuthViewModel
+import com.example.controlhorario.ui.punch.KioskExitAuthViewModelFactory
 import com.example.controlhorario.ui.punch.KioskExitAuthScreen
+import com.example.controlhorario.ui.punch.KioskExitCoordinator
+import com.example.controlhorario.ui.punch.KioskExitRuntime
+import com.example.controlhorario.ui.punch.KioskExitStages
 import com.example.controlhorario.ui.permissions.PermissionsScreen
 import com.example.controlhorario.ui.permissions.PermissionsViewModel
 import com.example.controlhorario.ui.permissions.PermissionsViewModelFactory
@@ -257,12 +267,45 @@ fun AppNavigation(
 
         composable(Route.KIOSK_EXIT_AUTH) {
             val db = DatabaseProvider.getDatabase(LocalContext.current)
+            val coordinator = remember(db) {
+                KioskExitCoordinator(
+                    authenticator = AuthRepositoryKioskExitAuthenticator(
+                        AndroidAuthRepositoryFactory.create(db.appUserDao()),
+                    ),
+                    runtime = object : KioskExitRuntime {
+                        override fun setPrincipal(principal: AuthenticatedPrincipal) {
+                            AuthSessionStore.setPrincipal(principal)
+                        }
+
+                        override fun loginRemote(user: AppUserEntity) {
+                            UserSessionManager.loginRemote(user)
+                        }
+
+                        override suspend fun deactivateAndPersist(): Boolean =
+                            KioskModeManager.deactivateAndPersist()
+
+                        override fun isKioskActive(): Boolean = KioskModeManager.isActive.value
+
+                        override fun clearSession() {
+                            UserSessionManager.logout()
+                        }
+                    },
+                )
+            }
+            val kioskExitViewModel: KioskExitAuthViewModel = viewModel(
+                factory = KioskExitAuthViewModelFactory(coordinator),
+            )
             KioskExitAuthScreen(
-                repository = AppUserRepository(db.appUserDao()),
-                onAuthenticated = { user ->
-                    KioskModeManager.deactivate()
-                    UserSessionManager.login(user)
-                    navController.navigate("home") { popUpTo(0); launchSingleTop = true }
+                viewModel = kioskExitViewModel,
+                onAuthenticated = { userId, roleCode ->
+                    Log.i(
+                        "KIOSK_EXIT_FLOW",
+                        "stage=${KioskExitStages.NAVIGATION_HOME}; userId=$userId; roleCode=$roleCode",
+                    )
+                    navController.navigate("home") {
+                        popUpTo(0)
+                        launchSingleTop = true
+                    }
                 },
                 onCancelled = {
                     navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
@@ -422,7 +465,7 @@ fun AppNavigation(
                 onIncidents = { navController.navigate(Route.INCIDENTS_CENTER) },
                 onEmployeePortal = { navController.navigate(Route.EMPLOYEE_PORTAL) },
                 onBranchManager = { navController.navigate(Route.BRANCH_MANAGER_PANEL) },
-                onPinMode = {
+                onEmployeeMode = {
                     KioskModeManager.activate()
                     UserSessionManager.logout()
                     navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
@@ -507,7 +550,7 @@ fun AppNavigation(
             )
             BranchManagerScreen(
                 viewModel = vm,
-                onPinMode = {
+                onEmployeeMode = {
                     KioskModeManager.activate()
                     UserSessionManager.logout()
                     navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
@@ -571,15 +614,15 @@ fun AppNavigation(
                     JourneyBiometricGate.open(employeeId, deviceId)
                     if (BuildConfig.DEBUG) Log.d(
                         "PUNCH_AUTH",
-                        "employeeId=$employeeId pinVerified=false faceVerified=true authorizationIssued=true"
+                        "employeeId=$employeeId employeeCodeUsed=false faceVerified=true authorizationIssued=true"
                     )
                     navController.navigate("${Route.EMPLOYEE_ASSISTANCE}/$employeeId") {
                         popUpTo(Route.EMPLOYEE_PUNCH) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
-                onUsePin = {
-                    navController.navigate(Route.EMPLOYEE_PIN_FALLBACK) { launchSingleTop = true }
+                onUseEmployeeCode = {
+                    navController.navigate(Route.EMPLOYEE_CODE_FALLBACK) { launchSingleTop = true }
                 },
                 onRegisterInitialFace = {
                     navController.navigate(Route.FACE_KIOSK_REGISTRATION) {
@@ -598,7 +641,7 @@ fun AppNavigation(
             )
         }
 
-        composable(Route.EMPLOYEE_PIN_FALLBACK) {
+        composable(Route.EMPLOYEE_CODE_FALLBACK) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
             val faceRepository = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
@@ -609,7 +652,8 @@ fun AppNavigation(
                     faceAvailability = com.example.controlhorario.device.EmployeeFaceAvailabilityCoordinator(
                         faceExists = { employeeId -> faceRepository.activeForEmployee(employeeId) != null },
                         targetedSync = com.example.controlhorario.device.AndroidTargetedEmployeeSyncGateway(context, db)
-                    )
+                    ),
+                    scopeSource = employeeScopeSource(db)
                 )
             )
             EmployeePunchScreen(
@@ -637,7 +681,9 @@ fun AppNavigation(
             val vm: FaceVerificationViewModel = viewModel(
                 factory = FaceVerificationViewModelFactory(
                     employeeId = employeeId,
-                    faces = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao())
+                    faces = EmployeeFaceBiometricRepository(db.employeeFaceBiometricDao()),
+                    employees = EmployeeRepository(db.employeeDao()),
+                    scopeSource = employeeScopeSource(db)
                 )
             )
             FaceVerificationScreen(
@@ -650,7 +696,7 @@ fun AppNavigation(
                         return@FaceVerificationScreen
                     }
                     JourneyBiometricGate.open(employeeId, deviceId)
-                    if (BuildConfig.DEBUG) Log.d("PUNCH_AUTH", "employeeId=$employeeId pinVerified=true faceVerified=true authorizedEmployeeId=$employeeId authorizationConsumed=false isPunchAuthorized=true")
+                    if (BuildConfig.DEBUG) Log.d("PUNCH_AUTH", "employeeId=$employeeId employeeCodeUsed=true faceVerified=true authorizedEmployeeId=$employeeId authorizationConsumed=false isPunchAuthorized=true")
                     navController.navigate("${Route.EMPLOYEE_ASSISTANCE}/$employeeId") {
                         popUpTo(Route.FACE_VERIFICATION) { inclusive = true }
                     }
@@ -801,7 +847,9 @@ fun AppNavigation(
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
             val vm: EmployeeViewModel = viewModel(
-                factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
+                factory = EmployeeViewModelFactory(
+                    EmployeeRepository(db.employeeDao(), db.employeeSyncOutboxDao(), db)
+                )
             )
             val branchVm: BranchViewModel = viewModel(
                 factory = BranchViewModelFactory(BranchRepository(db.branchDao()))
@@ -826,7 +874,7 @@ fun AppNavigation(
         ) { backStackEntry ->
             val employeeKey = backStackEntry.arguments?.getString("employeeKey").orEmpty()
             val db = DatabaseProvider.getDatabase(LocalContext.current)
-            val vm: EmployeeViewModel = viewModel(factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao())))
+            val vm: EmployeeViewModel = viewModel(factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao(),db.employeeSyncOutboxDao(),db)))
             val branchVm: BranchViewModel = viewModel(factory = BranchViewModelFactory(BranchRepository(db.branchDao())))
             val departmentVm: DepartmentViewModel = viewModel(factory = DepartmentViewModelFactory(DepartmentRepository(db.departmentDao())))
             val employee by vm.editingEmployee.collectAsState()
@@ -885,7 +933,7 @@ fun AppNavigation(
                 onPayrollPreviewClick = { navController.navigate("${Route.EMPLOYEE_PAYROLL_PREVIEW}/$employeeId") },
                 onPayrollHistoryClick = { navController.navigate("${Route.EMPLOYEE_PAYROLL_HISTORY}/$employeeId") },
                 onFingerprintClick = {
-                    val code = employee?.employeeCode?.ifBlank { employee.pin } ?: employeeId.toString().padStart(5, '0')
+                    val code = employee?.employeeCode ?: employeeId.toString().padStart(6, '0')
                     navController.navigate("${Route.FINGERPRINTS}/$code")
                 },
                 onEditEmployeeClick = {
@@ -1445,7 +1493,7 @@ private fun AdminHomeScreen(
     onIncidents: () -> Unit,
     onEmployeePortal: () -> Unit,
     onBranchManager: () -> Unit,
-    onPinMode: () -> Unit,
+    onEmployeeMode: () -> Unit,
     onKioskFaceAuthSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -1461,8 +1509,8 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.DASHBOARD)) { OSINETActionCard("Dashboard", "Métricas operativas y jornadas recientes", onClick = onDashboard); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Empleados", "Gestión de perfiles, rostros y datos laborales", onClick = onEmployees); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Asistencia", "Registros y control diario", onClick = onAttendance); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.PIN_MODE)) { OSINETActionCard("Activar modo PIN", "Abrir ponchador para empleados", onClick = onPinMode); Spacer(Modifier.height(10.dp)) }
-        if (permissionCsv.hasPermission(PermissionCatalog.KIOSK_PIN_FALLBACK_MANAGE)) { OSINETActionCard("Autenticación del kiosco", "Administrar el PIN alternativo; el rostro continúa obligatorio", onClick = onKioskFaceAuthSettings); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.EMPLOYEE_MODE)) { OSINETActionCard("Activar modo empleado", "Abrir identificación facial para empleados", onClick = onEmployeeMode); Spacer(Modifier.height(10.dp)) }
+        if (permissionCsv.hasPermission(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)) { OSINETActionCard("Autenticación del kiosco", "Administrar el código alternativo; el rostro continúa obligatorio", onClick = onKioskFaceAuthSettings); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.INCIDENTS)) { OSINETActionCard("Centro de Incidencias", "Jornadas pendientes y eventos nuevos", onClick = onIncidents); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.BRANCH_MANAGER)) { OSINETActionCard("Panel Encargado", "Eventos y empleados de mi sucursal", onClick = onBranchManager); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.PAYROLL)) { OSINETActionCard("GENERAL NÓMINA", "Generación, plantillas y exportación", onClick = onGeneralPayroll); Spacer(Modifier.height(10.dp)) }
@@ -1472,7 +1520,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.LOANS)) { OSINETActionCard("Préstamos", "Solicitudes, aprobación, entrega y balance", onClick = onLoans); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)) { OSINETActionCard("Permisos Empleados", "Solicitudes, archivos, aprobación y rechazo", onClick = onEmployeePermissions); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Registro facial", "Registrar rostro", onClick = onFingerprint); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.PIN_MODE)) { OSINETActionCard("Permisos Supervisores", "Solicitudes preparadas para aprobación", onClick = onPermissions); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.EMPLOYEE_MODE)) { OSINETActionCard("Permisos Supervisores", "Solicitudes preparadas para aprobación", onClick = onPermissions); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PORTAL)) { OSINETNeonEventCard("Portal del Empleado", "Pagos, préstamos, historial y solicitudes", isNew = !portalEventOpened, onOpen = { portalEventOpened = true; onEmployeePortal() }); Spacer(Modifier.height(10.dp)) }
         Spacer(Modifier.height(8.dp))
         OSINETSecondaryButton("Cerrar sesión", onLogout)
@@ -1756,6 +1804,16 @@ private fun MenuButton(title: String, onClick: () -> Unit) {
 private fun portalNow(): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
 
+private fun employeeScopeSource(
+    database: com.example.controlhorario.database.AppDatabase
+) = EmployeeDeviceScopeSource {
+    database.deviceEnrollmentDao().current()?.let { enrollment ->
+        enrollment.companyId?.takeIf(String::isNotBlank)?.let { companyId ->
+            EmployeeDeviceScope(companyId, enrollment.branchId)
+        }
+    }
+}
+
 private const val INITIAL_FACE_REGISTRATION_REVISION = "initial_face_registration_revision"
 private const val INITIAL_FACE_SUCCESS_MESSAGE_MILLIS = 4_000L
 
@@ -1765,7 +1823,7 @@ private object Route {
     const val ADMIN_LOGIN = "admin_login"
     const val KIOSK_MODE = "kiosk_mode"
     const val EMPLOYEE_PUNCH = "employee_punch"
-    const val EMPLOYEE_PIN_FALLBACK = "employee_pin_fallback"
+    const val EMPLOYEE_CODE_FALLBACK = "employee_code_fallback"
     const val FACE_VERIFICATION = "face_verification"
     const val FACE_KIOSK_REGISTRATION = "face_kiosk_registration"
     const val KIOSK_EXIT_AUTH = "kiosk_exit_auth"

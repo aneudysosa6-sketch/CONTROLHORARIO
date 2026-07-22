@@ -29,6 +29,7 @@ import com.example.controlhorario.ui.components.OSINETScreen
 import com.example.controlhorario.ui.components.OSINETSecondaryButton
 import com.example.controlhorario.ui.components.OSINETStatusText
 import com.example.controlhorario.ui.components.OSINETTextField
+import com.example.controlhorario.model.EmployeeCodePolicy
 import kotlinx.coroutines.launch
 
 @Composable
@@ -40,7 +41,12 @@ fun FingerprintRegistrationScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var employeeCode by remember(initialEmployeeCode) { mutableStateOf(initialEmployeeCode.filter(Char::isDigit).take(5)) }
+    var employeeCode by remember(initialEmployeeCode) {
+        mutableStateOf(
+            EmployeeCodePolicy.normalizeOrNull(initialEmployeeCode)
+                ?: EmployeeCodePolicy.sanitizeInput(initialEmployeeCode)
+        )
+    }
     var supervisor by remember { mutableStateOf("admin") }
     var busy by remember { mutableStateOf(false) }
     var readerStatus by remember { mutableStateOf("Preparando lector 2Connect USB...") }
@@ -80,7 +86,7 @@ fun FingerprintRegistrationScreen(
         OSINETStatusText(readerStatus)
         Spacer(Modifier.height(18.dp))
 
-        OSINETTextField(employeeCode, { employeeCode = it.filter(Char::isDigit).take(5) }, "Código empleado", Modifier.fillMaxWidth())
+        OSINETTextField(employeeCode, { employeeCode = EmployeeCodePolicy.sanitizeInput(it) }, "Código empleado", Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         OSINETTextField(supervisor, { supervisor = it }, "Registrado por", Modifier.fillMaxWidth())
         Spacer(Modifier.height(14.dp))
@@ -91,7 +97,7 @@ fun FingerprintRegistrationScreen(
             Spacer(Modifier.height(16.dp))
             OSINETCard {
                 Text("Empleado: ${employee.nombre}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text("Código: ${employee.employeeCode.ifBlank { employee.pin }}", color = OSINETColors.TextSecondary)
+                Text("Código: ${employee.employeeCode}", color = OSINETColors.TextSecondary)
                 Text(if (employee.fingerprintRegistered) "Estado: rostro registrado" else "Estado: sin rostro registrado", color = if (employee.fingerprintRegistered) OSINETColors.GreenSoft else OSINETColors.Warning)
                 if (state.registeredTemplateSize > 0) {
                     Text("Plantilla 2Connect: ${state.registeredTemplateSize} bytes", color = OSINETColors.TextSecondary)

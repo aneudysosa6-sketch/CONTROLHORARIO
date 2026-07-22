@@ -301,7 +301,7 @@ class FaceIdentificationEngineTest {
         remoteBranchId: String? = "branch-1"
     ) = FaceIdentificationTemplateRecord(
         employeeId = employeeId,
-        employeeCode = employeeId.toString().padStart(5, '0'),
+        employeeCode = employeeId.toString().padStart(6, '0'),
         employeeName = "Employee $employeeId",
         remoteCompanyId = remoteCompanyId,
         remoteBranchId = remoteBranchId,

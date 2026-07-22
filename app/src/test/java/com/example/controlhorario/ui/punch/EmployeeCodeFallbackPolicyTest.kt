@@ -11,7 +11,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class PinFallbackPolicyTest {
+class EmployeeCodeFallbackPolicyTest {
     private fun settings(enabled: Boolean) = KioskFaceAuthSettings(
         companyId = "company-a",
         deviceId = "device-a",
@@ -23,28 +23,31 @@ class PinFallbackPolicyTest {
         lastSyncedAt = 1L,
     )
 
-    @Test fun `pin fallback disabled is never enabled by policy`() {
-        assertFalse(PinFallbackPolicy.isEnabled(settings(enabled = false)))
-    }
-
-    @Test fun `pin fallback enabled remains available offline`() {
-        assertTrue(PinFallbackPolicy.isEnabled(settings(enabled = true)))
+    @Test fun `employee code fallback obeys the remote setting`() {
+        assertFalse(EmployeeCodeFallbackPolicy.isEnabled(settings(enabled = false)))
+        assertTrue(EmployeeCodeFallbackPolicy.isEnabled(settings(enabled = true)))
     }
 
     @Test fun `only exact management permission authorizes changes`() {
-        assertFalse(PinFallbackPolicy.canManage(setOf("configuracion.administrar")))
-        assertTrue(PinFallbackPolicy.canManage(setOf(PermissionCatalog.KIOSK_PIN_FALLBACK_MANAGE)))
-        assertThrows(SecurityException::class.java) { PinFallbackPolicy.requireCanManage(emptySet()) }
+        assertFalse(EmployeeCodeFallbackPolicy.canManage(setOf("configuracion.administrar")))
+        assertTrue(EmployeeCodeFallbackPolicy.canManage(setOf(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)))
+        assertThrows(SecurityException::class.java) {
+            EmployeeCodeFallbackPolicy.requireCanManage(emptySet())
+        }
     }
 
-    @Test fun `offline defaults preserve current threshold without inventing margin`() {
+    @Test fun `offline defaults preserve current confidence policy`() {
         val defaults = KioskSettingsRepository.defaults("company-a", "device-a")
         assertEquals(FaceEmbeddingEngine.COSINE_THRESHOLD, defaults.faceMatchThreshold)
         assertNull(defaults.faceMatchMargin)
     }
 
     @Test fun `invalid remote confidence values are rejected`() {
-        assertThrows(IllegalArgumentException::class.java) { KioskSettingsRepository.validate(Float.NaN, null) }
-        assertThrows(IllegalArgumentException::class.java) { KioskSettingsRepository.validate(0.75f, -0.01f) }
+        assertThrows(IllegalArgumentException::class.java) {
+            KioskSettingsRepository.validate(Float.NaN, null)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            KioskSettingsRepository.validate(0.75f, -0.01f)
+        }
     }
 }

@@ -17,6 +17,8 @@ class InitialFaceEnrollmentRepositoryTest {
         assertFalse(InitialFaceEmployeeCodePolicy.isValid("A00008"))
         assertFalse(InitialFaceEmployeeCodePolicy.isValid("000000"))
         assertTrue(InitialFaceEmployeeCodePolicy.isValid("000008"))
+        assertTrue(InitialFaceEmployeeCodePolicy.isValid("48575"))
+        assertEquals("048575", InitialFaceEmployeeCodePolicy.normalizeOrNull("48575"))
         assertEquals(
             listOf("000008", "00008"),
             InitialFaceEmployeeCodePolicy.lookupCandidates("000008")
@@ -41,8 +43,18 @@ class InitialFaceEnrollmentRepositoryTest {
         val result = fixture.repository.check("000008")
 
         assertTrue(result is InitialFaceEligibility.Allowed)
-        assertEquals("00008", (result as InitialFaceEligibility.Allowed).employee.employeeCode)
-        assertEquals(listOf("00008"), fixture.remoteCodes)
+        assertEquals("000008", (result as InitialFaceEligibility.Allowed).employee.employeeCode)
+        assertEquals(listOf("000008"), fixture.remoteCodes)
+    }
+
+    @Test fun `five digit historical input is processed as canonical six digit code`() = runBlocking {
+        val fixture = fixture(employees = listOf(employee(id = 48_575, code = "48575")))
+
+        val result = fixture.repository.check("48575")
+
+        assertTrue(result is InitialFaceEligibility.Allowed)
+        assertEquals("048575", (result as InitialFaceEligibility.Allowed).employee.employeeCode)
+        assertEquals(listOf("048575"), fixture.remoteCodes)
     }
 
     @Test fun `exact and legacy employees colliding are rejected as ambiguous`() = runBlocking {
@@ -206,7 +218,7 @@ class InitialFaceEnrollmentRepositoryTest {
         assertEquals(InitialFaceEnrollmentAudit.EVENT_NAME, audit.eventName)
         assertEquals("device-1", audit.deviceId)
         assertEquals("EMPLOYEE_SELF_SERVICE", audit.responsibleUser)
-        assertEquals("00008", audit.employeeCode)
+        assertEquals("000008", audit.employeeCode)
         val description = audit.safeDescription().lowercase()
         assertFalse("embedding" in description)
         assertFalse("pin" in description)

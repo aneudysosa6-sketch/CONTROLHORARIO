@@ -9,7 +9,8 @@ const text=(value:unknown)=>typeof value==='string'?value.trim():''
 const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(x=>x.toString(16).padStart(2,'0')).join('')
 const validUuid=(value:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 const afterCursor=(row:{updated_at:string,id:string},updatedAt:string,id:string)=>!updatedAt||row.updated_at>updatedAt||(row.updated_at===updatedAt&&row.id>id)
-const validEmployeeCode=(value:string)=>/^[0-9]{5,12}$/.test(value)
+const validEmployeeCode=(value:string)=>/^[0-9]{6}$/.test(value)&&value!=='000000'
+const maskedEmployeeCode=(value:string)=>validEmployeeCode(value)?`****${value.slice(-2)}`:'invalid'
 const validEmbedding=(value:unknown):value is number[]=>Array.isArray(value)&&value.length===128&&value.every(item=>typeof item==='number'&&Number.isFinite(item))
 type ErrorInfo={error:string;details:string|null;hint:string|null;code:string|null;stacktrace:string|null}
 const errorInfo=(value:unknown):ErrorInfo=>{
@@ -70,13 +71,20 @@ Deno.serve(async request=>{
       if(defaultSettingsResult.error)return stageFailure(requestId,'crear_company_settings',defaultSettingsResult.error,auth.empresa_id,defaultSettingsResult.status||500)
       companySettings=defaultSettingsResult.data
     }
+    // La columna persistida conserva su nombre legacy durante la transicion,
+    // pero el contrato nuevo la expone como fallback por codigo de empleado.
+    // Se mantiene la clave anterior temporalmente para clientes ya instalados.
+    const companySettingsPayload={
+      ...companySettings,
+      employee_code_fallback_enabled:companySettings.pin_fallback_enabled,
+    }
 
     const body=await request.json().catch(()=>({})) as Record<string,unknown>
     const targeted=Object.prototype.hasOwnProperty.call(body,'employee_code'),employeeCode=text(body.employee_code)
     if(targeted&&!validEmployeeCode(employeeCode))return json({error:'employee_code inválido'},400)
     const cursor:Record<string,unknown>=targeted?{}:((body.cursor??{}) as Record<string,unknown>),cursorUpdatedAt=text(cursor.updated_at),cursorId=text(cursor.id)
     console.log('EmployeeSync cursor recibido',{request_id:requestId,company_id:auth.empresa_id,cursor_updated_at:cursorUpdatedAt||null,cursor_id:cursorId||null})
-    if(targeted)console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode,targetedSyncStarted:true})
+    if(targeted)console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode:maskedEmployeeCode(employeeCode),targetedSyncStarted:true})
     if(cursorUpdatedAt&&Number.isNaN(Date.parse(cursorUpdatedAt)))return json({error:'Cursor updated_at inválido'},400)
     if(cursorId&&!validUuid(cursorId))return json({error:'Cursor id inválido'},400)
 
@@ -132,10 +140,10 @@ Deno.serve(async request=>{
       face_embedding_valid:remoteEmbeddingValid,
     })})
     const inactive=page.filter(row=>row.activo!==true).map(row=>({remote_id:row.id,updated_at:row.updated_at}))
-    if(targeted){const row=page[0],rawEmbeddingPresent=row?.face_embedding!==null&&row?.face_embedding!==undefined;console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode,remoteId:row?.id??null,remoteEmbeddingPresent:rawEmbeddingPresent,remoteEmbeddingDimension:Array.isArray(row?.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid:validEmbedding(row?.face_embedding),httpStatus:200,finalResult:row?'FOUND':'NOT_FOUND'})}
+    if(targeted){const row=page[0],rawEmbeddingPresent=row?.face_embedding!==null&&row?.face_embedding!==undefined;console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode:maskedEmployeeCode(employeeCode),remoteId:row?.id??null,remoteEmbeddingPresent:rawEmbeddingPresent,remoteEmbeddingDimension:Array.isArray(row?.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid:validEmbedding(row?.face_embedding),httpStatus:200,finalResult:row?'FOUND':'NOT_FOUND'})}
     console.log('EmployeeSync empleados enviados',{request_id:requestId,company_id:auth.empresa_id,active_sent:employees.length,inactive_sent:inactive.length,has_more:changed.length>page.length})
     await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)
     await admin.from('credenciales_dispositivo').update({ultima_uso_at:now}).eq('dispositivo_id',deviceId).eq('empresa_id',auth.empresa_id)
-    return json({employees,inactive,cursor:targeted?null:(last?{updated_at:last.updated_at,id:last.id}:{updated_at:cursorUpdatedAt,id:cursorId}),has_more:targeted?false:changed.length>page.length,targeted,synced_at:now,company_id:auth.empresa_id,device_branch_id:device.sucursal_id,company_settings:companySettings,diagnostic_request_id:requestId})
+    return json({employees,inactive,cursor:targeted?null:(last?{updated_at:last.updated_at,id:last.id}:{updated_at:cursorUpdatedAt,id:cursorId}),has_more:targeted?false:changed.length>page.length,targeted,synced_at:now,company_id:auth.empresa_id,device_branch_id:device.sucursal_id,company_settings:companySettingsPayload,diagnostic_request_id:requestId})
   }catch(error){return stageFailure(requestId,'excepcion_no_controlada',error,diagnosticCompanyId)}
 })

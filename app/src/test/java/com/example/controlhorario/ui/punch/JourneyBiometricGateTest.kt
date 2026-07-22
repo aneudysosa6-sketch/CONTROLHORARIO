@@ -8,6 +8,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JourneyBiometricGateTest {
+ @Test fun `employee code alone never creates a biometric authorization`(){
+  JourneyBiometricGate.clear()
+  assertFalse(JourneyBiometricGate.isAuthorized(7,"device-a",1))
+  assertNull(JourneyBiometricGate.prepareProof(7,"device-a",JourneyAction.INICIAR,1))
+ }
  @Test fun `proof remains active until the saved action consumes it`(){
   JourneyBiometricGate.open(7,"device-a",0)
   assertTrue(JourneyBiometricGate.isAuthorized(7,"device-a",1))

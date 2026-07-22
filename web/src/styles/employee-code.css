@@ -1,0 +1,22 @@
+.employee-code-box {
+  width: 340px;
+}
+
+.employee-code-dots {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 25px;
+}
+
+.employee-code-dots i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #48729e;
+  border-radius: 50%;
+}
+
+.employee-code-dots i.filled {
+  background: var(--neon);
+  box-shadow: 0 0 14px var(--blue);
+}

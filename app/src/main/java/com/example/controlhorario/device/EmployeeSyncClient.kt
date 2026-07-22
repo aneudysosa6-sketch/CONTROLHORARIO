@@ -2,6 +2,7 @@ package com.example.controlhorario.device
 
 import android.os.SystemClock
 import android.util.Log
+import com.example.controlhorario.model.EmployeeCodePolicy
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -29,8 +30,11 @@ data class EmployeeSyncPage(
 class EmployeeSyncClient(private val endpoint:String){
  fun download(deviceId:String,credential:String,cursor:EmployeeSyncCursor?,employeeCode:String?=null):EmployeeSyncPage{
   require(endpoint.startsWith("https://")&&endpoint.endsWith("/functions/v1/employee-sync")){"Configura CONTROLHORARIO_EMPLOYEE_SYNC_URL con HTTPS"}
+  val normalizedEmployeeCode=employeeCode?.let{
+   requireNotNull(EmployeeCodePolicy.normalizeOrNull(it)){EmployeeCodePolicy.ERROR}
+  }
   val request=JSONObject()
-  if(employeeCode!=null){require(employeeCode.matches(Regex("^[0-9]{5,12}$")));request.put("employee_code",employeeCode)}
+  if(normalizedEmployeeCode!=null)request.put("employee_code",normalizedEmployeeCode)
   else cursor?.let{request.put("cursor",JSONObject().put("updated_at",it.updatedAt).put("id",it.id))}
   Log.d(TAG,"URL: $endpoint")
   Log.d(TAG,"company_id: pendiente de respuesta Edge; cursor enviado: updated_at=${cursor?.updatedAt}, id=${cursor?.id}")
@@ -50,7 +54,7 @@ class EmployeeSyncClient(private val endpoint:String){
    if(status !in 200..299)throw DeviceEnrollmentHttpException(status,response,json.optString("error","Error de sincronización"))
    return parse(json,status).also{
     Log.d(TAG,"empleados recibidos: activos=${it.employees.size}, inactivos=${it.inactive.size}, cursor=${it.cursor}, hasMore=${it.hasMore}")
-    if(employeeCode!=null){val remote=it.employees.firstOrNull();Log.d("FACE_CROSS_DEVICE_SYNC","employeeCode=$employeeCode remoteId=${remote?.id} HTTP status=$status remoteEmbeddingPresent=${remote?.remoteEmbeddingPresent==true} remoteEmbeddingDimension=${remote?.remoteEmbeddingDimension} finalResult=${if(remote==null)"NOT_FOUND" else "DOWNLOADED"}")}
+    if(normalizedEmployeeCode!=null){val remote=it.employees.firstOrNull();Log.d("FACE_CROSS_DEVICE_SYNC","employeeCode=${EmployeeCodePolicy.maskForLog(normalizedEmployeeCode)} remoteId=${remote?.id} HTTP status=$status remoteEmbeddingPresent=${remote?.remoteEmbeddingPresent==true} remoteEmbeddingDimension=${remote?.remoteEmbeddingDimension} finalResult=${if(remote==null)"NOT_FOUND" else "DOWNLOADED"}")}
    }
   }catch(error:Exception){Log.e(TAG,"excepción completa employee-sync (URL=$endpoint, HTTP=$status, cursor=$cursor)",error);throw error}finally{connection?.disconnect()}
  }
@@ -64,7 +68,7 @@ class EmployeeSyncClient(private val endpoint:String){
    val remoteEmbeddingDimension=if(row.has("face_embedding_dimension")&&!row.isNull("face_embedding_dimension"))row.optInt("face_embedding_dimension") else rawEmbedding?.length()
    val remoteEmbeddingValid=if(row.has("face_embedding_valid"))row.optBoolean("face_embedding_valid") else parsedEmbedding!=null
    RemoteEmployee(
-    id=row.getString("remote_id"),code=row.getString("code"),name=row.getString("name"),phone=row.optString("phone"),email=row.optString("email"),
+    id=row.getString("remote_id"),code=requireNotNull(EmployeeCodePolicy.normalizeOrNull(row.getString("code"))){"employee_sync_invalid_employee_code"},name=row.getString("name"),phone=row.optString("phone"),email=row.optString("email"),
     branchId=row.optNullableString("branch_id"),branchName=row.optString("branch_name"),departmentId=row.optNullableString("department_id"),departmentName=row.optString("department_name"),
     positionId=row.optNullableString("position_id"),positionName=row.optString("position_name"),supervisorId=row.optNullableString("supervisor_id"),supervisorName=row.optString("supervisor_name"),
     status=row.optString("status"),jornadaEnabled=row.optBoolean("jornada_enabled",true),scheduleStart=row.optNullableString("schedule_start"),scheduleEnd=row.optNullableString("schedule_end"),lunchStart=row.optNullableString("lunch_start"),lunchDurationMinutes=if(row.isNull("lunch_duration_minutes"))null else row.optInt("lunch_duration_minutes"),workDays=row.optJSONArray("work_days")?.let{days->(0 until days.length()).joinToString(","){index->days.getInt(index).toString()}},toleranceMinutes=if(row.isNull("tolerance_minutes"))null else row.optInt("tolerance_minutes"),startDate=row.optNullableString("start_date"),salary=if(row.isNull("salary"))null else row.getDouble("salary"),payType=row.optNullableString("pay_type"),updatedAt=row.getString("updated_at"),faceEmbedding=parsedEmbedding,remoteEmbeddingPresent=remoteEmbeddingPresent,remoteEmbeddingDimension=remoteEmbeddingDimension,remoteEmbeddingValid=remoteEmbeddingValid
@@ -83,7 +87,10 @@ class EmployeeSyncClient(private val endpoint:String){
    if(companyId==null||!threshold.isFinite()||threshold !in 0f..1f||margin?.let{!it.isFinite()||it !in 0f..2f}==true)null
    else RemoteKioskSettings(
     companyId=companyId,faceOnlyEnabled=settings.optBoolean("face_only_enabled",true),
-    pinFallbackEnabled=settings.optBoolean("pin_fallback_enabled",true),faceMatchThreshold=threshold,
+    // Prefer the employee-code name; keep the old wire key only for rolling deployments.
+    pinFallbackEnabled=if(settings.has("employee_code_fallback_enabled"))
+     settings.optBoolean("employee_code_fallback_enabled",true)
+    else settings.optBoolean("pin_fallback_enabled",true),faceMatchThreshold=threshold,
     faceMatchMargin=margin,updatedAt=settings.optString("updated_at")
    )
   }

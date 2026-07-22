@@ -186,7 +186,7 @@ fun FaceRegistrationScreen(
         if (state.cameraError && !initialRegistrationOnly) {
             Spacer(Modifier.height(12.dp))
             Text("No se pudo iniciar el registro facial.", color = colors.error)
-            OutlinedButton(onClick = onBack) { Text("Volver al PIN") }
+            OutlinedButton(onClick = onBack) { Text("Volver al modo empleado") }
         }
         AnimatedVisibility(
             visible = state.registered && state.samples == FaceRegistrationPose.entries.size,

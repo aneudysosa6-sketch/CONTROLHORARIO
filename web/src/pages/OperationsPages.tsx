@@ -3,16 +3,13 @@ import {
   FileDown,
   FileSpreadsheet,
   Fingerprint,
-  MapPin,
-  Pause,
-  Play,
-  RotateCcw,
   Search,
-  Square,
   X,
 } from "lucide-react";
 import { employees } from "../data/mockData";
-import { Badge, PageHeader, Toast } from "../components/UI";
+import { PageHeader, Toast } from "../components/UI";
+import { EMPLOYEE_CODE_ERROR, normalizeEmployeeCode } from "../modules/employees/employeeCodePolicy";
+import "../styles/employee-code.css";
 
 export function ReportsPage() {
   const [message, setMessage] = useState("");
@@ -114,44 +111,40 @@ export function ReportsPage() {
 }
 
 export function KioskPage() {
-  const [mode, setMode] = useState<"home" | "pin" | "finger">("home"),
-    [pin, setPin] = useState(""),
-    [identified, setIdentified] = useState(false),
+  const [mode, setMode] = useState<"code" | "face">("face"),
+    [employeeCode, setEmployeeCode] = useState(""),
+    [employeeName, setEmployeeName] = useState(""),
     [message, setMessage] = useState("");
   function key(k: string) {
-    if (k === "⌫") setPin((p) => p.slice(0, -1));
-    else if (/^\d$/.test(k) && pin.length < 5) setPin((p) => p + k);
+    setMessage("");
+    if (k === "⌫") setEmployeeCode((value) => value.slice(0, -1));
+    else if (/^\d$/.test(k) && employeeCode.length < 6) setEmployeeCode((value) => value + k);
   }
   function identify() {
-    if (!/^\d{5}$/.test(pin)) {
-      setMessage("El código debe contener exactamente 5 dígitos.");
+    const normalizedCode = normalizeEmployeeCode(employeeCode);
+    if (!normalizedCode) {
+      setMessage(EMPLOYEE_CODE_ERROR);
       return;
     }
-    const found = employees.find((e) => e.pin === pin);
+    const found = employees.find((employee) => normalizeEmployeeCode(employee.code) === normalizedCode);
     if (found) {
-      setIdentified(true);
-      setMessage(`Hola, ${found.name}`);
-    } else setMessage("PIN no reconocido en los datos demo");
+      setEmployeeCode(normalizedCode);
+      setEmployeeName(found.name);
+      setMessage("Código encontrado. La verificación facial es obligatoria para continuar.");
+      setMode("face");
+    } else {
+      setMessage("Código de empleado no reconocido en los datos demo");
+    }
   }
-  function punch(action: string) {
-    setMessage(
-      `${action} registrada a las ${new Date().toLocaleTimeString("es-DO", { hour: "2-digit", minute: "2-digit" })}`,
-    );
-    setTimeout(() => {
-      setMode("home");
-      setPin("");
-      setIdentified(false);
-    }, 1800);
+  function reset() {
+    setMode("face");
+    setEmployeeCode("");
+    setEmployeeName("");
+    setMessage("");
   }
   return (
     <div className="kiosk">
-      <button
-        className="kiosk-close"
-        onClick={() => {
-          setMode("home");
-          setIdentified(false);
-        }}
-      >
+      <button className="kiosk-close" onClick={reset}>
         <X />
         Reiniciar
       </button>
@@ -160,46 +153,33 @@ export function KioskPage() {
         <b>OSINET</b>
         <small>CONTROL DE ASISTENCIA</small>
       </div>
-      {mode === "home" && (
-        <>
-          <div>
-            <span className="eyebrow">BIENVENIDO</span>
-            <h1>Registra tu jornada</h1>
-            <p>Selecciona tu método de identificación</p>
-          </div>
-          <div className="kiosk-options">
-            <button onClick={() => setMode("pin")}>
-              <span>••••</span>
-              <b>Ingresar con PIN</b>
-              <small>Usa tu código personal</small>
-            </button>
-            <button onClick={() => setMode("finger")}>
-              <Fingerprint />
-              <b>Usar rostro</b>
-              <small>Requiere app Android / dispositivo compatible</small>
-            </button>
-          </div>
-        </>
-      )}
-      {mode === "finger" && (
+      {mode === "face" && (
         <div className="finger-info">
           <Fingerprint />
           <h2>Verificación facial</h2>
+          {employeeName && <h3>{employeeCode} · {employeeName}</h3>}
           <p>
             La validación facial es responsabilidad de la aplicación Android.
-            El navegador no simula ni registra biometría facial.
+            El código solo identifica al empleado: nunca autoriza una jornada sin comprobar su rostro.
           </p>
-          <button className="primary" onClick={() => setMode("home")}>
-            Volver
+          {message && <p className="kiosk-message">{message}</p>}
+          {!employeeName && (
+            <button className="secondary" onClick={() => setMode("code")}>
+              Usar código de empleado
+            </button>
+          )}
+          <button className="primary" onClick={reset}>
+            Reiniciar identificación facial
           </button>
         </div>
       )}
-      {mode === "pin" && !identified && (
-        <div className="pin-box">
-          <span className="eyebrow">IDENTIFICACIÓN POR PIN</span>
-          <div className="pin-dots">
-            {Array.from({ length: 5 }, (_, i) => (
-              <i className={pin[i] ? "filled" : ""} key={i} />
+      {mode === "code" && (
+        <div className="employee-code-box">
+          <span className="eyebrow">CÓDIGO DE EMPLEADO</span>
+          <h2>Ingresa tu código de empleado</h2>
+          <div className="employee-code-dots" aria-label={`${employeeCode.length} de 6 dígitos ingresados`}>
+            {Array.from({ length: 6 }, (_, i) => (
+              <i className={employeeCode[i] ? "filled" : ""} key={i} />
             ))}
           </div>
           <div className="keypad">
@@ -216,30 +196,7 @@ export function KioskPage() {
           </div>
         </div>
       )}
-      {mode === "pin" && identified && (
-        <div className="punch-actions">
-          <h2>{message}</h2>
-          <div>
-            <button onClick={() => punch("Inicio de jornada")}>
-              <Play />
-              Iniciar jornada
-            </button>
-            <button onClick={() => punch("Pausa")}>
-              <Pause />
-              Pausar
-            </button>
-            <button onClick={() => punch("Reanudación")}>
-              <RotateCcw />
-              Reanudar
-            </button>
-            <button onClick={() => punch("Fin de jornada")}>
-              <Square />
-              Finalizar
-            </button>
-          </div>
-        </div>
-      )}{" "}
-      {message && !identified && <p className="kiosk-message">{message}</p>}
+      {message && mode === "code" && <p className="kiosk-message">{message}</p>}
     </div>
   );
 }

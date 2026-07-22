@@ -2,8 +2,7 @@ import type { Attendance, Employee } from "../types";
 export const employees: Employee[] = [
   {
     id: "1",
-    code: "00001",
-    pin: "01205",
+    code: "000001",
     name: "Laura Martínez",
     initials: "LM",
     cedula: "001-1234567-8",
@@ -21,8 +20,7 @@ export const employees: Employee[] = [
   },
   {
     id: "2",
-    code: "00002",
-    pin: "02486",
+    code: "000002",
     name: "Carlos Ramírez",
     initials: "CR",
     cedula: "001-7654321-0",
@@ -41,8 +39,7 @@ export const employees: Employee[] = [
   },
   {
     id: "3",
-    code: "00003",
-    pin: "03579",
+    code: "000003",
     name: "Ana Pérez",
     initials: "AP",
     cedula: "402-2345678-1",
@@ -60,8 +57,7 @@ export const employees: Employee[] = [
   },
   {
     id: "4",
-    code: "00004",
-    pin: "04680",
+    code: "000004",
     name: "Miguel Santos",
     initials: "MS",
     cedula: "031-3456789-2",

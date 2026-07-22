@@ -23,7 +23,13 @@ data class Employee(
     val departmentId: Int = 0,
     val sueldo: Double = 0.0,
     val lunchHours: Double = 0.0,
-    val pin: String = employeeCode,
+    /**
+     * Obsolete employee credential retained only so Room can open databases created before v38.
+     * Employee identification and synchronization must use [employeeCode]; new values stay empty.
+     * Administrator/supervisor passwords are stored independently in app_users.
+     */
+    @Deprecated("El PIN de empleado fue retirado; usa employeeCode.")
+    val pin: String = "",
     val fingerprintRegistered: Boolean = false,
     val fingerprintRegisteredAt: String = "",
     val fingerprintRegisteredBy: String = "",

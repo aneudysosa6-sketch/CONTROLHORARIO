@@ -17,14 +17,16 @@ object PermissionCatalog {
     const val USER_PERMISSIONS = "Accesos y Permisos"
     const val EMPLOYEE_PORTAL = "Portal del Empleado"
     const val INCIDENTS = "Incidencias"
-    const val PIN_MODE = "Activar Modo PIN"
+    const val EMPLOYEE_MODE = "Activar Modo Empleado"
+    private const val LEGACY_PIN_MODE = "Activar Modo PIN"
     const val FINGERPRINTS = "Registro facial"
     const val EXPORT_PDF = "Exportar PDF"
     const val EXPORT_EXCEL = "Exportar Excel"
     const val EDIT_ATTENDANCE = "Editar Jornadas"
     const val APPROVE_ATTENDANCE = "Aprobar Jornadas"
     const val CHANGE_SCHEDULES = "Modificar Horarios"
-    const val KIOSK_PIN_FALLBACK_MANAGE = "kiosk.pin_fallback_manage"
+    /** Permission value remains stable for deployed roles; only its Android name changes. */
+    const val KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE = "kiosk.pin_fallback_manage"
 
     val all = listOf(
         DASHBOARD,
@@ -43,18 +45,20 @@ object PermissionCatalog {
         USER_PERMISSIONS,
         EMPLOYEE_PORTAL,
         INCIDENTS,
-        PIN_MODE,
+        EMPLOYEE_MODE,
         FINGERPRINTS,
         EXPORT_PDF,
         EXPORT_EXCEL,
         EDIT_ATTENDANCE,
         APPROVE_ATTENDANCE,
         CHANGE_SCHEDULES,
-        KIOSK_PIN_FALLBACK_MANAGE
+        KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE
     )
 }
 
 fun String.hasPermission(permission: String): Boolean {
     if (isBlank()) return false
-    return split(',').map { it.trim() }.contains(permission)
+    val assigned = split(',').map { it.trim() }
+    return permission in assigned ||
+        (permission == PermissionCatalog.EMPLOYEE_MODE && "Activar Modo PIN" in assigned)
 }

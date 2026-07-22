@@ -5,7 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.controlhorario.face.FaceEmbeddingCipher
 import com.example.controlhorario.face.FaceEmbeddingEngine
 import com.example.controlhorario.face.FaceVerificationPolicy
+import com.example.controlhorario.model.EmployeeDeviceScopePolicy
+import com.example.controlhorario.model.EmployeeDeviceScopeSource
 import com.example.controlhorario.repository.EmployeeFaceBiometricRepository
+import com.example.controlhorario.repository.EmployeeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +30,8 @@ sealed interface FaceVerificationState {
 class FaceVerificationViewModel(
     private val employeeId: Int,
     private val faces: EmployeeFaceBiometricRepository,
+    private val employees: EmployeeRepository,
+    private val scopeSource: EmployeeDeviceScopeSource,
     private val cipher: FaceEmbeddingCipher = FaceEmbeddingCipher()
 ) : ViewModel() {
     private val _state = MutableStateFlow<FaceVerificationState>(FaceVerificationState.Loading)
@@ -37,6 +42,10 @@ class FaceVerificationViewModel(
     private var completed = false
 
     fun load() = viewModelScope.launch {
+        if (!isEmployeeInCurrentScope()) {
+            _state.value = FaceVerificationState.Error("Empleado fuera del alcance de este dispositivo.")
+            return@launch
+        }
         val record = faces.activeForEmployee(employeeId)
         if (record == null) {
             _state.value = FaceVerificationState.FaceNotRegistered
@@ -67,7 +76,15 @@ class FaceVerificationViewModel(
         when (policy.accept(FaceEmbeddingEngine.cosine(currentReference, embedding))) {
             FaceVerificationPolicy.Decision.Accepted -> {
                 completed = true
-                _state.value = FaceVerificationState.Recognized
+                viewModelScope.launch {
+                    _state.value = if (isEmployeeInCurrentScope()) {
+                        FaceVerificationState.Recognized
+                    } else {
+                        reference?.fill(0f)
+                        reference = null
+                        FaceVerificationState.Error("Empleado fuera del alcance de este dispositivo.")
+                    }
+                }
             }
             FaceVerificationPolicy.Decision.ReturnToCode -> {
                 _state.value = FaceVerificationState.AttemptsExhausted
@@ -79,6 +96,12 @@ class FaceVerificationViewModel(
                 _state.value = FaceVerificationState.Ready
             }
         }
+    }
+
+    private suspend fun isEmployeeInCurrentScope(): Boolean {
+        val employee = employees.findAnyByLocalId(employeeId) ?: return false
+        val scope = scopeSource.current() ?: return false
+        return EmployeeDeviceScopePolicy.allows(employee, scope)
     }
 
     override fun onCleared() {

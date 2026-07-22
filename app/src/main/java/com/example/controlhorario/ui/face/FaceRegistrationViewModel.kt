@@ -102,7 +102,7 @@ class FaceRegistrationViewModel(
             }
             return@launch
         }
-        val employee = employees.findByEmployeeCode(code.filter(Char::isDigit).padStart(5, '0'))
+        val employee = employees.findByEmployeeCode(code)
         val record = employee?.let { faces.activeForEmployee(it.id) }
         _state.value = if (employee == null) {
             FaceRegistrationState(message = "No existe un empleado activo con ese código.")
@@ -367,7 +367,7 @@ class FaceRegistrationViewModel(
 
 internal fun initialEnrollmentMessage(reason: InitialFaceEnrollmentDenial): String = when (reason) {
     InitialFaceEnrollmentDenial.INVALID_EMPLOYEE_CODE ->
-        "Introduzca un código válido de 6 dígitos."
+        "Introduzca un código de empleado válido. Formato: 6 dígitos."
     InitialFaceEnrollmentDenial.EMPLOYEE_NOT_FOUND ->
         "No existe un empleado con ese código."
     InitialFaceEnrollmentDenial.EMPLOYEE_CODE_AMBIGUOUS ->

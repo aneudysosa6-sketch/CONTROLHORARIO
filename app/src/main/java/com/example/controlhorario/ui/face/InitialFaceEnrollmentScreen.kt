@@ -28,6 +28,7 @@ import com.example.controlhorario.ui.components.OSINETHeader
 import com.example.controlhorario.ui.components.OSINETScreen
 import com.example.controlhorario.ui.components.OSINETSecondaryButton
 import com.example.controlhorario.ui.components.OSINETTextField
+import com.example.controlhorario.model.EmployeeCodePolicy
 
 @Composable
 fun InitialFaceEnrollmentScreen(
@@ -38,8 +39,7 @@ fun InitialFaceEnrollmentScreen(
     onContinue: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val canContinue = code.length == REQUIRED_CODE_LENGTH && code.all { it in '0'..'9' } &&
-        code != "000000" && !busy
+    val canContinue = EmployeeCodePolicy.isValid(code) && !busy
 
     OSINETScreen {
         OSINETHeader(
@@ -53,20 +53,20 @@ fun InitialFaceEnrollmentScreen(
                 value = code,
                 onValueChange = { value ->
                     if (!busy) {
-                        onCodeChange(value.filter { it in '0'..'9' }.take(REQUIRED_CODE_LENGTH))
+                        onCodeChange(EmployeeCodePolicy.sanitizeInput(value))
                     }
                 },
-                label = "Código de empleado (6 dígitos)",
+                label = "Código de empleado",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics { contentDescription = "Código de empleado de 6 dígitos" },
+                    .semantics { contentDescription = "Código de empleado" },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done,
                 ),
             )
             Text(
-                text = "${code.length.coerceAtMost(REQUIRED_CODE_LENGTH)} de $REQUIRED_CODE_LENGTH dígitos",
+                text = "Formato: 6 dígitos",
                 color = OSINETColors.TextSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.End,
@@ -124,5 +124,3 @@ fun InitialFaceEnrollmentScreen(
         }
     }
 }
-
-private const val REQUIRED_CODE_LENGTH = 6

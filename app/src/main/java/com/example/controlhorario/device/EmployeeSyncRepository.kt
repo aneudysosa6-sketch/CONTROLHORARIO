@@ -7,6 +7,7 @@ import com.example.controlhorario.database.EmployeeFaceBiometricEntity
 import com.example.controlhorario.database.KioskSettingsEntity
 import com.example.controlhorario.face.FaceEmbeddingCipher
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -22,8 +23,8 @@ class EmployeeSyncRepository(private val database:AppDatabase){
   SYNC_MUTEX.withLock{syncLocked(client,deviceId,credential,null)}
 
  suspend fun syncEmployeeFace(client:EmployeeSyncClient,deviceId:String,credential:String,employeeCode:String):EmployeeSyncSummary{
-  require(employeeCode.matches(Regex("^[0-9]{5,12}$")))
-  return SYNC_MUTEX.withLock{syncLocked(client,deviceId,credential,employeeCode)}
+  val canonicalCode=requireNotNull(EmployeeCodePolicy.normalizeOrNull(employeeCode)){EmployeeCodePolicy.ERROR}
+  return SYNC_MUTEX.withLock{syncLocked(client,deviceId,credential,canonicalCode)}
  }
 
  private suspend fun syncLocked(client:EmployeeSyncClient,deviceId:String,credential:String,employeeCode:String?):EmployeeSyncSummary{
@@ -33,7 +34,7 @@ class EmployeeSyncRepository(private val database:AppDatabase){
   var targetedEmployeeFound:Boolean?=null;var targetedEmployeeActive:Boolean?=null
   var targetedEmbeddingPresent:Boolean?=null;var targetedEmbeddingDimension:Int?=null;var targetedEmbeddingValid:Boolean?=null
   Log.d(TAG,"Room sync inicio: device_id=$deviceId, cursor=$cursor, last_sync=${enrollment?.lastEmployeeSyncAt}")
-  if(employeeCode!=null)Log.d(FACE_TAG,"employeeCode=$employeeCode targetedSyncStarted=true")
+  if(employeeCode!=null)Log.d(FACE_TAG,"employeeCode=${EmployeeCodePolicy.maskForLog(employeeCode)} targetedSyncStarted=true")
   do{
    val page=client.download(deviceId,credential,cursor,employeeCode);val syncedAt=System.currentTimeMillis()
    if(employeeCode!=null){
@@ -52,13 +53,27 @@ class EmployeeSyncRepository(private val database:AppDatabase){
       pinFallbackEnabled=settings.pinFallbackEnabled,faceMatchThreshold=settings.faceMatchThreshold,
       faceMatchMargin=settings.faceMatchMargin,remoteUpdatedAt=settings.updatedAt,lastSyncedAt=syncedAt
      ))
-     Log.d(KIOSK_TAG,"companyId=${settings.companyId} deviceId=$deviceId pinFallbackEnabled=${settings.pinFallbackEnabled} faceOnlyEnabled=${settings.faceOnlyEnabled} settingsSynced=true")
+     Log.d(KIOSK_TAG,"companyId=${settings.companyId} deviceId=$deviceId employeeCodeFallbackEnabled=${settings.pinFallbackEnabled} faceOnlyEnabled=${settings.faceOnlyEnabled} settingsSynced=true")
     }
     val dao=database.employeeDao()
     val scopedEmployees=dao.backfillRemoteCompanyScope(remoteCompanyId)
     if(scopedEmployees>0)Log.d(KIOSK_TAG,"companyId=$remoteCompanyId employeeScopeBackfilled=$scopedEmployees")
     page.employees.forEach{row->
-     val remoteMatch=dao.findByRemoteId(row.id);val codeMatch=if(remoteMatch==null)dao.findAnyByEmployeeCode(row.code)else null;val current=remoteMatch?:codeMatch
+     val remoteMatch=dao.findByRemoteId(row.id)
+     val candidates=EmployeeCodePolicy.lookupCandidates(row.code)
+     val codeMatches=dao.findAnyByEmployeeCodes(candidates).distinctBy(Employee::id)
+     val current=if(remoteMatch!=null){
+      check(codeMatches.none{it.id!=remoteMatch.id}){"employee_code_collision_${EmployeeCodePolicy.maskForLog(row.code)}"}
+      remoteMatch
+     }else{
+      check(codeMatches.size<=1){"employee_code_collision_${EmployeeCodePolicy.maskForLog(row.code)}"}
+      val codeMatch=codeMatches.singleOrNull()
+      check(
+       codeMatch == null ||
+        database.employeeSyncOutboxDao().hasPendingCreate(codeMatch.id) == 0
+      ){"employee_code_pending_create_collision_${EmployeeCodePolicy.maskForLog(row.code)}"}
+      codeMatch
+     }
      if(current?.remoteCompanyId!=null&&current.remoteCompanyId!=remoteCompanyId){
       database.employeeFaceBiometricDao().deleteForEmployee(current.id)
       Log.w(TAG,"plantilla local aislada por cambio de empresa: local_id=${current.id}, remote_id=${row.id}")
@@ -66,7 +81,7 @@ class EmployeeSyncRepository(private val database:AppDatabase){
      var localId=current?.id
      if(current?.remoteUpdatedAt==null||current.remoteUpdatedAt<=row.updatedAt){
       val value=EmployeeSyncMapper.merge(current,row,syncedAt,remoteCompanyId)
-      localId=if(current==null){dao.insertEmployee(value).toInt().also{inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${row.code}")}}else{dao.updateEmployee(value);updated++;current.id}
+      localId=if(current==null){dao.insertEmployee(value).toInt().also{inserted++;Log.d(TAG,"insertado remote_id=${row.id}, code=${EmployeeCodePolicy.maskForLog(row.code)}")}}else{dao.updateEmployee(value);updated++;current.id}
       if(current?.isActive!=true)activated++
      }else{discarded++;Log.w(TAG,"descartado remote_id=${row.id}: updated_at remoto ${row.updatedAt} no supera local ${current.remoteUpdatedAt}")}
      val resolvedLocalId=localId ?: error("local_employee_id_unresolved")
@@ -76,7 +91,7 @@ class EmployeeSyncRepository(private val database:AppDatabase){
       database.employeeFaceBiometricDao().replaceForEmployee(EmployeeFaceBiometricEntity(employeeId=resolvedLocalId,encryptedEmbedding=FaceEmbeddingCipher().encrypt(embedding),embeddingVersion=1,modelName="FaceNet-128",embeddingDimension=128,registeredAt=row.updatedAt,registeredBy="SUPABASE",updatedAt=row.updatedAt))
      }
      val localFaceAfter=database.employeeFaceBiometricDao().activeForEmployee(resolvedLocalId)!=null
-     Log.d(FACE_TAG,"employeeCode=${row.code} remoteId=${row.id} localEmployeeId=$resolvedLocalId localFaceBefore=$localFaceBefore remoteEmbeddingPresent=${row.remoteEmbeddingPresent} remoteEmbeddingDimension=${row.remoteEmbeddingDimension} localFaceAfter=$localFaceAfter finalResult=${if(localFaceAfter)"LOCAL_FACE_AVAILABLE" else "REMOTE_FACE_MISSING"}")
+     Log.d(FACE_TAG,"employeeCode=${EmployeeCodePolicy.maskForLog(row.code)} remoteId=${row.id} localEmployeeId=$resolvedLocalId localFaceBefore=$localFaceBefore remoteEmbeddingPresent=${row.remoteEmbeddingPresent} remoteEmbeddingDimension=${row.remoteEmbeddingDimension} localFaceAfter=$localFaceAfter finalResult=${if(localFaceAfter)"LOCAL_FACE_AVAILABLE" else "REMOTE_FACE_MISSING"}")
     }
     page.inactive.forEach{row->
      val current=dao.findByRemoteId(row.id)
@@ -109,15 +124,17 @@ object EmployeeSyncCursorPolicy{
 }
 
 object EmployeeSyncMapper{
- fun merge(current:Employee?,row:RemoteEmployee,syncedAt:Long,remoteCompanyId:String?=current?.remoteCompanyId):Employee=
-  (current?:Employee(employeeCode=row.code,pin="")).copy(
-   employeeCode=row.code,nombre=row.name,telefono=row.phone,email=row.email,cargo=row.positionName,departamento=row.departmentName,
+ fun merge(current:Employee?,row:RemoteEmployee,syncedAt:Long,remoteCompanyId:String?=current?.remoteCompanyId):Employee{
+  val code=requireNotNull(EmployeeCodePolicy.normalizeOrNull(row.code)){"employee_sync_invalid_employee_code"}
+  return (current?:Employee(employeeCode=code)).copy(
+   employeeCode=code,pin="",nombre=row.name,telefono=row.phone,email=row.email,cargo=row.positionName,departamento=row.departmentName,
    sueldo=row.salary?:0.0,isActive=true,remoteId=row.id,remoteCompanyId=remoteCompanyId,remoteBranchId=row.branchId,remoteBranchName=row.branchName,
    remoteDepartmentId=row.departmentId,remoteDepartmentName=row.departmentName,remotePositionId=row.positionId,remotePositionName=row.positionName,
    remoteSupervisorId=row.supervisorId,remoteSupervisorName=row.supervisorName,employmentStatus=row.status,jornadaEnabled=row.jornadaEnabled,
    remoteScheduleStart=row.scheduleStart,remoteScheduleEnd=row.scheduleEnd,remoteLunchStart=row.lunchStart,remoteLunchDurationMinutes=row.lunchDurationMinutes,
    remoteWorkDays=row.workDays,remoteToleranceMinutes=row.toleranceMinutes,startDate=row.startDate,payType=row.payType,
-   remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt
+   remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt,syncStatus="SYNCED",lastSyncError=null
   )
- fun mergeInactive(current:Employee,row:RemoteInactiveEmployee,syncedAt:Long)=current.copy(isActive=false,employmentStatus="desvinculado",remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt)
+ }
+ fun mergeInactive(current:Employee,row:RemoteInactiveEmployee,syncedAt:Long)=current.copy(pin="",isActive=false,employmentStatus="desvinculado",remoteUpdatedAt=row.updatedAt,lastSyncedAt=syncedAt,syncStatus="SYNCED",lastSyncError=null)
 }

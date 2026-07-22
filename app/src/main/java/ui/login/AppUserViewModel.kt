@@ -38,7 +38,7 @@ class AppUserViewModel(
             try {
                 val auth = authRepository ?: throw AuthFlowException("configuration", code = "AUTH_NOT_CONFIGURED", message = "Supabase Auth no está configurado en Android.")
                 val result = auth.login(username, password)
-                AuthSessionStore.start(result.principal)
+                AuthSessionStore.setPrincipal(result.principal)
                 UserSessionManager.loginRemote(result.user)
                 _currentUser.value = result.user
                 val destination = if(result.principal.roleCode in setOf("employee","empleado")) "employee_portal" else if (result.principal.roleCode == "supervisor") {

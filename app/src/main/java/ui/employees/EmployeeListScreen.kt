@@ -31,7 +31,6 @@ fun EmployeeListScreen(
         val query = searchText.trim()
         query.isBlank() ||
                 employee.employeeCode.contains(query, ignoreCase = true) ||
-                employee.pin.contains(query, ignoreCase = true) ||
                 employee.nombre.contains(query, ignoreCase = true) ||
                 employee.cedula.contains(query, ignoreCase = true) ||
                 employee.telefono.contains(query, ignoreCase = true) ||
@@ -55,7 +54,7 @@ fun EmployeeListScreen(
         OSINETTextField(
             value = searchText,
             onValueChange = { searchText = it },
-            label = "🔍 Buscar por código, PIN, nombre o cédula",
+            label = "🔍 Buscar por código, nombre o cédula",
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -91,14 +90,19 @@ fun EmployeeListScreen(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            Text("🔢 Código: ${employee.employeeCode.ifBlank { employee.pin }}", color = Color.White)
+                            Text(
+                                if (employee.remoteId == null) {
+                                    "🔢 Código: pendiente de asignación"
+                                } else {
+                                    "🔢 Código: ${employee.employeeCode}"
+                                },
+                                color = Color.White
+                            )
                             Text("🪪 Cédula: ${employee.cedula}", color = Color.White)
                             Text("📱 Teléfono: ${employee.telefono}", color = Color.White)
                             Text("💼 Cargo: ${employee.cargo}", color = Color.White)
                             Text("🏢 Departamento: ${employee.departamento}", color = Color.White)
                             Text("💰 Sueldo: $sueldoFormateado", color = Color.White)
-                            Text("🔐 PIN: ••••", color = Color.White)
-
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text("🟢 Activo", color = Color(0xFF4CAF50))

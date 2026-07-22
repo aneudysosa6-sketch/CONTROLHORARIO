@@ -13,9 +13,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EmployeeFaceAvailabilityCoordinatorTest {
-    private val employee = Employee(id = 7, employeeCode = "00007", pin = "92841")
+    private val employee = Employee(id = 7, employeeCode = "000007")
 
-    @Test fun `missing local and remote 128 becomes available without another PIN`() = runBlocking {
+    @Test fun `missing local and remote 128 becomes available without another code entry`() = runBlocking {
         var localFace = false
         val coordinator = EmployeeFaceAvailabilityCoordinator(
             faceExists = { localFace },
@@ -23,7 +23,7 @@ class EmployeeFaceAvailabilityCoordinatorTest {
         )
         assertEquals(FaceAvailabilityResult.SYNCED, coordinator.ensure(employee))
         assertTrue(localFace)
-        assertEquals("92841", employee.pin)
+        assertEquals("000007", employee.employeeCode)
     }
 
     @Test fun `remote null never removes valid local face`() = runBlocking {
@@ -71,7 +71,7 @@ class EmployeeFaceAvailabilityCoordinatorTest {
         var error: Throwable? = null
         try { coordinator.ensure(employee) } catch (caught: Throwable) { error = caught }
         assertTrue(error is IOException)
-        assertEquals("92841", employee.pin)
+        assertEquals("000007", employee.employeeCode)
     }
 
     @Test fun `valid remote face stores only when local is missing`() {

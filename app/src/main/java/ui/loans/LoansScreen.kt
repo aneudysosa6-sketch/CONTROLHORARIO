@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.LoanEntity
 import com.example.controlhorario.engine.LoanEngine
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.ui.components.OSINETActionCard
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETCard
@@ -71,7 +72,7 @@ fun LoansScreen(
         OSINETCard {
             Text("Nueva solicitud", color = OSINETColors.TextPrimary)
             Spacer(Modifier.height(8.dp))
-            OSINETTextField(employeeCode, { employeeCode = it.filter(Char::isDigit).take(5) }, "Código o PIN empleado", Modifier.fillMaxWidth())
+            OSINETTextField(employeeCode, { employeeCode = EmployeeCodePolicy.sanitizeInput(it) }, "Código de empleado", Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
             OSINETTextField(requestedAmount, { requestedAmount = amountInput(it) }, "Monto solicitado", Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
@@ -81,14 +82,21 @@ fun LoansScreen(
             Spacer(Modifier.height(10.dp))
             OSINETButton(
                 text = "GUARDAR SOLICITUD",
-                enabled = employeeCode.isNotBlank() && requestedAmount.isNotBlank(),
+                enabled = EmployeeCodePolicy.isValid(employeeCode) && requestedAmount.isNotBlank(),
                 onClick = {
-                    val code = employeeCode.filter(Char::isDigit).padStart(5, '0')
-                    val employee = employees.firstOrNull { it.employeeCode == code || it.pin == code }
+                    val code = EmployeeCodePolicy.normalizeOrNull(employeeCode) ?: return@OSINETButton
+                    val matches = employees.filter {
+                        EmployeeCodePolicy.matches(it.employeeCode, code)
+                    }.distinctBy(Employee::id)
+                    val employee = matches.singleOrNull()
                     val amount = LoanEngine.normalizeAmount(requestedAmount)
                     val discount = LoanEngine.normalizeAmount(payrollDiscount)
                     if (employee == null) {
-                        message = "No existe empleado activo con código $code."
+                        message = if (matches.isEmpty()) {
+                            "No existe empleado activo con código $code."
+                        } else {
+                            "El código coincide con más de un empleado. Revise los datos."
+                        }
                         return@OSINETButton
                     }
                     if (amount <= 0.0) {
@@ -100,7 +108,7 @@ fun LoansScreen(
                         LoanEntity(
                             employeeId = employee.id,
                             employeeName = employee.nombre,
-                            employeeCode = employee.employeeCode.ifBlank { employee.pin },
+                            employeeCode = EmployeeCodePolicy.normalizeOrNull(employee.employeeCode) ?: code,
                             requestedAmount = amount,
                             payrollDiscount = discount,
                             reason = reason.trim(),

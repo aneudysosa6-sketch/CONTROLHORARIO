@@ -82,7 +82,7 @@ class AccessManagementPolicyTest {
             AccessEmployee(
                 id = "employee-1",
                 fullName = "Empleado Uno",
-                employeeCode = "00001",
+                employeeCode = "000001",
                 companyId = "company-1",
                 profileId = employeeProfileId,
             )
@@ -100,7 +100,7 @@ class AccessManagementPolicyTest {
         email = "$id@empresa.com",
         employeeId = employeeId,
         employeeName = "Empleado Uno",
-        employeeCode = "00001",
+        employeeCode = "000001",
         roleId = "role-1",
         roleName = if (roleCode == "admin") "Administrador" else "Empleado",
         roleCode = roleCode,

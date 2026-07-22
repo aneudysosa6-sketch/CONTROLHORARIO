@@ -90,7 +90,14 @@ class AuthRepository(
         if (codes.any { it.startsWith("reportes.") }) add(PermissionCatalog.REPORTS)
         if (codes.any { it.startsWith("configuracion.") }) add(PermissionCatalog.SETTINGS)
         if (codes.any { it.startsWith("usuarios.") || it.startsWith("permisos.") || it.startsWith("roles.") }) add(PermissionCatalog.USER_PERMISSIONS)
-        if (codes.any { it.startsWith("dispositivos.") }) add(PermissionCatalog.PIN_MODE)
-        if (PermissionCatalog.KIOSK_PIN_FALLBACK_MANAGE in codes) add(PermissionCatalog.KIOSK_PIN_FALLBACK_MANAGE)
+        if (codes.any { it.startsWith("dispositivos.") }) add(PermissionCatalog.EMPLOYEE_MODE)
+        if (PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE in codes) add(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)
     }
+}
+
+object AndroidAuthRepositoryFactory {
+    fun create(dao: AppUserDao): AuthRepository = AuthRepository(
+        usernameResolver = RoomUsernameResolver(dao),
+        gateway = SupabaseAuthApi(),
+    )
 }

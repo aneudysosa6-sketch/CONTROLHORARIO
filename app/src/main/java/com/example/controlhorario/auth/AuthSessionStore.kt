@@ -7,6 +7,7 @@ object AuthSessionStore {
     private val _principal = MutableStateFlow<AuthenticatedPrincipal?>(null)
     val principal: StateFlow<AuthenticatedPrincipal?> = _principal
 
-    fun start(value: AuthenticatedPrincipal) { _principal.value = value }
+    fun setPrincipal(value: AuthenticatedPrincipal) { _principal.value = value }
+    fun start(value: AuthenticatedPrincipal) = setPrincipal(value)
     fun clear() { _principal.value = null }
 }

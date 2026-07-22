@@ -44,7 +44,7 @@ object PendingAttendanceReviewEngine {
 
         return PendingAttendanceReviewEntity(
             employeeId = employee.id,
-            employeeCode = employee.employeeCode.ifBlank { employee.pin },
+            employeeCode = employee.employeeCode,
             employeeName = employee.nombre,
             employeePhone = employee.telefono,
             departmentId = employee.departmentId,

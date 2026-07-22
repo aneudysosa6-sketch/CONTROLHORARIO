@@ -36,7 +36,7 @@ import com.example.controlhorario.auth.AuthenticatedPrincipal
 import com.example.controlhorario.database.KioskSettingsEntity
 import com.example.controlhorario.repository.KioskFaceAuthSettings
 import com.example.controlhorario.repository.KioskSettingsRepository
-import com.example.controlhorario.ui.punch.PinFallbackPolicy
+import com.example.controlhorario.ui.punch.EmployeeCodeFallbackPolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.CancellationException
@@ -171,13 +171,13 @@ class KioskFaceAuthAdminViewModel(
 
     private fun save(next: KioskFaceAuthSettings) {
         val authenticated = principal ?: return deny()
-        if (!PinFallbackPolicy.canManage(authenticated.permissionCodes)) return deny()
+        if (!EmployeeCodeFallbackPolicy.canManage(authenticated.permissionCodes)) return deny()
         val current = mutableState.value as? KioskFaceAuthAdminState.Ready ?: return
         if (current.saving) return
         mutableState.value = current.copy(saving = true, message = "Guardando…")
         viewModelScope.launch {
             try {
-                PinFallbackPolicy.requireCanManage(authenticated.permissionCodes)
+                EmployeeCodeFallbackPolicy.requireCanManage(authenticated.permissionCodes)
                 val updated = gateway.update(authenticated, next)
                 persistForThisDevice(updated)
                 mutableState.value = KioskFaceAuthAdminState.Ready(updated, message = "Configuración guardada y lista para sincronizar.")
@@ -191,7 +191,7 @@ class KioskFaceAuthAdminViewModel(
 
     private fun load() {
         val authenticated = principal ?: return deny()
-        if (!PinFallbackPolicy.canManage(authenticated.permissionCodes)) return deny()
+        if (!EmployeeCodeFallbackPolicy.canManage(authenticated.permissionCodes)) return deny()
         viewModelScope.launch {
             mutableState.value = try {
                 val remote = gateway.load(authenticated)
@@ -222,7 +222,7 @@ class KioskFaceAuthAdminViewModel(
     }
 
     private fun deny() {
-        mutableState.value = KioskFaceAuthAdminState.AccessDenied("No tiene el permiso kiosk.pin_fallback_manage.")
+        mutableState.value = KioskFaceAuthAdminState.AccessDenied("No tiene permiso para administrar el código alternativo.")
     }
 }
 
@@ -253,7 +253,7 @@ fun KioskFaceAuthAdminScreen(viewModel: KioskFaceAuthAdminViewModel, onBack: () 
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Autenticación del kiosco", style = MaterialTheme.typography.headlineMedium)
-        Text("El rostro siempre es obligatorio. El PIN solo identifica al empleado antes de verificar su rostro.")
+        Text("El rostro siempre es obligatorio. El código solo identifica al empleado antes de verificar su rostro.")
         when (val current = state) {
             KioskFaceAuthAdminState.Loading -> CircularProgressIndicator()
             is KioskFaceAuthAdminState.AccessDenied -> Text(current.message, color = MaterialTheme.colorScheme.error)
@@ -264,20 +264,9 @@ fun KioskFaceAuthAdminScreen(viewModel: KioskFaceAuthAdminViewModel, onBack: () 
             is KioskFaceAuthAdminState.Ready -> {
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF101E33)), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Identificación rostro primero", style = MaterialTheme.typography.titleMedium)
-                                Text("Desactivarla inicia PIN + rostro.", style = MaterialTheme.typography.bodySmall)
-                            }
-                            Switch(
-                                checked = current.settings.faceOnlyEnabled,
-                                enabled = !current.saving,
-                                onCheckedChange = viewModel::setFaceOnlyEnabled,
-                            )
+                        Column(Modifier.fillMaxWidth()) {
+                            Text("Identificación facial primero", style = MaterialTheme.typography.titleMedium)
+                            Text("Siempre activa. El código alternativo nunca autoriza sin rostro.", style = MaterialTheme.typography.bodySmall)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -285,7 +274,7 @@ fun KioskFaceAuthAdminScreen(viewModel: KioskFaceAuthAdminViewModel, onBack: () 
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Permitir PIN alternativo", style = MaterialTheme.typography.titleMedium)
+                                Text("Permitir código de empleado alternativo", style = MaterialTheme.typography.titleMedium)
                                 Text("Solo aparece si el rostro no es concluyente.", style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(

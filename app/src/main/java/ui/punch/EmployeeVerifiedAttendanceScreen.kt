@@ -43,7 +43,7 @@ fun EmployeeVerifiedAttendanceScreen(
         .filter { it.employeeId == employee?.id && it.date == today }
         .sortedBy { it.time }
     val currentState = AttendanceStateMachine.getCurrentState(todayRecords.map { it.actionType })
-    val employeeCode = employee?.employeeCode?.ifBlank { employee.pin }.orEmpty()
+    val employeeCode = employee?.employeeCode.orEmpty()
     val stateMessage = if (currentState == com.example.controlhorario.engine.AttendanceState.FINALIZADA) {
         "La jornada de hoy ya fue finalizada."
     } else {

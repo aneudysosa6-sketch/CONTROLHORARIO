@@ -26,18 +26,28 @@ insert into public.departments(id,company_id,branch_id,name,code) values
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','Departamento A1','A1'),
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad02','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','Departamento A2','A2'),
  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','Departamento B1','B1');
+insert into public.employee_code_sequences(empresa_id,last_value) values
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',10001),
+ ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',20001)
+on conflict(empresa_id) do update set last_value=excluded.last_value;
+insert into public.empleados(id,empresa_id,sucursal_id,departamento_id,codigo_empleado,nombre_completo) values
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','010002','Supervisor A'),
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','010003','Empleado A'),
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae104','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad02','010004','Empleado A2'),
+ ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb106','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1','020002','Empleado B');
 insert into public.profiles(id,company_id,role_id,branch_id,department_id,employee_code,full_name,status) values
- ('00000000-0000-0000-0000-000000000101','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa101','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','10001','Admin A','active'),
- ('00000000-0000-0000-0000-000000000102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','10002','Supervisor A','active'),
- ('00000000-0000-0000-0000-000000000103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','10003','Empleado A','active'),
- ('00000000-0000-0000-0000-000000000104','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','10004','Inactivo A','inactive'),
- ('00000000-0000-0000-0000-000000000105','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb101','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1','20001','Admin B','active'),
- ('00000000-0000-0000-0000-000000000106','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb103','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1','20002','Empleado B','active');
-insert into public.empleados(id,empresa_id,perfil_id,sucursal_id,departamento_id,codigo_empleado,nombre_completo) values
- ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','00000000-0000-0000-0000-000000000102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','10002','Supervisor A'),
- ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','00000000-0000-0000-0000-000000000103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','10003','Empleado A'),
- ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae104','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',null,'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad02','10004','Empleado A2'),
- ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb106','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','00000000-0000-0000-0000-000000000106','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1','20002','Empleado B');
+ ('00000000-0000-0000-0000-000000000101','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa101','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01',null,'Admin A','active'),
+ ('00000000-0000-0000-0000-000000000102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','010002','Supervisor A','active'),
+ ('00000000-0000-0000-0000-000000000103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01','010003','Empleado A','active'),
+ ('00000000-0000-0000-0000-000000000104','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa103','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaab01','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaad01',null,'Inactivo A','inactive'),
+ ('00000000-0000-0000-0000-000000000105','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb101','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1',null,'Admin B','active'),
+ ('00000000-0000-0000-0000-000000000106','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb103','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbd1','020002','Empleado B','active');
+update public.empleados set perfil_id=case id
+ when 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae102'::uuid then '00000000-0000-0000-0000-000000000102'::uuid
+ when 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae103'::uuid then '00000000-0000-0000-0000-000000000103'::uuid
+ when 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb106'::uuid then '00000000-0000-0000-0000-000000000106'::uuid
+ end
+where id in('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae102','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaae103','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb106');
 insert into public.permisos(codigo,nombre,modulo,activo) values
  ('portal.acceder','Portal','portal',true),('empleados.ver_todos','Ver todos','empleados',true),('empleados.ver_propio','Ver propio','empleados',true),('empleados.ver_asignados','Ver asignados','supervisor',true),('jornadas.ver_todas','Ver jornadas','jornadas',true),('jornadas.ver_asignadas','Ver jornadas asignadas','supervisor',true),('nomina.ver','Ver nómina','nomina',true),('configuracion.ver','Ver administración','configuracion',true),('empleados.biometria_ver','Ver estado biométrico','empleados',true)
 on conflict(codigo) do update set activo=true;

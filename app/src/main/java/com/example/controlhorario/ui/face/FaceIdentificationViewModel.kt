@@ -39,7 +39,6 @@ enum class FaceIdentificationPhase {
     NO_TEMPLATES,
     SYNCING,
     CONFIGURATION_REQUIRED,
-    PIN_REQUIRED,
     ERROR,
 }
 
@@ -47,7 +46,7 @@ data class FaceIdentificationUiState(
     val phase: FaceIdentificationPhase = FaceIdentificationPhase.PREPARING,
     val message: String = "Preparando identificación facial…",
     val employee: Employee? = null,
-    val canUsePin: Boolean = false,
+    val canUseEmployeeCode: Boolean = false,
     val canRetry: Boolean = false,
     val completedSamples: Int = 0,
     val requiredSamples: Int = FaceIdentificationSessionPolicy.REQUIRED_CONSECUTIVE_MATCHES,
@@ -77,7 +76,7 @@ class FaceIdentificationViewModel(
     private val stability = FaceIdentificationSessionPolicy()
     private var engine: FaceIdentificationEngine? = null
     private var scope: FaceTemplateScope? = null
-    private var pinFallbackEnabled = false
+    private var employeeCodeFallbackEnabled = false
     private var started = false
     private var timeoutJob: Job? = null
     private var identificationJob: Job? = null
@@ -181,7 +180,7 @@ class FaceIdentificationViewModel(
         mutableState.value = FaceIdentificationUiState(
             phase = FaceIdentificationPhase.SEARCHING,
             message = "Buscando rostro…",
-            canUsePin = pinFallbackEnabled,
+            canUseEmployeeCode = employeeCodeFallbackEnabled,
         )
         scheduleTimeout()
     }
@@ -192,7 +191,7 @@ class FaceIdentificationViewModel(
         mutableState.value = mutableState.value.copy(
             phase = FaceIdentificationPhase.SYNCING,
             message = "Sincronizando rostros…",
-            canUsePin = false,
+            canUseEmployeeCode = false,
             canRetry = false,
         )
         viewModelScope.launch {
@@ -221,26 +220,22 @@ class FaceIdentificationViewModel(
         val storedSettings = settingsRepository.currentForDevice(deviceId)
         val companyId = enrollment?.companyId ?: storedSettings?.companyId
         val settings = storedSettings?.takeIf { it.companyId == companyId }
-        pinFallbackEnabled = settings?.pinFallbackEnabled ?: true
+        // pinFallbackEnabled is the legacy persisted column name. Functionally it now means
+        // employee-code fallback; an employee PIN is never read or verified.
+        employeeCodeFallbackEnabled = settings?.pinFallbackEnabled ?: true
 
         if (companyId.isNullOrBlank()) {
             conclude(FaceIdentificationPhase.NO_TEMPLATES, "Sincronice el dispositivo para cargar los rostros de su empresa.", allowRetry = true)
             return
         }
-        if (settings?.faceOnlyEnabled == false) {
-            mutableState.value = FaceIdentificationUiState(
-                phase = FaceIdentificationPhase.PIN_REQUIRED,
-                message = "Use PIN para continuar con la verificación facial.",
-                canUsePin = pinFallbackEnabled,
-            )
-            return
-        }
+        // The legacy faceOnlyEnabled flag no longer selects a code-first flow. Employee mode
+        // always starts with 1:N facial identification; code is offered only after no match.
         val margin = settings?.faceMatchMargin
         if (margin == null) {
             mutableState.value = FaceIdentificationUiState(
                 phase = FaceIdentificationPhase.CONFIGURATION_REQUIRED,
                 message = "La identificación facial necesita calibración del administrador.",
-                canUsePin = pinFallbackEnabled,
+                canUseEmployeeCode = employeeCodeFallbackEnabled,
                 canRetry = false,
             )
             return
@@ -261,7 +256,7 @@ class FaceIdentificationViewModel(
         mutableState.value = FaceIdentificationUiState(
             phase = FaceIdentificationPhase.SEARCHING,
             message = "Buscando rostro…",
-            canUsePin = pinFallbackEnabled,
+            canUseEmployeeCode = employeeCodeFallbackEnabled,
         )
         scheduleTimeout()
     }
@@ -286,7 +281,7 @@ class FaceIdentificationViewModel(
             phase = FaceIdentificationPhase.IDENTIFIED,
             message = "Empleado identificado: ${employee.nombre}",
             employee = employee,
-            canUsePin = false,
+            canUseEmployeeCode = false,
             canRetry = false,
             completedSamples = FaceIdentificationSessionPolicy.REQUIRED_CONSECUTIVE_MATCHES,
         )
@@ -312,7 +307,7 @@ class FaceIdentificationViewModel(
         mutableState.value = FaceIdentificationUiState(
             phase = FaceIdentificationPhase.SEARCHING,
             message = "Buscando rostro…",
-            canUsePin = pinFallbackEnabled,
+            canUseEmployeeCode = employeeCodeFallbackEnabled,
         )
         Log.d(TAG, "templatesInvalidated=true revision=$revision")
         scheduleTimeout()
@@ -328,7 +323,7 @@ class FaceIdentificationViewModel(
             phase = phase,
             message = message,
             employee = null,
-            canUsePin = pinFallbackEnabled,
+            canUseEmployeeCode = employeeCodeFallbackEnabled,
             canRetry = allowRetry,
             completedSamples = 0,
         )

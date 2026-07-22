@@ -1,8 +1,10 @@
 package com.example.controlhorario.session
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 
 object KioskModeManager {
     private const val PREFS_NAME = "osinet_kiosk_mode"
@@ -21,6 +23,18 @@ object KioskModeManager {
 
     fun activate() = setActive(true)
     fun deactivate() = setActive(false)
+
+    /** Persist the kiosk exit before exposing it to navigation. */
+    suspend fun deactivateAndPersist(): Boolean = withContext(Dispatchers.IO) {
+        val context = appContext ?: return@withContext false
+        val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val committed = preferences.edit().putBoolean(KEY_ACTIVE, false).commit()
+        if (!committed || preferences.getBoolean(KEY_ACTIVE, true)) {
+            return@withContext false
+        }
+        _isActive.value = false
+        true
+    }
 
     private fun setActive(active: Boolean) {
         _isActive.value = active

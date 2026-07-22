@@ -24,7 +24,7 @@ import com.example.controlhorario.ui.components.OSINETSecondaryButton
 @Composable
 fun BranchManagerScreen(
     viewModel: BranchManagerViewModel,
-    onPinMode: () -> Unit,
+    onEmployeeMode: () -> Unit,
     onLogout: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
@@ -41,7 +41,7 @@ fun BranchManagerScreen(
             Text("Eventos de supervisión: ${state.supervisorEvents.size}", color = OSINETColors.TextSecondary)
         }
         Spacer(Modifier.height(12.dp))
-        OSINETButton("ACTIVAR MODO PIN", onClick = onPinMode)
+        OSINETButton("ACTIVAR MODO EMPLEADO", onClick = onEmployeeMode)
         Spacer(Modifier.height(14.dp))
         Text("Empleados de la sucursal", color = OSINETColors.TextPrimary)
         Spacer(Modifier.height(8.dp))

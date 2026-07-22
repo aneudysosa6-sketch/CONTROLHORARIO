@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.VacationEntity
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETTextField
 import java.text.SimpleDateFormat
@@ -70,7 +71,7 @@ fun VacationsScreen(
         Spacer(Modifier.height(18.dp))
         Text("Nueva solicitud", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        OSINETTextField(employeeCode, { employeeCode = it.filter(Char::isDigit).take(5) }, "Código empleado", Modifier.fillMaxWidth())
+        OSINETTextField(employeeCode, { employeeCode = EmployeeCodePolicy.sanitizeInput(it) }, "Código empleado", Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         OSINETTextField(startDate, { startDate = it }, "Fecha inicio (yyyy-MM-dd)", Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
@@ -83,10 +84,21 @@ fun VacationsScreen(
         OSINETButton(
             text = "Guardar solicitud",
             onClick = {
-            val code = employeeCode.filter(Char::isDigit).padStart(5, '0')
-            val employee = employees.firstOrNull { it.employeeCode == code || it.pin == code }
+            val code = EmployeeCodePolicy.normalizeOrNull(employeeCode)
+            if (code == null) {
+                message = EmployeeCodePolicy.ERROR
+                return@OSINETButton
+            }
+            val matches = employees.filter {
+                EmployeeCodePolicy.matches(it.employeeCode, code)
+            }.distinctBy(Employee::id)
+            val employee = matches.singleOrNull()
             if (employee == null) {
-                message = "No existe empleado activo con código $code."
+                message = if (matches.isEmpty()) {
+                    "No existe empleado activo con código $code."
+                } else {
+                    "El código coincide con más de un empleado. Revise los datos."
+                }
                 return@OSINETButton
             }
             if (startDate.isBlank() || endDate.isBlank()) {
@@ -98,7 +110,7 @@ fun VacationsScreen(
                 VacationEntity(
                     employeeId = employee.id,
                     employeeName = employee.nombre,
-                    employeeCode = employee.employeeCode.ifBlank { employee.pin },
+                    employeeCode = EmployeeCodePolicy.normalizeOrNull(employee.employeeCode) ?: code,
                     startDate = startDate.trim(),
                     endDate = endDate.trim(),
                     requestedDays = requestedDays.toIntOrNull() ?: 0,

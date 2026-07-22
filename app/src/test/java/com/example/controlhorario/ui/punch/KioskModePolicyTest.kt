@@ -10,8 +10,8 @@ class KioskModePolicyTest {
         assertEquals(KioskDestination.FACE_IDENTIFICATION, KioskModePolicy.afterActivation())
     @Test fun backRequiresFullAuthentication() =
         assertEquals(KioskDestination.EXIT_AUTH, KioskModePolicy.afterBackPressed())
-    @Test fun invalidCredentialsReturnToFaceIdentification() =
-        assertEquals(KioskDestination.FACE_IDENTIFICATION, KioskModePolicy.afterAuthentication(false))
+    @Test fun invalidCredentialsRemainInExitAuthentication() =
+        assertEquals(KioskDestination.EXIT_AUTH, KioskModePolicy.afterAuthentication(false))
     @Test fun validCredentialsOpenAdministrativePanel() =
         assertEquals(KioskDestination.ADMIN_PANEL, KioskModePolicy.afterAuthentication(true))
     @Test fun restartedActiveKioskStartsAtFaceIdentification() =

@@ -1,6 +1,7 @@
 package com.example.controlhorario.face
 
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -9,20 +10,13 @@ import kotlinx.coroutines.sync.withLock
 
 /** Public self-enrollment accepts one deliberately narrow identifier format. It never uses PIN. */
 object InitialFaceEmployeeCodePolicy {
-    const val PUBLIC_CODE_LENGTH = 6
+    const val PUBLIC_CODE_LENGTH = EmployeeCodePolicy.LENGTH
 
-    fun isValid(value: String): Boolean =
-        value.length == PUBLIC_CODE_LENGTH && value.all { it in '0'..'9' } && value != "000000"
+    fun isValid(value: String): Boolean = EmployeeCodePolicy.isValid(value)
 
-    /**
-     * A six-digit code can address the exact modern code or its canonical five-digit legacy
-     * representation. The caller must reject the lookup when both candidates exist.
-     */
-    fun lookupCandidates(value: String): List<String> {
-        if (!isValid(value)) return emptyList()
-        val legacy = value.toInt().toString().padStart(5, '0')
-        return listOf(value, legacy).distinct()
-    }
+    fun normalizeOrNull(value: String): String? = EmployeeCodePolicy.normalizeOrNull(value)
+
+    fun lookupCandidates(value: String): List<String> = EmployeeCodePolicy.lookupCandidates(value)
 }
 
 data class InitialFaceEnrollmentScope(
@@ -200,8 +194,9 @@ class InitialFaceEnrollmentRepository(
 
     suspend fun check(publicEmployeeCode: String): InitialFaceEligibility = mutex.withLock {
         purgeExpiredPermits()
+        val canonicalCode = InitialFaceEmployeeCodePolicy.normalizeOrNull(publicEmployeeCode)
+            ?: return@withLock denied(InitialFaceEnrollmentDenial.INVALID_EMPLOYEE_CODE)
         val candidates = InitialFaceEmployeeCodePolicy.lookupCandidates(publicEmployeeCode)
-        if (candidates.isEmpty()) return@withLock denied(InitialFaceEnrollmentDenial.INVALID_EMPLOYEE_CODE)
 
         val matches = candidates.mapNotNull { employees.findByExactEmployeeCode(it) }
             .distinctBy(Employee::id)
@@ -217,7 +212,7 @@ class InitialFaceEnrollmentRepository(
             return@withLock denied(InitialFaceEnrollmentDenial.LOCAL_FACE_ALREADY_REGISTERED)
         }
 
-        val remoteState = remote.inspect(initialEmployee.employeeCode)
+        val remoteState = remote.inspect(canonicalCode)
         val mode = when (remoteState) {
             InitialFaceRemoteState.Absent -> InitialFaceValidationMode.ONLINE_VERIFIED
             InitialFaceRemoteState.Offline -> InitialFaceValidationMode.OFFLINE_CACHED
@@ -261,8 +256,13 @@ class InitialFaceEnrollmentRepository(
             expiresAt = now + permitTtlMillis,
             validationMode = mode
         )
-        permits[permit.token] = PermitRecord(permit, employee, scope)
-        InitialFaceEligibility.Allowed(employee, permit)
+        permits[permit.token] = PermitRecord(permit, employee, canonicalCode, scope)
+        InitialFaceEligibility.Allowed(
+            employee.copy(
+                employeeCode = canonicalCode
+            ),
+            permit
+        )
     }
 
     suspend fun commit(
@@ -301,7 +301,7 @@ class InitialFaceEnrollmentRepository(
         }
 
         var validationMode = permit.validationMode
-        when (val state = remote.inspect(employee.employeeCode)) {
+        when (val state = remote.inspect(stored.canonicalEmployeeCode)) {
             InitialFaceRemoteState.Absent -> validationMode = InitialFaceValidationMode.ONLINE_VERIFIED
             InitialFaceRemoteState.Offline -> validationMode = InitialFaceValidationMode.OFFLINE_CACHED
             is InitialFaceRemoteState.Present -> return@withLock commitDenied(
@@ -333,7 +333,7 @@ class InitialFaceEnrollmentRepository(
         val audit = InitialFaceEnrollmentAudit(
             deviceId = scope.deviceId,
             employeeLocalId = employee.id,
-            employeeCode = employee.employeeCode,
+            employeeCode = stored.canonicalEmployeeCode,
             remoteId = remoteId,
             companyId = scope.companyId,
             branchId = scope.branchId,
@@ -342,7 +342,13 @@ class InitialFaceEnrollmentRepository(
         )
         val persistenceEmbedding = embedding.copyOf()
         val saved = try {
-            persistence.insertInitial(employee, persistenceEmbedding, audit)
+            persistence.insertInitial(
+                employee.copy(
+                    employeeCode = stored.canonicalEmployeeCode
+                ),
+                persistenceEmbedding,
+                audit
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -404,7 +410,8 @@ class InitialFaceEnrollmentRepository(
                 a.branchId?.equals(b.branchId.orEmpty(), ignoreCase = true) == true)
 
     private fun sameEmployeeIdentity(a: Employee, b: Employee): Boolean =
-        a.id == b.id && a.employeeCode == b.employeeCode && a.remoteId == b.remoteId &&
+        a.id == b.id && EmployeeCodePolicy.matches(a.employeeCode, b.employeeCode) &&
+            a.remoteId == b.remoteId &&
             a.remoteCompanyId.equalsNullable(b.remoteCompanyId) &&
             a.remoteBranchId.equalsNullable(b.remoteBranchId)
 
@@ -427,6 +434,7 @@ class InitialFaceEnrollmentRepository(
     private data class PermitRecord(
         val permit: InitialFaceEnrollmentPermit,
         val employee: Employee,
+        val canonicalEmployeeCode: String,
         val scope: InitialFaceEnrollmentScope
     )
 

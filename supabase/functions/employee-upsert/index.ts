@@ -11,7 +11,10 @@ const json = (body: unknown, status = 200) =>
   });
 const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const validEmployeeCode = (value: string) => /^[0-9]{5,12}$/.test(value);
+const validEmployeeCode = (value: string) =>
+  /^[0-9]{6}$/.test(value) && value !== "000000";
+const maskedEmployeeCode = (value: string) =>
+  validEmployeeCode(value) ? `****${value.slice(-2)}` : "unassigned";
 const validIsoTimestamp = (value: string) =>
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value);
 const validEmbedding = (value: unknown): value is number[] =>
@@ -74,10 +77,17 @@ Deno.serve(async (request) => {
     for (const raw of body.operations) {
       const operationPayload = (raw ?? {}) as Record<string, unknown>;
       const idempotencyKey = text(operationPayload.idempotency_key);
-      const employeeCode = text(operationPayload.employee_code);
-      const employeeRemoteId = text(operationPayload.remote_id);
+      // En UPDATE el codigo identifica una fila existente. En CREATE cualquier
+      // propuesta del dispositivo es solo legacy: Supabase asigna la autoridad.
+      let employeeCode = text(operationPayload.employee_code);
+      const requestedRemoteId = text(operationPayload.remote_id);
       const name = text(operationPayload.name);
       const operation = text(operationPayload.operation);
+      // CREATE usa un UUID estable por operacion. Esto hace idempotente una
+      // reserva que haya quedado pendiente si la escritura HTTP se interrumpe.
+      const employeeRemoteId = operation === "CREATE"
+        ? idempotencyKey
+        : requestedRemoteId;
       const embedding = operationPayload.face_embedding;
       const hasEnrollmentMode = Object.prototype.hasOwnProperty.call(
         operationPayload,
@@ -95,7 +105,7 @@ Deno.serve(async (request) => {
 
       console.log("FACE_EMBEDDING_FLOW", {
         stage: "edge_received",
-        employeeCode,
+        employeeCode: maskedEmployeeCode(employeeCode),
         present: embedding !== undefined,
         type: Array.isArray(embedding) ? "array" : typeof embedding,
         dimension: Array.isArray(embedding) ? embedding.length : null,
@@ -103,8 +113,9 @@ Deno.serve(async (request) => {
       });
 
       const invalidCommon = !uuid.test(idempotencyKey) ||
-        !validEmployeeCode(employeeCode) ||
         !["CREATE", "UPDATE"].includes(operation) ||
+        (operation === "UPDATE" &&
+          (!uuid.test(requestedRemoteId) || !validEmployeeCode(employeeCode))) ||
         (hasEnrollmentMode && !initialOnly);
       const invalidInitial = initialOnly &&
         (operation !== "UPDATE" ||
@@ -120,6 +131,7 @@ Deno.serve(async (request) => {
       if (invalidCommon || invalidInitial || invalidLegacy) {
         results.push({
           idempotency_key: idempotencyKey,
+          employee_code: employeeCode,
           result: "rejected",
           error_code: "INVALID_PAYLOAD",
         });
@@ -144,12 +156,13 @@ Deno.serve(async (request) => {
         );
         if (error) {
           console.error("FACE_FIRST_ENROLLMENT", {
-            employeeCode,
+            employeeCode: maskedEmployeeCode(employeeCode),
             finalResult: "RPC_ERROR",
             errorCode: error.code ?? "DATABASE_ERROR",
           });
           results.push({
             idempotency_key: idempotencyKey,
+            employee_code: employeeCode,
             result: "rejected",
             error_code: error.code || "DATABASE_ERROR",
           });
@@ -162,7 +175,7 @@ Deno.serve(async (request) => {
         const remoteId = text(rpc.remote_id);
         const updatedAt = text(rpc.updated_at);
         console.log("FACE_FIRST_ENROLLMENT", {
-          employeeCode,
+          employeeCode: maskedEmployeeCode(employeeCode),
           remoteId: remoteId || null,
           remoteEmbeddingDimension: Array.isArray(embedding) ? embedding.length : null,
           finalResult: rpcResult || "INVALID_RPC_RESPONSE",
@@ -171,6 +184,7 @@ Deno.serve(async (request) => {
         if (!["accepted", "duplicate", "rejected"].includes(rpcResult)) {
           results.push({
             idempotency_key: idempotencyKey,
+            employee_code: employeeCode,
             result: "rejected",
             error_code: "INVALID_RPC_RESPONSE",
           });
@@ -178,6 +192,7 @@ Deno.serve(async (request) => {
         }
         results.push({
           idempotency_key: idempotencyKey,
+          employee_code: employeeCode,
           result: rpcResult,
           ...(errorCode ? { error_code: errorCode } : {}),
           ...(remoteId ? { remote_id: remoteId } : {}),
@@ -192,7 +207,7 @@ Deno.serve(async (request) => {
       // El modo INITIAL_ONLY delega este chequeo a la RPC para validar tambien
       // que una clave previa corresponda al mismo employee_code.
       const { data: prior } = await admin.from("employee_upload_idempotency")
-        .select("empleado_id,empleados!inner(id,updated_at)")
+        .select("empleado_id,empleados!inner(id,codigo_empleado,updated_at)")
         .eq("empresa_id", auth.empresa_id)
         .eq("idempotency_key", idempotencyKey)
         .maybeSingle();
@@ -202,11 +217,69 @@ Deno.serve(async (request) => {
           | undefined;
         results.push({
           idempotency_key: idempotencyKey,
+          employee_code: employee?.codigo_empleado ?? employeeCode,
           result: "duplicate",
           remote_id: prior.empleado_id,
           updated_at: employee?.updated_at ?? now,
         });
         continue;
+      }
+
+      if (operation === "CREATE") {
+        // Si el empleado se escribio pero la fila idempotente no alcanzo a
+        // persistirse, se repara sin reservar ni crear otra identidad.
+        const { data: existingById, error: existingError } = await admin
+          .from("empleados")
+          .select("id,codigo_empleado,updated_at")
+          .eq("id", employeeRemoteId)
+          .eq("empresa_id", auth.empresa_id)
+          .maybeSingle();
+        if (existingError) {
+          results.push({
+            idempotency_key: idempotencyKey,
+            employee_code: employeeCode,
+            result: "rejected",
+            error_code: existingError.code || "DATABASE_ERROR",
+          });
+          continue;
+        }
+        if (existingById) {
+          // A UUID collision without the idempotency row is not proof that this
+          // device created the employee. Never bind a local row to that identity.
+          results.push({
+            idempotency_key: idempotencyKey,
+            employee_code: existingById.codigo_empleado,
+            result: "rejected",
+            error_code: "EMPLOYEE_IDENTITY_COLLISION",
+          });
+          continue;
+        }
+
+        const { data: allocatedCode, error: allocationError } = await admin.rpc(
+          "allocate_next_employee_code_internal",
+          {
+            p_company_id: auth.empresa_id,
+            p_employee_id: employeeRemoteId,
+          },
+        );
+        const authoritativeCode = text(allocatedCode);
+        if (allocationError || !validEmployeeCode(authoritativeCode)) {
+          results.push({
+            idempotency_key: idempotencyKey,
+            employee_code: employeeCode,
+            result: "rejected",
+            error_code: allocationError?.message === "EMPLOYEE_CODE_EXHAUSTED"
+              ? "EMPLOYEE_CODE_EXHAUSTED"
+              : "EMPLOYEE_CODE_ALLOCATION_FAILED",
+          });
+          continue;
+        }
+        employeeCode = authoritativeCode;
+        console.log("EMPLOYEE_CODE_FLOW", {
+          stage: "server_code_allocated",
+          employeeId: employeeRemoteId,
+          employeeCode: maskedEmployeeCode(employeeCode),
+        });
       }
 
       // Flujo legacy/admin: conserva el upsert existente y su capacidad de reemplazo.
@@ -221,18 +294,26 @@ Deno.serve(async (request) => {
         sucursal_id: device.sucursal_id,
         ...(embedding === undefined ? {} : { face_embedding: embedding }),
       };
-      const { data: employee, error } = await admin.from("empleados")
-        .upsert(record, { onConflict: "empresa_id,codigo_empleado" })
-        .select("id,updated_at,face_embedding")
+      // CREATE nunca puede convertirse en UPDATE por una colision de codigo.
+      // UPDATE exige identidad remota y codigo coincidentes; no crea filas.
+      const write = operation === "CREATE"
+        ? admin.from("empleados").insert({ id: employeeRemoteId, ...record })
+        : admin.from("empleados").update(record)
+          .eq("id", employeeRemoteId)
+          .eq("empresa_id", auth.empresa_id)
+          .eq("codigo_empleado", employeeCode);
+      const { data: employee, error } = await write
+        .select("id,codigo_empleado,updated_at,face_embedding")
         .single();
       if (error) {
         console.error("FACE_EMBEDDING_FLOW", {
           stage: "edge_upsert_error",
-          employeeCode,
+          employeeCode: maskedEmployeeCode(employeeCode),
           errorCode: error.code,
         });
         results.push({
           idempotency_key: idempotencyKey,
+          employee_code: employeeCode,
           result: "rejected",
           error_code: error.code || "DATABASE_ERROR",
         });
@@ -246,14 +327,29 @@ Deno.serve(async (request) => {
           ? employee.face_embedding.length
           : null,
       });
-      await admin.from("employee_upload_idempotency").insert({
+      const { error: idempotencyError } = await admin
+        .from("employee_upload_idempotency").upsert({
         empresa_id: auth.empresa_id,
         idempotency_key: idempotencyKey,
         empleado_id: employee.id,
         operation,
-      });
+      }, { onConflict: "empresa_id,idempotency_key" });
+      if (idempotencyError) {
+        console.error("EMPLOYEE_UPSERT_IDEMPOTENCY", {
+          employeeId: employee.id,
+          errorCode: idempotencyError.code,
+        });
+        results.push({
+          idempotency_key: idempotencyKey,
+          employee_code: employee.codigo_empleado,
+          result: "rejected",
+          error_code: "IDEMPOTENCY_PERSIST_FAILED",
+        });
+        continue;
+      }
       results.push({
         idempotency_key: idempotencyKey,
+        employee_code: employee.codigo_empleado,
         result: "accepted",
         remote_id: employee.id,
         updated_at: employee.updated_at,

@@ -32,7 +32,7 @@ object GeneralPayrollEngine {
 
         val rows = employees
             .filter { it.isActive }
-            .sortedBy { it.employeeCode.ifBlank { it.pin }.toIntOrNull() ?: Int.MAX_VALUE }
+            .sortedBy { it.employeeCode.toIntOrNull() ?: Int.MAX_VALUE }
             .map { employee ->
                 val employeeSettings = prepareAutoHourPrices(employee, settingsByEmployee[employee.id])
                 val medicalLicensePayment = medicalLicensePayments
@@ -79,7 +79,7 @@ object GeneralPayrollEngine {
 
                 GeneralPayrollRow(
                     employeeId = employee.id,
-                    employeeCode = employee.employeeCode.ifBlank { employee.pin },
+                    employeeCode = employee.employeeCode,
                     employeeName = employee.nombre,
                     baseSalary = employee.sueldo,
                     overtimePayment = result.overtimePayment,

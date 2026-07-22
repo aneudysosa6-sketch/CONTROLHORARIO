@@ -18,9 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.controlhorario.database.DatabaseProvider
-import com.example.controlhorario.auth.AuthRepository
-import com.example.controlhorario.auth.RoomUsernameResolver
-import com.example.controlhorario.auth.SupabaseAuthApi
+import com.example.controlhorario.auth.AndroidAuthRepositoryFactory
 import com.example.controlhorario.repository.AppUserRepository
 import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.ui.components.OSINETButton
@@ -39,7 +37,7 @@ fun LoginScreen(
     val appUserViewModel: AppUserViewModel = viewModel(
         factory = AppUserViewModelFactory(
             AppUserRepository(database.appUserDao()),
-            AuthRepository(RoomUsernameResolver(database.appUserDao()), SupabaseAuthApi())
+            AndroidAuthRepositoryFactory.create(database.appUserDao())
         )
     )
 

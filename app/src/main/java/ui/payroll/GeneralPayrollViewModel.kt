@@ -142,7 +142,7 @@ class GeneralPayrollViewModel(
             try {
                 val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }.orEmpty()
                 val currentSettings = snapshot.employeeSettings.associateBy { it.employeeId }
-                val employeesByCode = snapshot.employees.associateBy { employee -> employee.employeeCode.ifBlank { employee.pin } }
+                val employeesByCode = snapshot.employees.associateBy { employee -> employee.employeeCode }
                 val updated = mutableListOf<EmployeePayrollSettingsEntity>()
 
                 content.lines().drop(1).filter { it.isNotBlank() }.forEach { line ->

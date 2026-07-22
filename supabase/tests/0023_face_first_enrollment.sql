@@ -45,22 +45,28 @@ insert into public.dispositivos_android(
   '23000000-0000-0000-0000-000000000022', 'test-public-key', 'activo'
 );
 
+-- Este contrato prueba biometria, no el allocator. Reserva el prefijo historico
+-- del fixture para que sus altas sigan pasando por el claim monotono de 0024.
+insert into public.employee_code_sequences(empresa_id,last_value)
+values('23000000-0000-0000-0000-000000000001',23000)
+on conflict(empresa_id) do update set last_value=excluded.last_value;
+
 insert into public.empleados(
   id, empresa_id, sucursal_id, codigo_empleado, nombre_completo,
   activo, estado_laboral, jornada_habilitada, face_embedding
 ) values
-  ('23000000-0000-0000-0000-000000000031', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '23001', 'Elegible Face', true, 'activo', true, null),
-  ('23000000-0000-0000-0000-000000000032', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '23002', 'Face Existente', true, 'activo', true, (select jsonb_agg(0.5) from generate_series(1,128))),
-  ('23000000-0000-0000-0000-000000000033', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000012', '23003', 'Otra Sucursal', true, 'activo', true, null),
-  ('23000000-0000-0000-0000-000000000034', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '23004', 'Empleado Inactivo', false, 'desvinculado', true, null),
-  ('23000000-0000-0000-0000-000000000035', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '23005', 'Jornada Deshabilitada', true, 'activo', false, null);
+  ('23000000-0000-0000-0000-000000000031', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '023001', 'Elegible Face', true, 'activo', true, null),
+  ('23000000-0000-0000-0000-000000000032', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '023002', 'Face Existente', true, 'activo', true, (select jsonb_agg(0.5) from generate_series(1,128))),
+  ('23000000-0000-0000-0000-000000000033', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000012', '023003', 'Otra Sucursal', true, 'activo', true, null),
+  ('23000000-0000-0000-0000-000000000034', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '023004', 'Empleado Inactivo', false, 'desvinculado', true, null),
+  ('23000000-0000-0000-0000-000000000035', '23000000-0000-0000-0000-000000000001', '23000000-0000-0000-0000-000000000011', '023005', 'Jornada Deshabilitada', true, 'activo', false, null);
 
 select is(
   public.initial_face_enrollment_internal(jsonb_build_object(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000031',
-    'employee_code', '23001',
+    'employee_code', '023001',
     'idempotency_key', '23000000-0000-4000-8000-000000000041',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now() - interval '2 hours',
@@ -70,7 +76,7 @@ select is(
   'acepta el primer rostro valido'
 );
 select is(
-  (select jsonb_array_length(face_embedding) from public.empleados where codigo_empleado = '23001'),
+  (select jsonb_array_length(face_embedding) from public.empleados where codigo_empleado = '023001'),
   128,
   'persiste exactamente 128 elementos'
 );
@@ -79,7 +85,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000031',
-    'employee_code', '23001',
+    'employee_code', '023001',
     'idempotency_key', '23000000-0000-4000-8000-000000000041',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -93,7 +99,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000032',
-    'employee_code', '23002',
+    'employee_code', '023002',
     'idempotency_key', '23000000-0000-4000-8000-000000000041',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -107,7 +113,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000032',
-    'employee_code', '23002',
+    'employee_code', '023002',
     'idempotency_key', '23000000-0000-4000-8000-000000000042',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -117,7 +123,7 @@ select is(
   'rechaza un remoto que ya tiene rostro'
 );
 select is(
-  (select face_embedding ->> 0 from public.empleados where codigo_empleado = '23002'),
+  (select face_embedding ->> 0 from public.empleados where codigo_empleado = '023002'),
   '0.5',
   'el rechazo conserva el embedding remoto original'
 );
@@ -126,7 +132,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000032',
-    'employee_code', '23003',
+    'employee_code', '023003',
     'idempotency_key', '23000000-0000-4000-8000-000000000049',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -148,7 +154,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000033',
-    'employee_code', '23003',
+    'employee_code', '023003',
     'idempotency_key', '23000000-0000-4000-8000-000000000043',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -165,7 +171,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000033',
-    'employee_code', '23003',
+    'employee_code', '023003',
     'idempotency_key', '23000000-0000-4000-8000-000000000047',
     'validation_mode', 'OFFLINE_CACHED',
     'occurred_at', now() - interval '180 days',
@@ -188,7 +194,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000034',
-    'employee_code', '23004',
+    'employee_code', '023004',
     'idempotency_key', '23000000-0000-4000-8000-000000000044',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -202,7 +208,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000035',
-    'employee_code', '23005',
+    'employee_code', '023005',
     'idempotency_key', '23000000-0000-4000-8000-000000000045',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -216,7 +222,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000035',
-    'employee_code', '23005',
+    'employee_code', '023005',
     'idempotency_key', '23000000-0000-4000-8000-000000000046',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now(),
@@ -230,7 +236,7 @@ select is(
     'company_id', '23000000-0000-0000-0000-000000000001',
     'device_id', '23000000-0000-0000-0000-000000000021',
     'employee_id', '23000000-0000-0000-0000-000000000035',
-    'employee_code', '23005',
+    'employee_code', '023005',
     'idempotency_key', '23000000-0000-4000-8000-000000000048',
     'validation_mode', 'ONLINE_VERIFIED',
     'occurred_at', now() + interval '1 day',
@@ -242,7 +248,7 @@ select is(
 select ok(
   exists (
     select 1 from public.face_first_enrollment_audit
-    where employee_code = '23001'
+    where employee_code = '023001'
       and event_name = 'FACE_FIRST_ENROLLMENT'
       and outcome = 'ENROLLED'
   ),
@@ -251,7 +257,7 @@ select ok(
 select ok(
   exists (
     select 1 from public.face_first_enrollment_audit
-    where employee_code = '23002'
+    where employee_code = '023002'
       and event_name = 'FACE_FIRST_ENROLLMENT'
       and outcome = 'FACE_ALREADY_REGISTERED'
   ),

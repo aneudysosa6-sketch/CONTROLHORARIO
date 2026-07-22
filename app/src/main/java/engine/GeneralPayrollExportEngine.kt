@@ -31,11 +31,11 @@ object GeneralPayrollExportEngine {
         return try {
             val sortedEmployees = employees
                 .filter { it.isActive }
-                .sortedBy { it.employeeCode.ifBlank { it.pin }.toIntOrNull() ?: Int.MAX_VALUE }
+                .sortedBy { it.employeeCode.toIntOrNull() ?: Int.MAX_VALUE }
             val content = buildString {
                 appendLine("CODIGO EMPLEADO,NOMBRE EMPLEADO,DESCU-PRES,DESCU-CRED,ROTUR/FALT")
                 sortedEmployees.forEach { employee ->
-                    appendLine("${csv(employee.employeeCode.ifBlank { employee.pin })},${csv(employee.nombre)},,,")
+                    appendLine("${csv(employee.employeeCode)},${csv(employee.nombre)},,,")
                 }
             }
             saveTextToDownloads(

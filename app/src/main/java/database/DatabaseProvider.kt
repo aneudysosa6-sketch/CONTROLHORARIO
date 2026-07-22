@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34,MIGRATION_34_35,MIGRATION_35_36).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34,MIGRATION_34_35,MIGRATION_35_36,MIGRATION_36_37,MIGRATION_37_38).build()
 
             INSTANCE = instance
 
@@ -110,4 +110,45 @@ val MIGRATION_34_35=object:Migration(34,35){override fun migrate(db:SupportSQLit
 
 val MIGRATION_35_36=object:Migration(35,36){override fun migrate(db:SupportSQLiteDatabase){
  db.execSQL("ALTER TABLE employees ADD COLUMN remoteCompanyId TEXT")
+}}
+
+val MIGRATION_36_37=object:Migration(36,37){override fun migrate(db:SupportSQLiteDatabase){
+ val validCode = "length(employeeCode) IN (5,6) AND employeeCode NOT GLOB '*[^0-9]*' AND CAST(employeeCode AS INTEGER) BETWEEN 1 AND 999999"
+ val duplicateCanonicalCodes = db.query(
+  "SELECT COUNT(*) FROM employees a JOIN employees b ON a.id < b.id " +
+   "WHERE ${validCode.replace("employeeCode", "a.employeeCode")} " +
+   "AND ${validCode.replace("employeeCode", "b.employeeCode")} " +
+   "AND printf('%06d',CAST(a.employeeCode AS INTEGER))=printf('%06d',CAST(b.employeeCode AS INTEGER))"
+ ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) }
+ check(duplicateCanonicalCodes == 0) {
+  "No se pueden normalizar los códigos locales: existen códigos 5→6 duplicados."
+ }
+
+ db.execSQL(
+  "UPDATE employees SET employeeCode='0'||employeeCode " +
+   "WHERE length(employeeCode)=5 AND employeeCode NOT GLOB '*[^0-9]*' " +
+   "AND CAST(employeeCode AS INTEGER) BETWEEN 1 AND 99999"
+ )
+
+ listOf(
+  "loans",
+  "vacations",
+  "employee_permission_requests",
+  "medical_license_daily_payments",
+  "pending_attendance_reviews"
+ ).forEach { table ->
+  db.execSQL(
+   "UPDATE $table SET employeeCode='0'||employeeCode " +
+    "WHERE length(employeeCode)=5 AND employeeCode NOT GLOB '*[^0-9]*' " +
+    "AND CAST(employeeCode AS INTEGER) BETWEEN 1 AND 99999"
+  )
+ }
+}}
+
+/**
+ * The physical column remains for Room compatibility, but v38 removes its employee meaning.
+ * app_users password hashes are stored in another table and are intentionally untouched.
+ */
+val MIGRATION_37_38=object:Migration(37,38){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("UPDATE employees SET pin='' WHERE pin<>''")
 }}

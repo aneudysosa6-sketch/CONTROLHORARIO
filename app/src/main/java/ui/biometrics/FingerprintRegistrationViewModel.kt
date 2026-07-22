@@ -8,6 +8,7 @@ import com.example.controlhorario.BuildConfig
 import com.example.controlhorario.database.EmployeeBiometricEntity
 import com.example.controlhorario.fingerprint.external.FingerprintTemplateDiagnostics
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.repository.EmployeeBiometricRepository
 import com.example.controlhorario.repository.EmployeeRepository
 import java.text.SimpleDateFormat
@@ -27,9 +28,8 @@ class FingerprintRegistrationViewModel(
     val state: StateFlow<FingerprintRegistrationState> = _state.asStateFlow()
 
     fun identifyEmployee(codeText: String) {
-        val digits = codeText.filter { it.isDigit() }
-        val code = digits.padStart(5, '0')
-        if (digits.isBlank() || code == "00000") {
+        val code = EmployeeCodePolicy.normalizeOrNull(codeText)
+        if (code == null) {
             _state.value = _state.value.copy(message = "Digite un código de empleado válido.")
             return
         }

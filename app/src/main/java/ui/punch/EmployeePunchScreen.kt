@@ -48,8 +48,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.example.controlhorario.ui.components.OSINETColors
 import com.example.controlhorario.ui.components.OSINETScreen
+import com.example.controlhorario.model.EmployeeCodePolicy
 
-/** PIN identification only. Facial verification occurs in its own destination; no USB reader is created here. */
+/** Employee-code resolution only. Facial verification occurs in its own destination. */
 @Composable
 fun EmployeePunchScreen(
     viewModel: EmployeePunchViewModel,
@@ -58,7 +59,6 @@ fun EmployeePunchScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var navigated by remember { mutableStateOf(false) }
-    var showPin by remember { mutableStateOf(false) }
     val canInput = !state.identifying && state.employee == null
 
     LaunchedEffect(state.employee?.id, state.hasFaceTemplate) {
@@ -85,12 +85,8 @@ fun EmployeePunchScreen(
                 verticalArrangement = Arrangement.spacedBy(if (landscape) 10.dp else 16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                PinHeader()
-                PinField(
-                    pin = state.code,
-                    showPin = showPin,
-                    onVisibilityToggle = { showPin = !showPin }
-                )
+                EmployeeCodeHeader()
+                EmployeeCodeField(code = state.code)
                 if (state.identifying) {
                     CircularProgressIndicator(color = OSINETColors.Green)
                 }
@@ -108,14 +104,15 @@ fun EmployeePunchScreen(
                     )
                 }
 
-                PinKeypad(
+                EmployeeCodeKeypad(
                     keySize = keySize,
                     textSize = keyTextSize,
                     gap = keyGap,
                     enabled = canInput,
-                    pinEntered = state.code.isNotEmpty(),
+                    canAccept = EmployeeCodePolicy.isValid(state.code),
                     onDigit = viewModel::appendDigit,
                     onDelete = viewModel::deleteLastDigit,
+                    onAccept = viewModel::submitCode,
                     onClear = {
                         navigated = false
                         viewModel.clear()
@@ -131,9 +128,9 @@ fun EmployeePunchScreen(
                 }
                 TextButton(
                     onClick = onBack,
-                    modifier = Modifier.semantics { contentDescription = "Salir del modo PIN" }
+                    modifier = Modifier.semantics { contentDescription = "Volver a identificación facial" }
                 ) {
-                    Text("Salir", color = OSINETColors.GreenSoft, fontWeight = FontWeight.SemiBold)
+                    Text("Volver al rostro", color = OSINETColors.GreenSoft, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -141,7 +138,7 @@ fun EmployeePunchScreen(
 }
 
 @Composable
-private fun PinHeader() {
+private fun EmployeeCodeHeader() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,7 +152,7 @@ private fun PinHeader() {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("🔒", fontSize = 30.sp, modifier = Modifier.semantics { contentDescription = "Acceso seguro" })
+            Text("ID", fontSize = 30.sp, modifier = Modifier.semantics { contentDescription = "Identificación de empleado" })
             Text(
                 "Identifícate",
                 color = Color.White,
@@ -163,7 +160,7 @@ private fun PinHeader() {
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                "El PIN identifica; el rostro confirma",
+                "El código identifica; el rostro confirma",
                 color = Color(0xFFEAEAEA),
                 style = MaterialTheme.typography.bodyLarge
             )
@@ -172,18 +169,14 @@ private fun PinHeader() {
 }
 
 @Composable
-private fun PinField(pin: String, showPin: Boolean, onVisibilityToggle: () -> Unit) {
-    val active = pin.isNotEmpty()
+private fun EmployeeCodeField(code: String) {
+    val active = code.isNotEmpty()
     val borderColor by androidx.compose.animation.animateColorAsState(
         targetValue = if (active) OSINETColors.Info else OSINETColors.Border,
         animationSpec = tween(220),
-        label = "pin_border"
+        label = "employee_code_border"
     )
-    val display = when {
-        pin.isEmpty() -> "Ingresa tu PIN"
-        showPin -> pin
-        else -> "•".repeat(pin.length)
-    }
+    val display = code.ifEmpty { "Ingresa tu código de empleado" }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -196,31 +189,24 @@ private fun PinField(pin: String, showPin: Boolean, onVisibilityToggle: () -> Un
     ) {
         Text(
             text = display,
-            color = if (pin.isEmpty()) OSINETColors.TextSecondary else Color.White,
+            color = if (code.isEmpty()) OSINETColors.TextSecondary else Color.White,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
         )
-        TextButton(
-            onClick = onVisibilityToggle,
-            modifier = Modifier.semantics {
-                contentDescription = if (showPin) "Ocultar PIN" else "Mostrar PIN"
-            }
-        ) {
-            Text(if (showPin) "OCULTAR" else "MOSTRAR", color = OSINETColors.GreenSoft)
-        }
     }
 }
 
 @Composable
-private fun PinKeypad(
+private fun EmployeeCodeKeypad(
     keySize: androidx.compose.ui.unit.Dp,
     textSize: androidx.compose.ui.unit.TextUnit,
     gap: androidx.compose.ui.unit.Dp,
     enabled: Boolean,
-    pinEntered: Boolean,
+    canAccept: Boolean,
     onDigit: (String) -> Unit,
     onDelete: () -> Unit,
+    onAccept: () -> Unit,
     onClear: () -> Unit
 ) {
     val rows = listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"))
@@ -228,7 +214,7 @@ private fun PinKeypad(
         rows.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                 row.forEach { digit ->
-                    PinKey(
+                    EmployeeCodeKey(
                         label = digit,
                         contentDescription = "Número $digit",
                         keySize = keySize,
@@ -240,7 +226,7 @@ private fun PinKeypad(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-            PinKey(
+            EmployeeCodeKey(
                 label = "⌫",
                 contentDescription = "Borrar último dígito",
                 keySize = keySize,
@@ -248,7 +234,7 @@ private fun PinKeypad(
                 enabled = enabled,
                 onClick = onDelete
             )
-            PinKey(
+            EmployeeCodeKey(
                 label = "0",
                 contentDescription = "Número 0",
                 keySize = keySize,
@@ -256,17 +242,15 @@ private fun PinKeypad(
                 enabled = enabled,
                 onClick = { onDigit("0") }
             )
-            PinKey(
+            EmployeeCodeKey(
                 label = "✓",
                 secondaryLabel = "ACEPTAR",
-                contentDescription = "Aceptar PIN. La validación se ejecuta automáticamente al completar el código",
+                contentDescription = "Aceptar código de empleado",
                 keySize = keySize,
                 textSize = (textSize.value - 14).sp,
-                enabled = enabled && pinEntered,
+                enabled = enabled && canAccept,
                 accent = true,
-                onClick = {
-                    // La validación existente se activa automáticamente al completar el PIN.
-                }
+                onClick = onAccept
             )
         }
         OutlinedButton(
@@ -281,7 +265,7 @@ private fun PinKeypad(
 }
 
 @Composable
-private fun PinKey(
+private fun EmployeeCodeKey(
     label: String,
     contentDescription: String,
     keySize: androidx.compose.ui.unit.Dp,
@@ -296,7 +280,7 @@ private fun PinKey(
     val scale by animateFloatAsState(
         targetValue = if (pressed) .94f else 1f,
         animationSpec = tween(100),
-        label = "pin_key_scale"
+        label = "employee_code_key_scale"
     )
     val shape = CircleShape
     Box(

@@ -127,7 +127,7 @@ fun EmployeeProfileScreen(
                 Text("🏬 Departamento: $departmentName", color = Color.White)
                 Text("💼 Cargo: ${employee.cargo}", color = Color.White)
                 Text("💰 Sueldo: $sueldoFormateado", color = Color.White)
-                Text("🔐 PIN: ${employee.pin}", color = Color.White)
+                Text("🔢 Código: ${employee.employeeCode}", color = Color.White)
             }
         }
 

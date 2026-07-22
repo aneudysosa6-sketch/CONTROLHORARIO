@@ -14,6 +14,10 @@ interface EmployeeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEmployee(employee: Employee): Long
 
+    /** Local creation must never replace an employee when a code collides. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertNewEmployee(employee: Employee): Long
+
     @Update
     suspend fun updateEmployee(employee: Employee)
 
@@ -26,11 +30,11 @@ interface EmployeeDao {
     @Query("SELECT * FROM employees WHERE id = :employeeId LIMIT 1")
     suspend fun findByLocalId(employeeId: Int): Employee?
 
-    @Query("SELECT * FROM employees WHERE employeeCode = :employeeCode AND isActive = 1 LIMIT 1")
+    @Query("SELECT * FROM employees WHERE employeeCode = :employeeCode AND isActive = 1 AND remoteId IS NOT NULL LIMIT 1")
     suspend fun findByEmployeeCode(employeeCode: String): Employee?
 
-    @Query("SELECT * FROM employees WHERE pin = :pin AND isActive = 1 LIMIT 1")
-    suspend fun findByPin(pin: String): Employee?
+    @Query("SELECT * FROM employees WHERE employeeCode IN (:employeeCodes) AND isActive = 1 AND remoteId IS NOT NULL")
+    suspend fun findByEmployeeCodes(employeeCodes: List<String>): List<Employee>
 
     @Query("""
         SELECT employeeCode
@@ -40,6 +44,9 @@ interface EmployeeDao {
         LIMIT 1
     """)
     suspend fun getLastEmployeeCode(): String?
+
+    @Query("SELECT employeeCode FROM employees WHERE employeeCode != ''")
+    suspend fun getAllEmployeeCodes(): List<String>
 
     @Query("""
         UPDATE employees
@@ -59,8 +66,8 @@ interface EmployeeDao {
     @Query("SELECT * FROM employees WHERE employeeCode = :employeeCode LIMIT 1")
     suspend fun findAnyByEmployeeCode(employeeCode: String): Employee?
 
-    @Query("SELECT * FROM employees WHERE pin = :pin LIMIT 1")
-    suspend fun findAnyByPin(pin: String): Employee?
+    @Query("SELECT * FROM employees WHERE employeeCode IN (:employeeCodes)")
+    suspend fun findAnyByEmployeeCodes(employeeCodes: List<String>): List<Employee>
 
     @Query("SELECT * FROM employees WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findByRemoteId(remoteId: String): Employee?
@@ -86,8 +93,15 @@ interface EmployeeDao {
     @Query("SELECT COUNT(*) FROM employees WHERE remoteId IS NOT NULL AND isActive = 0")
     fun observeSyncedInactive(): Flow<Int>
 
-    @Query("UPDATE employees SET remoteId=:remoteId,syncStatus='SYNCED',lastSyncError=NULL,remoteUpdatedAt=:remoteUpdatedAt,lastSyncedAt=:now WHERE id=:employeeId")
+    @Query("UPDATE employees SET pin='',remoteId=:remoteId,syncStatus='SYNCED',lastSyncError=NULL,remoteUpdatedAt=:remoteUpdatedAt,lastSyncedAt=:now WHERE id=:employeeId")
     suspend fun markRemoteSynced(employeeId:Int,remoteId:String,remoteUpdatedAt:String,now:Long)
+
+    @Query("UPDATE employees SET employeeCode=:employeeCode,pin='',remoteId=:remoteId,syncStatus='SYNCED',lastSyncError=NULL,remoteUpdatedAt=:remoteUpdatedAt,lastSyncedAt=:now,updatedAt=:now WHERE id=:employeeId")
+    suspend fun markCreateRemoteSynced(employeeId:Int,employeeCode:String,remoteId:String,remoteUpdatedAt:String,now:Long)
+
+    /** Internal only: relocates a not-yet-synced local placeholder during authoritative adoption. */
+    @Query("UPDATE employees SET employeeCode=:employeeCode,pin='',updatedAt=:now WHERE id=:employeeId")
+    suspend fun updateProvisionalEmployeeCode(employeeId:Int,employeeCode:String,now:Long)
 
     @Query("UPDATE employees SET syncStatus=:status,lastSyncError=:error WHERE id=:employeeId")
     suspend fun setSyncStatus(employeeId:Int,status:String,error:String?=null)

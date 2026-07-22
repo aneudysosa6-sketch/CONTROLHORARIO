@@ -22,28 +22,33 @@ class EmployeeViewModel(
             initialValue = emptyList()
         )
 
-    private val _lastCreatedCode = MutableStateFlow("")
-    val lastCreatedCode: StateFlow<String> = _lastCreatedCode.asStateFlow()
+    private val _lastCreatedEmployeeId = MutableStateFlow<Int?>(null)
+    val lastCreatedEmployeeId: StateFlow<Int?> = _lastCreatedEmployeeId.asStateFlow()
 
     private val _editingEmployee = MutableStateFlow<Employee?>(null)
     val editingEmployee: StateFlow<Employee?> = _editingEmployee.asStateFlow()
 
-    fun addEmployee(employee: Employee) {
+    fun addEmployee(employee: Employee, onResult: (Result<Int>) -> Unit = {}) {
         viewModelScope.launch {
-            val generatedCode = repository.addEmployee(employee)
-            _lastCreatedCode.value = generatedCode
+            val result = runCatching { repository.addEmployee(employee) }
+            result.onSuccess { _lastCreatedEmployeeId.value = it }
+            onResult(result)
         }
     }
 
-    fun clearLastCreatedCode() {
-        _lastCreatedCode.value = ""
+    fun clearLastCreatedEmployee() {
+        _lastCreatedEmployeeId.value = null
     }
 
     fun loadEmployeeForEdit(employeeKey: String) {
         viewModelScope.launch { _editingEmployee.value = repository.findForEdit(employeeKey) }
     }
 
-    fun updateEmployee(employee: Employee, onSaved: () -> Unit = {}) {
-        viewModelScope.launch { repository.updateEmployee(employee);_editingEmployee.value=employee;onSaved() }
+    fun updateEmployee(employee: Employee, onResult: (Result<Unit>) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = runCatching { repository.updateEmployee(employee) }
+            result.onSuccess { _editingEmployee.value = employee }
+            onResult(result)
+        }
     }
 }

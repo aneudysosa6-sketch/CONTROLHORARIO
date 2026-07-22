@@ -2,6 +2,7 @@ package com.example.controlhorario.device
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.controlhorario.R
@@ -13,6 +14,7 @@ import com.example.controlhorario.face.FaceTemplateInvalidationBus
 import com.example.controlhorario.face.InitialFaceEnrollmentAudit
 import com.example.controlhorario.face.InitialFaceValidationMode
 import com.example.controlhorario.face.InitialFaceUploadRejectionPolicy
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.security.DeviceIdentityManager
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
@@ -62,16 +64,31 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
                 }
                 when {
                     result.result == "accepted" || result.result == "duplicate" -> {
-                        employeeDao.markRemoteSynced(
-                            item.employeeLocalId,
-                            requireNotNull(result.remoteId),
-                            result.updatedAt.orEmpty(),
-                            System.currentTimeMillis()
-                        )
-                        outbox.markSynced(item.id, System.currentTimeMillis())
+                        if (!EmployeeUploadAuthorityPolicy.accepts(item.operation, result.employeeCode)) {
+                            employeeDao.setSyncStatus(
+                                item.employeeLocalId,
+                                "FAILED",
+                                EMPLOYEE_CODE_AUTHORITY_MISSING
+                            )
+                            outbox.markFailed(
+                                item.id,
+                                EMPLOYEE_CODE_AUTHORITY_MISSING,
+                                Long.MAX_VALUE,
+                                System.currentTimeMillis()
+                            )
+                            Log.e(
+                                "EMPLOYEE_REMOTE_UPDATE",
+                                "localEmployeeId=${item.employeeLocalId} " +
+                                    "status=FAILED reason=$EMPLOYEE_CODE_AUTHORITY_MISSING"
+                            )
+                            batchTracker.markHandled(item.id, item.idempotencyKey)
+                            return@forEach
+                        }
+                        completeAccepted(database,item,result)
                         Log.d(
                             "EMPLOYEE_REMOTE_UPDATE",
-                            "localEmployeeId=${item.employeeLocalId} remoteId=${result.remoteId} status=SYNCED"
+                            "localEmployeeId=${item.employeeLocalId} remoteId=${result.remoteId} " +
+                                "authoritativeCode=${result.employeeCode?.let(EmployeeCodePolicy::maskForLog) ?: "unchanged"} status=SYNCED"
                         )
                     }
                     isInitialOnly(item) && result.error == FACE_ALREADY_REGISTERED -> {
@@ -215,7 +232,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         FaceTemplateInvalidationBus.invalidate()
         Log.d(
             FACE_TAG,
-            "employeeCode=${employee.employeeCode} remoteId=${result.remoteId ?: employee.remoteId} " +
+            "employeeCode=${EmployeeCodePolicy.maskForLog(employee.employeeCode)} remoteId=${result.remoteId ?: employee.remoteId} " +
                 "localEmployeeId=${employee.id} localInitialFaceRemoved=${removed > 0} " +
                 "finalResult=REMOTE_RACE_LOCAL_INVALIDATED"
         )
@@ -236,7 +253,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         if (!reconciled) {
             Log.w(
                 FACE_TAG,
-                "employeeCode=${employee.employeeCode} remoteId=${result.remoteId ?: employee.remoteId} " +
+                "employeeCode=${EmployeeCodePolicy.maskForLog(employee.employeeCode)} remoteId=${result.remoteId ?: employee.remoteId} " +
                     "localEmployeeId=${employee.id} finalResult=REMOTE_RACE_NOT_RECONCILED"
             )
             return false
@@ -284,7 +301,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         }
         Log.d(
             FACE_TAG,
-            "employeeCode=${employee.employeeCode} remoteId=${result.remoteId ?: employee.remoteId} " +
+            "employeeCode=${EmployeeCodePolicy.maskForLog(employee.employeeCode)} remoteId=${result.remoteId ?: employee.remoteId} " +
                 "localEmployeeId=${employee.id} finalResult=REMOTE_RACE_RECONCILED"
         )
         return true
@@ -352,7 +369,7 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
             }
             Log.w(
                 FACE_TAG,
-                "employeeCode=${employee.employeeCode} remoteId=${result.remoteId ?: employee.remoteId} " +
+                "employeeCode=${EmployeeCodePolicy.maskForLog(employee.employeeCode)} remoteId=${result.remoteId ?: employee.remoteId} " +
                     "localEmployeeId=${employee.id} localInitialFaceRemoved=${removed > 0} " +
                     "finalResult=${InitialFaceUploadRejectionPolicy.safeAuditOutcome(result.error)}"
             )
@@ -363,11 +380,109 @@ class EmployeeUploadWorker(context: Context, params: WorkerParameters) :
         JSONObject(item.payloadJson).optString("face_enrollment_mode") == "INITIAL_ONLY"
     }.getOrDefault(false)
 
+    private suspend fun completeAccepted(
+        database: AppDatabase,
+        item: EmployeeSyncOutboxEntity,
+        result: EmployeeUploadResult
+    ) {
+        val remoteId = requireNotNull(result.remoteId) { "employee_upsert_remote_id_missing" }
+        val now = System.currentTimeMillis()
+        database.withTransaction {
+            val employeeDao = database.employeeDao()
+            if (item.operation == "CREATE") {
+                val authoritativeCode = requireNotNull(
+                    EmployeeUploadAuthorityPolicy.authoritativeCode(
+                        item.operation,
+                        result.employeeCode
+                    )
+                ) { EMPLOYEE_CODE_AUTHORITY_MISSING }
+                val employee = requireNotNull(employeeDao.findByLocalId(item.employeeLocalId)) {
+                    "local_employee_missing_${item.employeeLocalId}"
+                }
+                val collision = employeeDao.findAnyByEmployeeCode(authoritativeCode)
+                    ?.takeIf { it.id != employee.id }
+                if (collision != null) {
+                    check(collision.remoteId == null && collision.syncStatus != "SYNCED") {
+                        "authoritative_employee_code_collision_${EmployeeCodePolicy.maskForLog(authoritativeCode)}"
+                    }
+                    val releasedPlaceholder = requireNotNull(
+                        EmployeeCodePolicy.normalizeOrNull(
+                            employee.employeeCode
+                        )
+                    ) { "local_placeholder_invalid" }
+                    // Swap inside one transaction so a concurrent server allocation can take a
+                    // local placeholder already assigned to another unsynced CREATE.
+                    employeeDao.updateProvisionalEmployeeCode(
+                        employee.id,
+                        "__authoritative_swap_${employee.id}",
+                        now
+                    )
+                    employeeDao.updateProvisionalEmployeeCode(
+                        collision.id,
+                        releasedPlaceholder,
+                        now
+                    )
+                    rewritePendingEmployeePayloads(
+                        database,
+                        collision.id,
+                        releasedPlaceholder,
+                        remoteId = null,
+                        now = now
+                    )
+                }
+                employeeDao.markCreateRemoteSynced(
+                    item.employeeLocalId,
+                    authoritativeCode,
+                    remoteId,
+                    result.updatedAt.orEmpty(),
+                    now
+                )
+                rewritePendingEmployeePayloads(
+                    database,
+                    item.employeeLocalId,
+                    authoritativeCode,
+                    remoteId,
+                    now
+                )
+            } else {
+                employeeDao.markRemoteSynced(
+                    item.employeeLocalId,
+                    remoteId,
+                    result.updatedAt.orEmpty(),
+                    now
+                )
+            }
+            database.employeeSyncOutboxDao().markSynced(item.id,now)
+        }
+        if (item.operation == "CREATE") FaceTemplateInvalidationBus.invalidate()
+    }
+
+    private suspend fun rewritePendingEmployeePayloads(
+        database: AppDatabase,
+        employeeId: Int,
+        employeeCode: String,
+        remoteId: String?,
+        now: Long
+    ) {
+        val outbox = database.employeeSyncOutboxDao()
+        outbox.unsyncedForEmployee(employeeId).forEach { pending ->
+            val payload = JSONObject(pending.payloadJson)
+            if (pending.operation == "CREATE" && remoteId == null) {
+                payload.remove("employee_code")
+            } else {
+                payload.put("employee_code",employeeCode)
+            }
+            if (remoteId == null) payload.remove("remote_id") else payload.put("remote_id",remoteId)
+            outbox.updatePayload(pending.id,payload.toString(),now)
+        }
+    }
+
     private companion object {
         const val FACE_ALREADY_REGISTERED = "FACE_ALREADY_REGISTERED"
         const val FACE_RECONCILIATION_FAILED = "FACE_REMOTE_WINNER_UNAVAILABLE"
         const val FACE_RECONCILIATION_RETRY = "FACE_REMOTE_WINNER_RETRY"
         const val FACE_TAG = "FACE_FIRST_ENROLLMENT"
+        const val EMPLOYEE_CODE_AUTHORITY_MISSING = "EMPLOYEE_CODE_AUTHORITY_MISSING"
         const val UPLOAD_RESPONSE_MISSING = "EMPLOYEE_UPLOAD_RESPONSE_MISSING"
         const val RETRY_DELAY_MILLIS = 30_000L
     }

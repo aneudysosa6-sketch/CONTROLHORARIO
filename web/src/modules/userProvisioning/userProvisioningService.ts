@@ -85,7 +85,6 @@ export interface BootstrapInput {
   full_name: string;
   email: string;
   branch_name: string;
-  employee_code?: string;
   timezone: 'America/Santo_Domingo';
 }
 

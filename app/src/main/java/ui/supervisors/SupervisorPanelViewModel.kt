@@ -9,6 +9,7 @@ import com.example.controlhorario.database.SupervisorEntity
 import com.example.controlhorario.database.SupervisorEventEntity
 import com.example.controlhorario.database.SupervisorWorkScheduleEntity
 import com.example.controlhorario.model.Employee
+import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.repository.AttendanceRepository
 import com.example.controlhorario.repository.DepartmentRepository
 import com.example.controlhorario.repository.EmployeeRepository
@@ -71,7 +72,13 @@ class SupervisorPanelViewModel(
     }
 
     fun findEmployeeByCode(code: String) {
-        val cleanCode = code.filter { it.isDigit() }.padStart(5, '0')
+        val cleanCode = EmployeeCodePolicy.normalizeOrNull(code)
+        if (cleanCode == null) {
+            _selectedEmployee.value = null
+            _selectedSchedule.value = null
+            _message.value = EmployeeCodePolicy.ERROR
+            return
+        }
         viewModelScope.launch {
             val employee = employeeRepository.findAnyByEmployeeCode(cleanCode)
             if (employee == null || !_departmentIds.value.contains(employee.departmentId)) {

@@ -12,8 +12,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.BranchEntity
 import com.example.controlhorario.database.DepartmentEntity
@@ -36,7 +34,7 @@ fun AddEmployeeScreen(
     onBack: () -> Unit
 ) {
     val context=LocalContext.current
-    var codigoPin by remember { mutableStateOf("") }
+    var employeeCode by remember { mutableStateOf("") }
     var nombre by remember { mutableStateOf("") }
     var cedula by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
@@ -45,7 +43,13 @@ fun AddEmployeeScreen(
     var lunchHours by remember { mutableStateOf("") }
     var profilePhotoUri by remember { mutableStateOf("") }
     var mensaje by remember { mutableStateOf("") }
-    val codigoGenerado by viewModel.lastCreatedCode.collectAsState()
+    var saving by remember { mutableStateOf(false) }
+    val employees by viewModel.employees.collectAsState()
+    val lastCreatedEmployeeId by viewModel.lastCreatedEmployeeId.collectAsState()
+    val createdEmployee = employees.firstOrNull {
+        it.id == lastCreatedEmployeeId && it.remoteId != null && it.syncStatus == "SYNCED"
+    }
+    val codigoGenerado = createdEmployee?.employeeCode.orEmpty()
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -61,7 +65,7 @@ fun AddEmployeeScreen(
     LaunchedEffect(initialEmployee?.id) {
         initialEmployee?.let { employee ->
             val fields=EmployeeEditEngine.fieldsFrom(employee)
-            codigoPin=fields.codePin;nombre = fields.nombre;cedula = fields.cedula;telefono = fields.telefono;cargo = fields.cargo
+            employeeCode=EmployeeCodePolicy.normalizeOrNull(fields.employeeCode).orEmpty();nombre = fields.nombre;cedula = fields.cedula;telefono = fields.telefono;cargo = fields.cargo
             sueldo = fields.sueldo.toString();lunchHours = fields.lunchHours.toString();profilePhotoUri = fields.profilePhotoUri
         }
     }
@@ -70,6 +74,11 @@ fun AddEmployeeScreen(
     }
     LaunchedEffect(initialEmployee?.id, departments) {
         if (isEditMode && selectedDepartment == null) selectedDepartment = departments.firstOrNull { it.id == initialEmployee?.departmentId }
+    }
+    LaunchedEffect(codigoGenerado) {
+        if (!isEditMode && codigoGenerado.isNotBlank()) {
+            mensaje = "Empleado sincronizado. Código asignado automáticamente: $codigoGenerado."
+        }
     }
 
     val filteredDepartments = departments.filter {
@@ -89,17 +98,12 @@ fun AddEmployeeScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        OSINETTextField(
-            value=codigoPin,
-            onValueChange={codigoPin=EmployeeCodePolicy.sanitizeInput(it)},
-            label="Código/PIN",
-            modifier=Modifier.fillMaxWidth(),
-            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number)
+        Text("Código de empleado", style = MaterialTheme.typography.titleSmall)
+        Text(
+            if (isEditMode) employeeCode else "Se asignará automáticamente al crear el empleado.",
+            style = MaterialTheme.typography.bodyLarge
         )
-        if(!EmployeeCodePolicy.isValid(codigoPin)){
-            Spacer(modifier=Modifier.height(6.dp))
-            Text(EmployeeCodePolicy.ERROR,color=MaterialTheme.colorScheme.error)
-        }
+        Text("Formato: 6 dígitos", style = MaterialTheme.typography.bodySmall)
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -237,7 +241,7 @@ fun AddEmployeeScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text(if(isEditMode) "Código actual: ${initialEmployee?.employeeCode.orEmpty()}" else "El Código/PIN identifica al empleado en el kiosco.")
+        Text(if(isEditMode) "Código actual: $employeeCode" else "El código se asigna automáticamente y solo identifica al empleado antes del rostro.")
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -247,13 +251,16 @@ fun AddEmployeeScreen(
         }
 
         if (!isEditMode && codigoGenerado.isNotBlank()) {
-            Text("Código numérico asignado: $codigoGenerado")
+            Text("Código asignado automáticamente: $codigoGenerado")
             Spacer(modifier = Modifier.height(12.dp))
         }
 
         OSINETButton(
             text = if(isEditMode) "Guardar cambios" else "Crear empleado",
             onClick = {
+                if (saving) return@OSINETButton
+                saving = true
+                mensaje = ""
                 val branch = selectedBranch
                 val department = selectedDepartment
 
@@ -262,8 +269,7 @@ fun AddEmployeeScreen(
                 val departmentId = department?.id ?: initialEmployee?.departmentId ?: 0
 
                 val nuevoEmpleado = Employee(
-                    employeeCode = codigoPin,
-                    pin = codigoPin,
+                    employeeCode = if (isEditMode) employeeCode else "",
                     nombre = nombre,
                     cedula = cedula,
                     telefono = telefono,
@@ -277,18 +283,31 @@ fun AddEmployeeScreen(
                 )
 
                 if(isEditMode&&initialEmployee!=null){
-                    val fields=EmployeeEditableFields(codigoPin,nombre,cedula,telefono,profilePhotoUri,cargo,departmentName,branchId,departmentId,nuevoEmpleado.sueldo,nuevoEmpleado.lunchHours)
-                    viewModel.updateEmployee(EmployeeEditEngine.merge(initialEmployee,fields),onSaved)
-                    EmployeeUploadScheduler.enqueueImmediate(context)
-                    mensaje="Cambios guardados correctamente"
+                    val fields=EmployeeEditableFields(employeeCode,nombre,cedula,telefono,profilePhotoUri,cargo,departmentName,branchId,departmentId,nuevoEmpleado.sueldo,nuevoEmpleado.lunchHours)
+                    viewModel.updateEmployee(EmployeeEditEngine.merge(initialEmployee,fields)){result->
+                        saving=false
+                        result.onSuccess{
+                            EmployeeUploadScheduler.enqueueImmediate(context)
+                            mensaje="Cambios guardados correctamente"
+                            onSaved()
+                        }.onFailure{error->
+                            mensaje=error.message?:"No se pudieron guardar los cambios."
+                        }
+                    }
                 }else{
-                    viewModel.addEmployee(nuevoEmpleado)
-                    EmployeeUploadScheduler.enqueueImmediate(context)
-                    codigoPin = "";nombre = "";cedula = "";telefono = "";cargo = "";sueldo = "";lunchHours = "";profilePhotoUri = "";selectedBranch = null;selectedDepartment = null
-                    mensaje = "Empleado creado correctamente. Código asignado: se mostrará abajo."
+                    viewModel.addEmployee(nuevoEmpleado){result->
+                        saving=false
+                        result.onSuccess{
+                            EmployeeUploadScheduler.enqueueImmediate(context)
+                            employeeCode = "";nombre = "";cedula = "";telefono = "";cargo = "";sueldo = "";lunchHours = "";profilePhotoUri = "";selectedBranch = null;selectedDepartment = null
+                            mensaje = "Empleado guardado. Sincronizando para recibir el código oficial…"
+                        }.onFailure{error->
+                            mensaje=error.message?:"No se pudo crear el empleado."
+                        }
+                    }
                 }
             },
-            enabled=EmployeeCodePolicy.isValid(codigoPin)
+            enabled=!saving && (!isEditMode || EmployeeCodePolicy.isCanonical(employeeCode))
         )
 
         if (!isEditMode && codigoGenerado.isNotBlank()) {

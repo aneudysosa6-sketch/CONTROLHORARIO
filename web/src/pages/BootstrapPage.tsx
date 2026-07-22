@@ -21,7 +21,6 @@ export function BootstrapPage() {
   const [slug, setSlug] = useState('');
   const [fullName, setFullName] = useState('');
   const [branchName, setBranchName] = useState('Sucursal principal');
-  const [employeeCode, setEmployeeCode] = useState('');
   const [secret, setSecret] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -88,10 +87,6 @@ export function BootstrapPage() {
       setError('El slug solo puede contener letras minúsculas, números y guiones simples.');
       return;
     }
-    if (employeeCode.trim() && !/^[A-Za-z0-9._-]{1,30}$/.test(employeeCode.trim())) {
-      setError('El código de empleado solo admite letras, números, punto, guion y guion bajo.');
-      return;
-    }
     setBusy(true);
     let loginCompleted = false;
     try {
@@ -110,7 +105,6 @@ export function BootstrapPage() {
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         branch_name: branchName.trim(),
-        employee_code: employeeCode.trim() || undefined,
         timezone,
       }, secret);
       setSecret('');
@@ -138,7 +132,7 @@ export function BootstrapPage() {
           <label>Nombre completo del administrador<input required maxLength={160} autoComplete="name" value={fullName} onChange={e => setFullName(e.target.value)} /></label>
           <label>Correo<input readOnly type="email" value={email} /></label>
           <label>Sucursal principal<input required maxLength={120} value={branchName} onChange={e => setBranchName(e.target.value)} /></label>
-          <label>Código de empleado (opcional)<input maxLength={30} value={employeeCode} onChange={e => setEmployeeCode(e.target.value)} /></label>
+          <label>Código de empleado<input readOnly value="Asignado automáticamente" /><small>Formato: 6 dígitos</small></label>
           <label>Zona horaria<input readOnly value={timezone} /></label>
           <label className="bootstrap-secret">Contraseña de la cuenta Auth<input required type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} /></label>
           <label className="bootstrap-secret">Secreto temporal de bootstrap<input required type="password" autoComplete="off" value={secret} onChange={e => setSecret(e.target.value)} /></label>

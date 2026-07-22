@@ -27,6 +27,7 @@ import com.example.controlhorario.ui.components.OSINETHeader
 import com.example.controlhorario.ui.components.OSINETScreen
 import com.example.controlhorario.ui.components.OSINETSecondaryButton
 import com.example.controlhorario.ui.components.OSINETTextField
+import com.example.controlhorario.model.EmployeeCodePolicy
 
 @Composable
 fun SupervisorHomeScreen(
@@ -77,7 +78,7 @@ fun SupervisorJornadasScreen(
             subtitle = "Solo empleados de departamentos asignados"
         )
         Spacer(Modifier.height(18.dp))
-        OSINETTextField(value = code, onValueChange = { code = it.filter(Char::isDigit).take(5) }, label = "Código de empleado", modifier = Modifier.fillMaxWidth())
+        OSINETTextField(value = code, onValueChange = { code = EmployeeCodePolicy.sanitizeInput(it) }, label = "Código de empleado", modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         OSINETButton("Buscar", onClick = { viewModel.findEmployeeByCode(code) })
         if (message.isNotBlank()) {
@@ -88,7 +89,7 @@ fun SupervisorJornadasScreen(
         employee?.let { emp ->
             Spacer(Modifier.height(14.dp))
             OSINETCard {
-                Text("Código: ${emp.employeeCode.ifBlank { emp.pin }}", color = OSINETColors.TextSecondary)
+                Text("Código: ${emp.employeeCode}", color = OSINETColors.TextSecondary)
                 Text("Nombre: ${emp.nombre}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text("Departamento: ${emp.departamento}", color = OSINETColors.TextSecondary)
                 Text(if (emp.jornadaEnabled) "Jornada: ADMIN-ON" else "Jornada: ADMIN-OFF", color = if (emp.jornadaEnabled) OSINETColors.GreenSoft else OSINETColors.Danger)
@@ -184,7 +185,7 @@ fun SupervisorAdminOnOffScreen(
             subtitle = "Activar o desactivar el registro de jornadas"
         )
         Spacer(Modifier.height(18.dp))
-        OSINETTextField(value = code, onValueChange = { code = it.filter(Char::isDigit).take(5) }, label = "Código de empleado", modifier = Modifier.fillMaxWidth())
+        OSINETTextField(value = code, onValueChange = { code = EmployeeCodePolicy.sanitizeInput(it) }, label = "Código de empleado", modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(10.dp))
         OSINETButton("Buscar", onClick = { viewModel.findEmployeeByCode(code) })
         if (message.isNotBlank()) {
@@ -194,7 +195,7 @@ fun SupervisorAdminOnOffScreen(
         employee?.let { emp ->
             Spacer(Modifier.height(14.dp))
             OSINETCard {
-                Text("Código: ${emp.employeeCode.ifBlank { emp.pin }}", color = OSINETColors.TextSecondary)
+                Text("Código: ${emp.employeeCode}", color = OSINETColors.TextSecondary)
                 Text("Nombre: ${emp.nombre}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.SemiBold)
                 Text("Departamento: ${emp.departamento}", color = OSINETColors.TextSecondary)
                 Text(if (emp.isActive) "Estado: Activo" else "Estado: Inactivo", color = if (emp.isActive) OSINETColors.GreenSoft else OSINETColors.Danger)
