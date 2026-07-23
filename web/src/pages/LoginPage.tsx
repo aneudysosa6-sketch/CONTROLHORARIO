@@ -3,6 +3,7 @@ import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userProvisioningService } from '../modules/userProvisioning/userProvisioningService';
+import { BrandMark } from '../components/BrandMark';
 
 export function LoginPage() {
   const { session, loading, error: authError, login } = useAuth();
@@ -54,7 +55,7 @@ export function LoginPage() {
         <i className="neon-orbit orbit-blue"/><i className="neon-orbit orbit-green"/><i className="neon-orbit orbit-amber"/>
       </div>
       <form className="premium-login-card" onSubmit={submit}>
-        <div className="premium-login-logo"><span>O</span><div><b>OSINET</b><small>CONTROLHORARIO</small></div></div>
+        <div className="premium-login-logo"><BrandMark/><div><b>OSINET</b><small>CONTROLHORARIO</small></div></div>
         <div className="premium-login-heading"><span><ShieldCheck size={14}/> ACCESO EMPRESARIAL</span><h1>Bienvenido</h1><p>Administra el tiempo de tu equipo con precisión.</p></div>
         <label>Usuario / Correo<div className="premium-field"><Mail/><input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" placeholder="nombre@empresa.com" /></div></label>
         <label>Contraseña<div className="premium-field"><LockKeyhole/><input type={show ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" placeholder="Tu contraseña"/><button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{show ? <EyeOff /> : <Eye />}</button></div></label>

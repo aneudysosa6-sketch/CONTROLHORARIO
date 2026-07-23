@@ -4,6 +4,7 @@ import { Bell, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from '
 import { navigationItems, navigationSections } from '../app/navigation';
 import { useAuth } from '../context/AuthContext';
 import { createPermissionReader, isAdministratorRole, visibleNavigationItems } from '../infrastructure/permissions/permissionAdapter';
+import { BrandMark } from '../components/BrandMark';
 
 const dashboardShortcuts = [
   { to: '/dashboard', label: 'Inicio' },
@@ -85,7 +86,7 @@ export function AdminLayout() {
   return <div className={`shell${compactMode ? ' shell-compact' : ''}`}>
     <aside id="admin-sidebar" className={mobileOpen ? 'sidebar open' : 'sidebar'} aria-label="Navegación principal">
       <div className="brand">
-        <span className="brand-mark">O</span>
+        <BrandMark />
         <div className="brand-copy"><b>OSINET</b><small>TIME ERP ENTERPRISE</small></div>
         {isExecutiveDashboard && <button type="button" className="icon sidebar-toggle desktop-sidebar-toggle" aria-label={compactMode ? 'Expandir navegación' : 'Compactar navegación'} aria-expanded={!compactMode} aria-controls="admin-navigation" onClick={() => setCompact((value) => !value)}>{compactMode ? <PanelLeftOpen /> : <PanelLeftClose />}</button>}
         <button ref={mobileCloseRef} type="button" className="icon mobile" onClick={closeMobileNavigation} aria-label="Cerrar menú"><X /></button>
