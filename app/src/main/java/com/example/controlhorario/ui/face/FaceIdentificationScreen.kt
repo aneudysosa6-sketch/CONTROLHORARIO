@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -26,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -34,7 +38,10 @@ import androidx.compose.ui.unit.dp
 import com.example.controlhorario.ui.components.OSINETHeader
 import com.example.controlhorario.ui.components.OSINETCard
 import com.example.controlhorario.ui.components.OSINETScreen
+import com.example.controlhorario.ui.components.OSINETLogo
+import com.example.controlhorario.ui.kiosk.KioskExitDialog
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun FaceIdentificationScreen(
@@ -44,11 +51,13 @@ fun FaceIdentificationScreen(
     onRegisterInitialFace: () -> Unit,
     onCancel: () -> Unit,
     registrationSuccessMessage: String? = null,
+    onKioskExit: () -> Unit = onCancel,
 ) {
     val state by viewModel.state.collectAsState()
     var cameraGranted by remember { mutableStateOf(false) }
     var navigationConsumed by rememberSaveable { mutableStateOf(false) }
     var guidance by remember { mutableStateOf("Mire a la cámara para identificarse") }
+    var showExitDialog by rememberSaveable { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         cameraGranted = it
     }
@@ -73,6 +82,11 @@ fun FaceIdentificationScreen(
     }
 
     OSINETScreen {
+        OSINETLogo(
+            modifier = Modifier.fiveSecondHold { showExitDialog = true },
+            subtitle = "CONTROL HORARIO · KIOSCO",
+        )
+        Spacer(Modifier.height(12.dp))
         OSINETHeader("Identificación facial", "Mire a la cámara para identificarse")
         Spacer(Modifier.height(16.dp))
         if (!registrationSuccessMessage.isNullOrBlank()) {
@@ -139,6 +153,23 @@ fun FaceIdentificationScreen(
         OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
             Text("Cancelar")
         }
+    }
+    if (showExitDialog) {
+        KioskExitDialog(
+            onDismiss = { showExitDialog = false },
+            onExit = { showExitDialog = false; onKioskExit() },
+        )
+    }
+}
+
+private fun Modifier.fiveSecondHold(onCompleted: () -> Unit): Modifier = pointerInput(onCompleted) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        val releasedBeforeThreshold = withTimeoutOrNull(5_000L) {
+            waitForUpOrCancellation()
+            true
+        } ?: false
+        if (!releasedBeforeThreshold) onCompleted()
     }
 }
 

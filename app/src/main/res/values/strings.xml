@@ -1,4 +1,5 @@
 <resources>
     <string name="employee_upsert_url">https://placeholder.supabase.co/functions/v1/employee-upsert</string>
     <string name="app_name">CONTROL HORARIO</string>
+    <string name="kiosk_device_admin_description">Permite administrar el modo kiosco empresarial del dispositivo.</string>
 </resources>

@@ -99,6 +99,7 @@ import com.example.controlhorario.ui.administration.SystemAdministrationViewMode
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminScreen
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminViewModel
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminViewModelFactory
+import com.example.controlhorario.ui.kiosk.KioskDeviceSettingsScreen
 import com.example.controlhorario.ui.access.AccessManagementScreen
 import com.example.controlhorario.ui.access.AccessCapabilities
 import com.example.controlhorario.ui.access.AccessManagementViewModel
@@ -480,8 +481,13 @@ fun AppNavigation(
                     navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
                 },
                 onKioskFaceAuthSettings = { navController.navigate(Route.KIOSK_FACE_AUTH_SETTINGS) },
+                onKioskDeviceSettings = { navController.navigate(Route.KIOSK_DEVICE_SETTINGS) },
                 onLogout = logout
             )
+        }
+
+        composable(Route.KIOSK_DEVICE_SETTINGS) {
+            KioskDeviceSettingsScreen { navController.popBackStack() }
         }
 
         composable(Route.KIOSK_FACE_AUTH_SETTINGS) {
@@ -646,6 +652,13 @@ fun AppNavigation(
                     "Rostro registrado correctamente."
                 } else {
                     null
+                },
+                onKioskExit = {
+                    UserSessionManager.logout()
+                    navController.navigate(Route.ADMIN_LOGIN) {
+                        popUpTo(0)
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -1505,6 +1518,7 @@ private fun AdminHomeScreen(
     onBranchManager: () -> Unit,
     onEmployeeMode: () -> Unit,
     onKioskFaceAuthSettings: () -> Unit,
+    onKioskDeviceSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     val sessionUser by UserSessionManager.currentUser.collectAsState()
@@ -1526,6 +1540,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.PAYROLL)) { OSINETActionCard("GENERAL NÓMINA", "Generación, plantillas y exportación", onClick = onGeneralPayroll); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.REPORTS)) { OSINETActionCard("Reportes", "Consultas generales del sistema", onClick = onReports); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Administración del sistema", "Empresa, organización, accesos, seguridad y apariencia", onClick = onSettings); Spacer(Modifier.height(10.dp)) }
+        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Configuración del Dispositivo", "Estado, contraseña de salida y modo kiosco empresarial", onClick = onKioskDeviceSettings); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Vacaciones", "Solicitudes y seguimiento", onClick = onVacations); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.LOANS)) { OSINETActionCard("Préstamos", "Solicitudes, aprobación, entrega y balance", onClick = onLoans); Spacer(Modifier.height(10.dp)) }
         if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)) { OSINETActionCard("Permisos Empleados", "Solicitudes, archivos, aprobación y rechazo", onClick = onEmployeePermissions); Spacer(Modifier.height(10.dp)) }
@@ -1838,6 +1853,7 @@ private object Route {
     const val FACE_KIOSK_REGISTRATION = "face_kiosk_registration"
     const val KIOSK_EXIT_AUTH = "kiosk_exit_auth"
     const val KIOSK_FACE_AUTH_SETTINGS = "kiosk_face_auth_settings"
+    const val KIOSK_DEVICE_SETTINGS = "kiosk_device_settings"
     const val EMPLOYEE_ASSISTANCE = "employee_assistance"
     const val EMPLOYEES_MENU = "employees_menu"
     const val EMPLOYEE_ADD = "employee_add"
