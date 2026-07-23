@@ -17,6 +17,7 @@ import com.example.controlhorario.ui.navigation.AppNavigation
 import com.example.controlhorario.ui.theme.CONTROLHORARIOTheme
 import com.example.controlhorario.kiosk.KioskController
 import com.example.controlhorario.kiosk.KioskManager
+import com.example.controlhorario.kiosk.BootCompletedReceiver
 
 class MainActivity : FragmentActivity() {
     private val kioskController by lazy { KioskController(this) }
@@ -44,7 +45,13 @@ class MainActivity : FragmentActivity() {
                 AppNavigation(navController)
             }
         }
-        kioskController.restore()
+        if (intent.getBooleanExtra(BootCompletedReceiver.EXTRA_BOOT_LAUNCH, false) &&
+            KioskManager(this).configuration().enabled
+        ) {
+            kioskController.enter()
+        } else {
+            kioskController.restore()
+        }
     }
 
     override fun onStart() {

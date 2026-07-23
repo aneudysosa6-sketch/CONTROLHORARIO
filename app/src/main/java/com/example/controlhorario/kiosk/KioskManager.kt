@@ -13,11 +13,23 @@ data class KioskConfiguration(
 )
 
 class KioskManager(context: Context) {
-    private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val applicationContext = context.applicationContext
+    private val preferences = applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val bootPreferences = applicationContext
+        .createDeviceProtectedStorageContext()
+        .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+
+    init {
+        // Conserva la activación existente al actualizar desde una versión anterior
+        // que todavía no almacenaba la bandera disponible durante Direct Boot.
+        if (runCatching { preferences.getBoolean(KEY_ENABLED, false) }.getOrDefault(false)) {
+            bootPreferences.edit(commit = true) { putBoolean(KEY_ENABLED, true) }
+        }
+    }
 
     fun configuration() = KioskConfiguration(
-        enabled = preferences.getBoolean(KEY_ENABLED, false),
-        hasExitPassword = preferences.contains(KEY_PASSWORD_HASH),
+        enabled = bootPreferences.getBoolean(KEY_ENABLED, false) || preferences.getBoolean(KEY_ENABLED, false),
+        hasExitPassword = runCatching { preferences.contains(KEY_PASSWORD_HASH) }.getOrDefault(false),
     )
 
     fun enable(exitPassword: CharArray): Boolean {
@@ -30,12 +42,14 @@ class KioskManager(context: Context) {
             putString(KEY_PASSWORD_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
             putString(KEY_PASSWORD_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
         }
-        return preferences.getBoolean(KEY_ENABLED, false)
+        bootPreferences.edit(commit = true) { putBoolean(KEY_ENABLED, true) }
+        return bootPreferences.getBoolean(KEY_ENABLED, false)
     }
 
     fun disable(): Boolean {
         preferences.edit(commit = true) { putBoolean(KEY_ENABLED, false) }
-        return !preferences.getBoolean(KEY_ENABLED, true)
+        bootPreferences.edit(commit = true) { putBoolean(KEY_ENABLED, false) }
+        return !bootPreferences.getBoolean(KEY_ENABLED, true)
     }
 
     fun verify(password: CharArray): Boolean {
