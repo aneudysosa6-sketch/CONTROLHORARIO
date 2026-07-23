@@ -2,14 +2,11 @@ package com.example.controlhorario.ui.administration
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,21 +38,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 enum class AdministrationSection(val wireName: String, val title: String, val description: String) {
-    COMPANY("empresa", "Empresa", "Logo, RNC, dirección, contacto y zona horaria"),
+    COMPANY("empresa", "Empresa", "RNC, dirección, contacto y zona horaria"),
     BRANCHES("sucursales", "Sucursales", "Ubicaciones, contacto y estado"),
     DEPARTMENTS("departamentos", "Departamentos", "Estructura por sucursal y supervisores"),
     POSITIONS("cargos", "Cargos", "Cargos laborales y departamentos"),
     USERS("usuarios", "Accesos", "Cuentas vinculadas a empleados, roles y estado"),
     SCHEDULES("horarios", "Horarios", "Turnos, días, tolerancia y almuerzo"),
-    JOURNEYS("jornadas", "Jornadas", "Reglas, pendientes, incidencias y ADMIN-OFF/ON"),
+    JOURNEYS("jornadas", "Jornadas", "Reglas, pendientes e incidencias"),
     DEVICES("dispositivos", "Dispositivos", "Android registrados y sincronización"),
     SECURITY("seguridad", "Seguridad", "Sesión, auditoría y accesos"),
-    APPEARANCE("apariencia", "Apariencia", "Tema, logo, colores y densidad"),
-}
-
-object AdministrationVisibilityPolicy {
-    fun visibleSections(serverSections: Set<String>): List<AdministrationSection> =
-        AdministrationSection.entries.filter { it.wireName in serverSections }
 }
 
 data class AdministrationOverview(
@@ -63,7 +54,6 @@ data class AdministrationOverview(
     val timezone: String,
     val taxId: String?,
     val logoUrl: String?,
-    val appearance: String,
     val role: String,
     val visibleSections: Set<String>,
     val counts: Map<String, Int>,
@@ -121,7 +111,6 @@ class SystemAdministrationGateway(
             timezone = company.getString("timezone"),
             taxId = company.optString("tax_id").takeIf { it.isNotBlank() && it != "null" },
             logoUrl = company.optString("logo_url").takeIf { it.isNotBlank() && it != "null" },
-            appearance = company.optJSONObject("ui_preferences")?.toString() ?: "{}",
             role = session.optString("role"),
             visibleSections = AdministrationSection.entries.filter { sections.optBoolean(it.wireName) }.mapTo(mutableSetOf()) { it.wireName },
             counts = mapOf(
@@ -156,24 +145,6 @@ class SystemAdministrationViewModelFactory(private val principal: AuthenticatedP
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SystemAdministrationScreen(state: AdministrationState, onSection: (AdministrationSection) -> Unit, onBack: () -> Unit) {
-    AdministrationScaffold("Administración del sistema", onBack) { padding ->
-        when (state) {
-            AdministrationState.Loading -> Column(Modifier.fillMaxSize().padding(padding), verticalArrangement = Arrangement.Center) { CircularProgressIndicator() }
-            is AdministrationState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(padding).padding(20.dp))
-            is AdministrationState.Ready -> LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item { Text(state.overview.companyName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text("${state.overview.timezone} · Rol ${state.overview.role}", color = Color(0xFF91A5BF)); Spacer(Modifier.height(8.dp)) }
-                items(AdministrationVisibilityPolicy.visibleSections(state.overview.visibleSections)) { section ->
-                    AdministrationCard(section, state.overview.counts[section.wireName], onSection)
-                }
-                item { Spacer(Modifier.height(16.dp)) }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun SystemAdministrationDetailScreen(section: AdministrationSection, state: AdministrationState, onBack: () -> Unit) {
     AdministrationScaffold(section.title, onBack) { padding ->
         when (state) {
@@ -185,7 +156,7 @@ fun SystemAdministrationDetailScreen(section: AdministrationSection, state: Admi
                     Text(section.description, color = Color(0xFF91A5BF))
                     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF101E33)), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp)) {
                         Text(state.overview.companyName, fontWeight = FontWeight.Bold)
-                        sectionDetail(section, state.overview)
+                        SectionDetail(section, state.overview)
                     } }
                     Text("Los cambios administrativos completos se realizan en Web. Android muestra el contexto real sin duplicar la lógica de mantenimiento.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF91A5BF))
                 }
@@ -194,23 +165,13 @@ fun SystemAdministrationDetailScreen(section: AdministrationSection, state: Admi
     }
 }
 
-@Composable private fun sectionDetail(section: AdministrationSection, overview: AdministrationOverview) {
+@Composable private fun SectionDetail(section: AdministrationSection, overview: AdministrationOverview) {
     val detail = when (section) {
         AdministrationSection.COMPANY -> "RNC: ${overview.taxId ?: "No configurado"}\nZona horaria: ${overview.timezone}"
-        AdministrationSection.APPEARANCE -> "Preferencias corporativas: ${overview.appearance}"
         AdministrationSection.SECURITY -> "Rol efectivo: ${overview.role}\nEventos auditados: ${overview.counts[section.wireName] ?: 0}"
         else -> "Registros visibles: ${overview.counts[section.wireName] ?: 0}"
     }
     Text(detail, modifier = Modifier.padding(top = 8.dp))
-}
-
-@Composable private fun AdministrationCard(section: AdministrationSection, count: Int?, onSection: (AdministrationSection) -> Unit) {
-    Card(onClick = { onSection(section) }, colors = CardDefaults.cardColors(containerColor = Color(0xFF101E33)), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(17.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(Modifier.weight(1f)) { Text(section.title, fontWeight = FontWeight.Bold); Text(section.description, style = MaterialTheme.typography.bodySmall, color = Color(0xFF91A5BF)); if (count != null) Text("$count registros", color = Color(0xFF37B8FF), style = MaterialTheme.typography.labelMedium) }
-            Text("›", style = MaterialTheme.typography.headlineSmall, color = Color(0xFF37B8FF))
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

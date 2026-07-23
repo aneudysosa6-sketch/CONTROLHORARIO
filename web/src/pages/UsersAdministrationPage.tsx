@@ -66,6 +66,13 @@ export function UsersAdministrationPage({
   const [username, setUsername] = useState('');
   const [roleId, setRoleId] = useState('');
   const [status, setStatus] = useState<ManagedAccessStatus>('active');
+  const [creating, setCreating] = useState(false);
+  const [newEmployeeId, setNewEmployeeId] = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRoleId, setNewRoleId] = useState('');
+  const [newStatus, setNewStatus] = useState<ManagedAccessStatus>('active');
+  const [createError, setCreateError] = useState('');
 
   async function load() {
     setLoading(true);
@@ -236,6 +243,57 @@ export function UsersAdministrationPage({
     if (saved) navigate('/accesos');
   }
 
+  function openCreateDialog() {
+    setNewEmployeeId('');
+    setNewUsername('');
+    setNewPassword('');
+    setNewRoleId('');
+    setNewStatus('active');
+    setCreateError('');
+    setCreating(true);
+  }
+
+  function closeCreateDialog() {
+    if (busy) return;
+    setCreating(false);
+    setCreateError('');
+  }
+
+  async function createAccess(event: FormEvent) {
+    event.preventDefault();
+    const normalizedUsername = newUsername.trim().toLowerCase();
+    if (!newEmployeeId || !normalizedUsername || !newPassword || !newRoleId || !newStatus) {
+      setCreateError('Empleado, usuario, contraseña, rol y estado son obligatorios.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedUsername)) {
+      setCreateError('El usuario debe ser un correo válido para Supabase Auth.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setCreateError('La contraseña debe contener al menos 8 caracteres.');
+      return;
+    }
+    setBusy(true);
+    setCreateError('');
+    try {
+      await userProvisioningService.createAccess({
+        employee_id: newEmployeeId,
+        username: normalizedUsername,
+        password: newPassword,
+        role_id: newRoleId,
+        status: newStatus,
+      });
+      setCreating(false);
+      setMessage('Usuario creado correctamente.');
+      await load();
+    } catch (failure) {
+      setCreateError(failure instanceof Error ? failure.message : 'No fue posible crear el usuario.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (mode === 'view' && id) return <Navigate to={`/accesos/${id}/editar`} replace />;
   if (loading) return <Empty text="Cargando accesos…" />;
 
@@ -291,7 +349,7 @@ export function UsersAdministrationPage({
       eyebrow="IDENTIDAD Y SEGURIDAD"
       title="Accesos"
       description="Credenciales vinculadas a empleados, roles y estados de Supabase Auth."
-      action={canCreate ? <Link className="primary" to="/accesos/nuevo"><Plus />Nuevo acceso</Link> : undefined}
+      action={canCreate ? <button type="button" className="primary" onClick={openCreateDialog}><Plus />Crear usuario</button> : undefined}
     />
     {error && <div className="error" role="alert">{error}</div>}
     <div className="toolbar access-toolbar">
@@ -328,6 +386,39 @@ export function UsersAdministrationPage({
         {passwordError && <div className="error" role="alert">{passwordError}</div>}
         <label>Nueva contraseña<input autoFocus type="password" autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
         <div className="button-row"><button type="button" className="secondary" onClick={closePasswordDialog}>Cancelar</button><button className="primary" disabled={busy}>{busy ? 'Actualizando…' : 'Cambiar contraseña'}</button></div>
+      </form>
+    </div>}
+    {creating && <div className="access-dialog-backdrop" role="presentation">
+      <form className="panel access-dialog" role="dialog" aria-modal="true" aria-labelledby="create-user-title" onSubmit={createAccess}>
+        <div className="panel-title"><div><span className="eyebrow">USUARIOS</span><h2 id="create-user-title">Crear usuario</h2><p>Vincula un empleado, un rol y sus credenciales desde este módulo.</p></div><button type="button" className="icon" aria-label="Cerrar diálogo" disabled={busy} onClick={closeCreateDialog}><X /></button></div>
+        {createError && <div className="error" role="alert">{createError}</div>}
+        <div className="form-grid access-form-grid">
+          <label>Empleado
+            <select value={newEmployeeId} onChange={(event) => setNewEmployeeId(event.target.value)} required>
+              <option value="">Seleccionar empleado</option>
+              {catalog.employees.filter((employee) => !employee.perfil_id).map((employee) => <option key={employee.id} value={employee.id}>{employee.codigo_empleado} · {employee.nombre_completo}</option>)}
+            </select>
+          </label>
+          <label>Usuario
+            <input autoFocus type="email" autoComplete="username" value={newUsername} onChange={(event) => setNewUsername(event.target.value)} placeholder="usuario@empresa.com" required />
+          </label>
+          <label>Contraseña
+            <input type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+          </label>
+          <label>Rol
+            <select value={newRoleId} onChange={(event) => setNewRoleId(event.target.value)} required>
+              <option value="">Seleccionar rol</option>
+              {catalog.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+            </select>
+          </label>
+          <label>Estado
+            <select value={newStatus} onChange={(event) => setNewStatus(event.target.value as ManagedAccessStatus)} required>
+              <option value="active">Activo</option><option value="inactive">Inactivo</option><option value="suspended">Suspendido</option>
+            </select>
+          </label>
+        </div>
+        {!catalog.employees.some((employee) => !employee.perfil_id) && <div className="access-empty-note">No hay empleados activos sin usuario. Crea o libera un empleado antes de continuar.</div>}
+        <div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={closeCreateDialog}>Cancelar</button><button className="primary" disabled={busy || !catalog.employees.some((employee) => !employee.perfil_id)}>{busy ? 'Creando…' : 'Crear usuario'}</button></div>
       </form>
     </div>}
     <Toast message={message} />

@@ -22,6 +22,8 @@ class EmployeeRepository(
 ) {
     fun getAllEmployees(): Flow<List<Employee>> = employeeDao.getAllEmployees()
 
+    fun getTerminatedEmployees(): Flow<List<Employee>> = employeeDao.getTerminatedEmployees()
+
     fun getEmployeeById(employeeId: Int): Flow<Employee?> = employeeDao.getEmployeeById(employeeId)
 
     suspend fun findActiveByLocalId(employeeId: Int): Employee? =

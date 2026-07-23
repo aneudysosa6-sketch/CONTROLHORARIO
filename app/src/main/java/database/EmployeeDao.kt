@@ -24,6 +24,9 @@ interface EmployeeDao {
     @Query("SELECT * FROM employees WHERE isActive = 1 AND LOWER(TRIM(employmentStatus)) != 'desvinculado' ORDER BY id DESC")
     fun getAllEmployees(): Flow<List<Employee>>
 
+    @Query("SELECT * FROM employees WHERE isActive = 0 OR LOWER(TRIM(employmentStatus)) = 'desvinculado' ORDER BY updatedAt DESC")
+    fun getTerminatedEmployees(): Flow<List<Employee>>
+
     @Query("SELECT * FROM employees WHERE id = :employeeId LIMIT 1")
     fun getEmployeeById(employeeId: Int): Flow<Employee?>
 

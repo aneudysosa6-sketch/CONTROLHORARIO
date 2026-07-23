@@ -41,7 +41,7 @@ class PendingAttendanceReviewViewModel(
 
     init {
         viewModelScope.launch {
-            reviewRepository.getPending().collect { _reviews.value = it }
+            reviewRepository.getAll().collect { _reviews.value = it }
         }
         viewModelScope.launch {
             attendanceRepository.getAllAttendanceRecords().collect { _attendanceRecords.value = it }

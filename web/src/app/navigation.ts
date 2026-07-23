@@ -1,16 +1,11 @@
 import {
   AlertTriangle,
-  BarChart3,
-  CalendarCheck2,
   CalendarClock,
-  Calculator,
   Clock3,
   CreditCard,
-  FileBarChart,
-  HandCoins,
-  History,
   LayoutDashboard,
   ListChecks,
+  MonitorCog,
   Settings,
   ShieldCheck,
   Smartphone,
@@ -20,15 +15,19 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+/**
+ * The sidebar is deliberately limited to the operating model of the product.
+ * Other routes may still be opened by contextual actions, but they are not
+ * duplicate modules in the main navigation.
+ */
 export type NavigationSection =
-  | 'Inicio'
-  | 'Personal'
-  | 'Tiempo'
-  | 'Nómina'
-  | 'Eventos'
-  | 'Reportes'
-  | 'Organización'
-  | 'Administración';
+  | 'Dashboard'
+  | 'PERSONAL'
+  | 'OPERACIONES'
+  | 'NÓMINA'
+  | 'ORGANIZACIÓN'
+  | 'SEGURIDAD'
+  | 'CONFIGURACIÓN';
 
 export interface NavigationItem {
   to: string;
@@ -41,8 +40,8 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   {
     to: '/dashboard',
-    label: 'Dashboard ejecutivo',
-    section: 'Inicio',
+    label: 'Dashboard',
+    section: 'Dashboard',
     permission: 'dashboard.view',
     icon: LayoutDashboard,
   },
@@ -50,337 +49,156 @@ export const navigationItems: NavigationItem[] = [
   {
     to: '/empleados',
     label: 'Empleados',
-    section: 'Personal',
-    permission: 'empleados.view',
+    section: 'PERSONAL',
+    permission: ['empleados.view', 'empleados.ver_asignados'],
     icon: Users,
+  },
+  {
+    to: '/accesos',
+    label: 'Usuarios',
+    section: 'PERSONAL',
+    permission: ['usuarios.view', 'usuarios.administrar'],
+    icon: UserCog,
   },
   {
     to: '/empleados/bajas',
     label: 'Empleados dados de baja',
-    section: 'Personal',
+    section: 'PERSONAL',
     permission: ['empleados.view', 'reportes.empleados_baja'],
     icon: UserX,
-  },
-  {
-    to: '/equipo',
-    label: 'Mi equipo',
-    section: 'Personal',
-    permission: 'empleados.ver_asignados',
-    icon: Users,
-  },
-  {
-    to: '/supervisores',
-    label: 'Supervisores',
-    section: 'Personal',
-    permission: 'supervisores.view',
-    icon: UserCog,
   },
 
   {
     to: '/asistencia',
     label: 'Asistencia',
-    section: 'Tiempo',
-    permission: 'jornadas.ver_todas',
+    section: 'OPERACIONES',
+    permission: ['jornadas.ver_todas', 'jornadas.ver_asignadas'],
     icon: Clock3,
   },
   {
     to: '/jornadas',
     label: 'Jornadas',
-    section: 'Tiempo',
-    permission: 'jornadas.ver_todas',
+    section: 'OPERACIONES',
+    permission: ['jornadas.ver_todas', 'jornadas.ver_asignadas'],
     icon: CalendarClock,
   },
   {
-    to: '/supervisor/jornadas',
-    label: 'Jornadas asignadas',
-    section: 'Tiempo',
-    permission: 'jornadas.ver_asignadas',
-    icon: CalendarClock,
-  },
-  {
-    to: '/supervisor/pendientes',
-    label: 'Pendientes',
-    section: 'Tiempo',
-    permission: 'jornadas.ver_asignadas',
-    icon: ListChecks,
-  },
-  {
-    to: '/supervisor/auditoria',
-    label: 'Auditoría operativa',
-    section: 'Tiempo',
-    permission: 'jornadas.ver_asignadas',
-    icon: ShieldCheck,
-  },
-  {
-    to: '/supervisor/incidencias',
-    label: 'Incidencias asignadas',
-    section: 'Tiempo',
-    permission: 'incidencias.ver_asignadas',
+    to: '/incidencias',
+    label: 'Incidencias',
+    section: 'OPERACIONES',
+    permission: ['eventos.view', 'incidencias.ver_asignadas'],
     icon: AlertTriangle,
   },
   {
-    to: '/supervisor/horarios',
-    label: 'Horarios asignados',
-    section: 'Tiempo',
-    permission: 'horarios.ver_asignados',
-    icon: Clock3,
-  },
-  {
-    to: '/kiosco',
-    label: 'Modo kiosco',
-    section: 'Tiempo',
-    permission: 'asistencia.registrar_propia',
-    icon: BarChart3,
+    to: '/pendientes',
+    label: 'Pendientes',
+    section: 'OPERACIONES',
+    permission: ['jornadas.ver_todas', 'jornadas.ver_asignadas'],
+    icon: ListChecks,
   },
 
   {
     to: '/nomina',
     label: 'Procesamiento',
-    section: 'Nómina',
+    section: 'NÓMINA',
     permission: 'nomina.ver',
-    icon: Calculator,
+    icon: Settings,
   },
   {
     to: '/nomina/descuentos',
     label: 'Descuentos',
-    section: 'Nómina',
+    section: 'NÓMINA',
     permission: 'nomina.descuentos',
-    icon: Calculator,
+    icon: Settings,
   },
   {
     to: '/nomina/pagos',
     label: 'Pagos',
-    section: 'Nómina',
+    section: 'NÓMINA',
     permission: 'nomina.ver',
     icon: CreditCard,
-  },
-  {
-    to: '/nomina/cierre',
-    label: 'Cierre de nómina',
-    section: 'Nómina',
-    permission: 'nomina.cierre',
-    icon: ShieldCheck,
-  },
-  {
-    to: '/nomina/historial',
-    label: 'Historial de nómina',
-    section: 'Nómina',
-    permission: 'nomina.historial',
-    icon: History,
-  },
-  {
-    to: '/prestamos',
-    label: 'Préstamos',
-    section: 'Nómina',
-    permission: 'prestamos.ver',
-    icon: HandCoins,
-  },
-  {
-    to: '/prestamos/historial',
-    label: 'Historial de préstamos',
-    section: 'Nómina',
-    permission: 'prestamos.historial',
-    icon: History,
-  },
-  {
-    to: '/nomina/solicitudes',
-    label: 'Solicitudes de préstamos',
-    section: 'Nómina',
-    permission: 'prestamos.solicitudes_ver',
-    icon: ListChecks,
-  },
-  {
-    to: '/nomina?vista=creditos',
-    label: 'Créditos',
-    section: 'Nómina',
-    permission: 'nomina.ver',
-    icon: CreditCard,
-  },
-
-  {
-    to: '/eventos',
-    label: 'Eventos e incidencias',
-    section: 'Eventos',
-    permission: 'eventos.view',
-    icon: AlertTriangle,
-  },
-
-  {
-    to: '/reportes',
-    label: 'Centro de reportes',
-    section: 'Reportes',
-    permission: 'reportes.ver',
-    icon: FileBarChart,
-  },
-  {
-    to: '/reportes/jornadas',
-    label: 'Reporte de jornadas',
-    section: 'Reportes',
-    permission: 'reportes.jornadas',
-    icon: CalendarClock,
-  },
-  {
-    to: '/reportes/asistencia',
-    label: 'Reporte de asistencia',
-    section: 'Reportes',
-    permission: 'reportes.asistencia',
-    icon: CalendarCheck2,
-  },
-  {
-    to: '/reportes/horas-extras',
-    label: 'Reporte de horas extras',
-    section: 'Reportes',
-    permission: 'reportes.horas_extras',
-    icon: Clock3,
-  },
-  {
-    to: '/reportes/nomina',
-    label: 'Reporte de nómina',
-    section: 'Reportes',
-    permission: 'reportes.nomina',
-    icon: Calculator,
-  },
-  {
-    to: '/reportes/prestamos',
-    label: 'Reporte de préstamos',
-    section: 'Reportes',
-    permission: 'reportes.prestamos',
-    icon: HandCoins,
-  },
-  {
-    to: '/reportes/productividad',
-    label: 'Reporte de productividad',
-    section: 'Reportes',
-    permission: 'reportes.productividad',
-    icon: BarChart3,
-  },
-  {
-    to: '/reportes/incidencias',
-    label: 'Reporte de incidencias',
-    section: 'Reportes',
-    permission: 'reportes.incidencias',
-    icon: AlertTriangle,
-  },
-  {
-    to: '/reportes/dias-festivos',
-    label: 'Días festivos trabajados',
-    section: 'Reportes',
-    permission: 'reportes.dias_festivos',
-    icon: CalendarCheck2,
-  },
-  {
-    to: '/reportes/permisos',
-    label: 'Permisos y licencias',
-    section: 'Reportes',
-    permission: 'reportes.permisos',
-    icon: FileBarChart,
   },
 
   {
     to: '/empresas',
     label: 'Empresas',
-    section: 'Organización',
+    section: 'ORGANIZACIÓN',
     permission: 'empresas.view',
     icon: Settings,
   },
   {
     to: '/sucursales',
     label: 'Sucursales',
-    section: 'Organización',
+    section: 'ORGANIZACIÓN',
     permission: 'sucursales.view',
     icon: Settings,
   },
   {
     to: '/departamentos',
     label: 'Departamentos',
-    section: 'Organización',
+    section: 'ORGANIZACIÓN',
     permission: 'departamentos.view',
     icon: Settings,
-  },
-
-  {
-    to: '/administracion',
-    label: 'Administración del sistema',
-    section: 'Administración',
-    permission: ['configuracion.administrar', 'configuracion.ver'],
-    icon: Settings,
-  },
-  {
-    to: '/accesos',
-    label: 'Accesos',
-    section: 'Administración',
-    permission: ['usuarios.view', 'usuarios.administrar'],
-    icon: UserCog,
-  },
-  {
-    to: '/administracion/accesos',
-    label: 'Roles y permisos',
-    section: 'Administración',
-    permission: [
-      'usuarios.administrar',
-      'roles.administrar',
-      'permisos.administrar',
-    ],
-    icon: ShieldCheck,
   },
   {
     to: '/administracion/cargos',
     label: 'Cargos',
-    section: 'Administración',
+    section: 'ORGANIZACIÓN',
     permission: ['configuracion.administrar', 'configuracion.cargos'],
     icon: UserCog,
   },
+
   {
-    to: '/administracion/horarios',
-    label: 'Configuración de horarios',
-    section: 'Administración',
-    permission: ['configuracion.administrar', 'configuracion.horarios'],
-    icon: CalendarClock,
-  },
-  {
-    to: '/administracion/jornadas',
-    label: 'Configuración de jornadas',
-    section: 'Administración',
-    permission: ['configuracion.administrar', 'configuracion.jornadas'],
-    icon: Clock3,
-  },
-  {
-    to: '/administracion/seguridad',
-    label: 'Seguridad y auditoría',
-    section: 'Administración',
-    permission: ['configuracion.administrar', 'configuracion.seguridad'],
+    to: '/administracion/accesos',
+    label: 'Roles y permisos',
+    section: 'SEGURIDAD',
+    permission: ['usuarios.administrar', 'roles.administrar', 'permisos.administrar'],
     icon: ShieldCheck,
-  },
-  {
-    to: '/administracion/apariencia',
-    label: 'Apariencia',
-    section: 'Administración',
-    permission: ['configuracion.administrar', 'configuracion.apariencia'],
-    icon: Settings,
-  },
-  {
-    to: '/accesos/nuevo',
-    label: 'Nuevo acceso',
-    section: 'Administración',
-    permission: ['usuarios.create', 'usuarios.administrar'],
-    icon: UserCog,
   },
   {
     to: '/administracion/dispositivos',
     label: 'Dispositivos Android',
-    section: 'Administración',
+    section: 'SEGURIDAD',
     permission: 'dispositivos.ver',
     icon: Smartphone,
+  },
+  {
+    to: '/administracion/seguridad',
+    label: 'Seguridad y auditoría',
+    section: 'SEGURIDAD',
+    permission: ['configuracion.administrar', 'configuracion.seguridad'],
+    icon: ShieldCheck,
+  },
+
+  {
+    to: '/administracion/horarios',
+    label: 'Horarios',
+    section: 'CONFIGURACIÓN',
+    permission: ['configuracion.administrar', 'configuracion.horarios', 'horarios.ver_asignados'],
+    icon: CalendarClock,
+  },
+  {
+    to: '/administracion/jornadas',
+    label: 'Jornadas',
+    section: 'CONFIGURACIÓN',
+    permission: ['configuracion.administrar', 'configuracion.jornadas'],
+    icon: Clock3,
+  },
+  {
+    to: '/kiosco',
+    label: 'Modo kiosco',
+    section: 'CONFIGURACIÓN',
+    permission: 'asistencia.registrar_propia',
+    icon: MonitorCog,
   },
 ];
 
 export const navigationSections: NavigationSection[] = [
-  'Inicio',
-  'Personal',
-  'Tiempo',
-  'Nómina',
-  'Eventos',
-  'Reportes',
-  'Organización',
-  'Administración',
+  'Dashboard',
+  'PERSONAL',
+  'OPERACIONES',
+  'NÓMINA',
+  'ORGANIZACIÓN',
+  'SEGURIDAD',
+  'CONFIGURACIÓN',
 ];

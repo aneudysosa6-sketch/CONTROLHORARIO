@@ -11,6 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.controlhorario.database.SupervisorWorkScheduleEntity
+import com.example.controlhorario.model.Employee
+import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.model.WorkScheduleTemplate
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETTextField
@@ -18,9 +21,12 @@ import com.example.controlhorario.ui.components.OSINETTextField
 @Composable
 fun WorkScheduleTemplateScreen(
     viewModel: WorkScheduleTemplateViewModel,
+    employees: List<Employee>,
+    assignedSchedules: List<SupervisorWorkScheduleEntity>,
     onBack: () -> Unit
 ) {
     val templates by viewModel.templates.collectAsState()
+    val currentUser by UserSessionManager.currentUser.collectAsState()
 
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
@@ -39,6 +45,18 @@ fun WorkScheduleTemplateScreen(
     var domingo by remember { mutableStateOf(false) }
 
     var mensaje by remember { mutableStateOf("") }
+    var teamOnly by remember { mutableStateOf(false) }
+    val hasTeamScope = (currentUser?.departmentId ?: 0) > 0 || (currentUser?.branchId ?: 0) > 0
+    val employeeById = employees.associateBy(Employee::id)
+    val visibleAssignedSchedules = assignedSchedules.filter { schedule ->
+        !teamOnly || employeeById[schedule.employeeId]?.let { employee ->
+            when {
+                (currentUser?.departmentId ?: 0) > 0 -> employee.departmentId == currentUser?.departmentId
+                (currentUser?.branchId ?: 0) > 0 -> employee.branchId == currentUser?.branchId
+                else -> false
+            }
+        } == true
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -46,9 +64,45 @@ fun WorkScheduleTemplateScreen(
             .padding(24.dp)
     ) {
         item {
+            Text(text = "Horarios", style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Horarios asignados", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { teamOnly = false },
+                    modifier = Modifier.weight(1f),
+                    enabled = teamOnly,
+                ) { Text("Todos") }
+                OutlinedButton(
+                    onClick = { teamOnly = true },
+                    modifier = Modifier.weight(1f),
+                    enabled = !teamOnly,
+                ) { Text("Solo mi equipo") }
+            }
+            if (teamOnly && !hasTeamScope) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("No tienes un departamento o sucursal asignados para filtrar tu equipo.")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            if (visibleAssignedSchedules.isEmpty()) {
+                Text(if (teamOnly) "No hay horarios asignados a tu equipo." else "No hay horarios de empleados asignados.")
+            } else {
+                visibleAssignedSchedules.forEach { schedule ->
+                    val employee = employeeById[schedule.employeeId]
+                    Text(employee?.nombre ?: "Empleado ${schedule.employeeId}")
+                    Text("${schedule.startTime} - ${schedule.endTime} · Almuerzo ${schedule.lunchOutTime} - ${schedule.lunchInTime}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = "Plantillas de Jornada",
-                style = MaterialTheme.typography.headlineMedium
+                text = "Plantillas de jornada",
+                style = MaterialTheme.typography.titleMedium
             )
 
             Spacer(modifier = Modifier.height(16.dp))

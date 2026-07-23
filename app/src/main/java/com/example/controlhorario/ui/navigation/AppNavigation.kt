@@ -93,7 +93,6 @@ import com.example.controlhorario.ui.attendance.AttendanceViewModelFactory
 import com.example.controlhorario.ui.administration.AdministrationSection
 import com.example.controlhorario.ui.administration.AdministrationState
 import com.example.controlhorario.ui.administration.SystemAdministrationDetailScreen
-import com.example.controlhorario.ui.administration.SystemAdministrationScreen
 import com.example.controlhorario.ui.administration.SystemAdministrationViewModel
 import com.example.controlhorario.ui.administration.SystemAdministrationViewModelFactory
 import com.example.controlhorario.ui.administration.KioskFaceAuthAdminScreen
@@ -195,9 +194,6 @@ import com.example.controlhorario.ui.settings.PayrollSettingsViewModelFactory
 import com.example.controlhorario.ui.settings.WorkScheduleTemplateScreen
 import com.example.controlhorario.ui.settings.WorkScheduleTemplateViewModel
 import com.example.controlhorario.ui.settings.WorkScheduleTemplateViewModelFactory
-import com.example.controlhorario.ui.supervisors.SupervisorAdminScreen
-import com.example.controlhorario.ui.supervisors.SupervisorAdminViewModel
-import com.example.controlhorario.ui.supervisors.SupervisorAdminViewModelFactory
 import com.example.controlhorario.ui.supervisors.SupervisorLoginScreen
 import com.example.controlhorario.ui.supervisors.SupervisorHomeScreen
 import com.example.controlhorario.ui.supervisors.SupervisorJornadasScreen
@@ -462,25 +458,23 @@ fun AppNavigation(
             AdminHomeScreen(
                 onDashboard = { navController.navigate(Route.ADMIN_DASHBOARD) },
                 onEmployees = { navController.navigate(Route.EMPLOYEES_MENU) },
+                onUsers = { navController.navigate(Route.ADMIN_USUARIOS) },
+                onTerminatedEmployees = { navController.navigate(Route.EMPLOYEE_TERMINATED) },
                 onAttendance = { navController.navigate(Route.ATTENDANCE) },
-                onGeneralPayroll = { navController.navigate(Route.GENERAL_PAYROLL) },
-                onSupervisors = { navController.navigate(Route.SUPERVISORS_ADMIN) },
-                onReports = { navController.navigate(Route.REPORTS_MENU) },
-                onSettings = { navController.navigate(Route.SETTINGS_MENU) },
-                onVacations = { navController.navigate(Route.VACATIONS_MENU) },
-                onLoans = { navController.navigate(Route.LOANS_MENU) },
-                onFingerprint = { navController.navigate(Route.FINGERPRINTS) },
-                onPermissions = { navController.navigate(Route.PERMISSIONS) },
-                onEmployeePermissions = { navController.navigate(Route.EMPLOYEE_PERMISSION_REQUESTS) },
+                onJourneys = { navController.navigate(Route.ADMIN_JORNADAS) },
                 onIncidents = { navController.navigate(Route.INCIDENTS_CENTER) },
-                onEmployeePortal = { navController.navigate(Route.EMPLOYEE_PORTAL) },
-                onBranchManager = { navController.navigate(Route.BRANCH_MANAGER_PANEL) },
-                onEmployeeMode = {
-                    KioskModeManager.activate()
-                    UserSessionManager.logout()
-                    navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
-                },
-                onKioskFaceAuthSettings = { navController.navigate(Route.KIOSK_FACE_AUTH_SETTINGS) },
+                onPending = { navController.navigate(Route.PENDING_OPERATIONS) },
+                onPayrollProcessing = { navController.navigate(Route.GENERAL_PAYROLL) },
+                onPayrollDiscounts = { navController.navigate(Route.PAYROLL_DISCOUNTS) },
+                onPayrollPayments = { navController.navigate(Route.GENERAL_PAYROLL) },
+                onCompany = { navController.navigate(Route.COMPANY_SETTINGS) },
+                onBranches = { navController.navigate(Route.BRANCHES) },
+                onDepartments = { navController.navigate(Route.DEPARTMENTS) },
+                onPositions = { navController.navigate(Route.ADMIN_CARGOS) },
+                onRolesAndPermissions = { navController.navigate(Route.USER_PERMISSIONS_ADMIN) },
+                onAndroidDevices = { navController.navigate(Route.ADMIN_DISPOSITIVOS) },
+                onSecurityAudit = { navController.navigate(Route.ADMIN_SEGURIDAD) },
+                onSchedules = { navController.navigate(Route.WORK_SCHEDULE) },
                 onKioskDeviceSettings = { navController.navigate(Route.KIOSK_DEVICE_SETTINGS) },
                 onLogout = logout
             )
@@ -926,6 +920,20 @@ fun AppNavigation(
             )
         }
 
+        composable(Route.EMPLOYEE_TERMINATED) {
+            val context = LocalContext.current
+            val db = DatabaseProvider.getDatabase(context)
+            val vm: EmployeeViewModel = viewModel(
+                factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
+            )
+            EmployeeListScreen(
+                viewModel = vm,
+                directoryScope = com.example.controlhorario.ui.employees.EmployeeDirectoryScope.TERMINATED,
+                onEmployeeClick = { employeeId -> navController.navigate("${Route.EMPLOYEE_PROFILE}/$employeeId") },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
         composable(
             route = "${Route.EMPLOYEE_PROFILE}/{employeeId}",
             arguments = listOf(navArgument("employeeId") { type = NavType.IntType })
@@ -943,9 +951,10 @@ fun AppNavigation(
                 factory = DepartmentViewModelFactory(DepartmentRepository(db.departmentDao()))
             )
             val employees by employeeVm.employees.collectAsState()
+            val terminatedEmployees by employeeVm.terminatedEmployees.collectAsState()
             val branches by branchVm.branches.collectAsState()
             val departments by departmentVm.departments.collectAsState()
-            val employee = employees.firstOrNull { it.id == employeeId }
+            val employee = (employees + terminatedEmployees).firstOrNull { it.id == employeeId }
             EmployeeProfileScreen(
                 employee = employee,
                 branches = branches,
@@ -1245,51 +1254,11 @@ fun AppNavigation(
             )
         }
 
-        composable(Route.SUPERVISORS_ADMIN) {
-            val context = LocalContext.current
-            val db = DatabaseProvider.getDatabase(context)
-            val vm: SupervisorAdminViewModel = viewModel(
-                factory = SupervisorAdminViewModelFactory(
-                    supervisorRepository = SupervisorRepository(db.supervisorDao()),
-                    branchRepository = BranchRepository(db.branchDao()),
-                    departmentRepository = DepartmentRepository(db.departmentDao())
-                )
-            )
-            SupervisorAdminScreen(vm, onBack = { navController.popBackStack() })
-        }
-
-        composable(Route.SETTINGS_MENU) {
-            SystemAdministrationRoute(
-                onSection = { section ->
-                    navController.navigate(
-                        when (section) {
-                            AdministrationSection.COMPANY -> Route.ADMIN_EMPRESA
-                            AdministrationSection.BRANCHES -> Route.ADMIN_SUCURSALES
-                            AdministrationSection.DEPARTMENTS -> Route.ADMIN_DEPARTAMENTOS
-                            AdministrationSection.POSITIONS -> Route.ADMIN_CARGOS
-                            AdministrationSection.USERS -> Route.ADMIN_USUARIOS
-                            AdministrationSection.SCHEDULES -> Route.ADMIN_HORARIOS
-                            AdministrationSection.JOURNEYS -> Route.ADMIN_JORNADAS
-                            AdministrationSection.DEVICES -> Route.ADMIN_DISPOSITIVOS
-                            AdministrationSection.SECURITY -> Route.ADMIN_SEGURIDAD
-                            AdministrationSection.APPEARANCE -> Route.ADMIN_APARIENCIA
-                        }
-                    )
-                },
-                onBack = { navController.popBackStack() },
-            )
-        }
-
-        composable(Route.ADMIN_EMPRESA) { SystemAdministrationDetailRoute(AdministrationSection.COMPANY) { navController.popBackStack() } }
-        composable(Route.ADMIN_SUCURSALES) { SystemAdministrationDetailRoute(AdministrationSection.BRANCHES) { navController.popBackStack() } }
-        composable(Route.ADMIN_DEPARTAMENTOS) { SystemAdministrationDetailRoute(AdministrationSection.DEPARTMENTS) { navController.popBackStack() } }
         composable(Route.ADMIN_CARGOS) { SystemAdministrationDetailRoute(AdministrationSection.POSITIONS) { navController.popBackStack() } }
         composable(Route.ADMIN_USUARIOS) { AccessManagementRoute { navController.popBackStack() } }
-        composable(Route.ADMIN_HORARIOS) { SystemAdministrationDetailRoute(AdministrationSection.SCHEDULES) { navController.popBackStack() } }
         composable(Route.ADMIN_JORNADAS) { SystemAdministrationDetailRoute(AdministrationSection.JOURNEYS) { navController.popBackStack() } }
         composable(Route.ADMIN_DISPOSITIVOS) { SystemAdministrationDetailRoute(AdministrationSection.DEVICES) { navController.popBackStack() } }
         composable(Route.ADMIN_SEGURIDAD) { SystemAdministrationDetailRoute(AdministrationSection.SECURITY) { navController.popBackStack() } }
-        composable(Route.ADMIN_APARIENCIA) { SystemAdministrationDetailRoute(AdministrationSection.APPEARANCE) { navController.popBackStack() } }
 
         composable(Route.BRANCHES) {
             val context = LocalContext.current
@@ -1392,6 +1361,22 @@ fun AppNavigation(
             )
         }
 
+        composable(Route.PAYROLL_DISCOUNTS) {
+            PayrollDiscountsScreen(
+                onPayrollSettings = { navController.navigate(Route.PAYROLL_MENU) },
+                onLoans = { navController.navigate(Route.LOANS_MENU) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Route.PENDING_OPERATIONS) {
+            PendingOperationsScreen(
+                onEmployeeRequests = { navController.navigate(Route.EMPLOYEE_PERMISSION_REQUESTS) },
+                onVacations = { navController.navigate(Route.VACATIONS_MENU) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
         composable(Route.INCIDENTS_CENTER) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
@@ -1420,7 +1405,19 @@ fun AppNavigation(
             val vm: WorkScheduleTemplateViewModel = viewModel(
                 factory = WorkScheduleTemplateViewModelFactory(WorkScheduleTemplateRepository(db.workScheduleTemplateDao()))
             )
-            WorkScheduleTemplateScreen(vm) { navController.popBackStack() }
+            val employeeVm: EmployeeViewModel = viewModel(
+                factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
+            )
+            val employees by employeeVm.employees.collectAsState()
+            val assignedSchedules by remember(db) {
+                SupervisorWorkScheduleRepository(db.supervisorWorkScheduleDao()).getAll()
+            }.collectAsState(initial = emptyList())
+            WorkScheduleTemplateScreen(
+                viewModel = vm,
+                employees = employees,
+                assignedSchedules = assignedSchedules,
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable(Route.PAYROLL_SETTINGS) {
@@ -1503,76 +1500,210 @@ private fun EmployeeKioskScreen(
 private fun AdminHomeScreen(
     onDashboard: () -> Unit,
     onEmployees: () -> Unit,
+    onUsers: () -> Unit,
+    onTerminatedEmployees: () -> Unit,
     onAttendance: () -> Unit,
-    onGeneralPayroll: () -> Unit,
-    onSupervisors: () -> Unit,
-    onReports: () -> Unit,
-    onSettings: () -> Unit,
-    onVacations: () -> Unit,
-    onLoans: () -> Unit,
-    onFingerprint: () -> Unit,
-    onPermissions: () -> Unit,
-    onEmployeePermissions: () -> Unit,
+    onJourneys: () -> Unit,
     onIncidents: () -> Unit,
-    onEmployeePortal: () -> Unit,
-    onBranchManager: () -> Unit,
-    onEmployeeMode: () -> Unit,
-    onKioskFaceAuthSettings: () -> Unit,
+    onPending: () -> Unit,
+    onPayrollProcessing: () -> Unit,
+    onPayrollDiscounts: () -> Unit,
+    onPayrollPayments: () -> Unit,
+    onCompany: () -> Unit,
+    onBranches: () -> Unit,
+    onDepartments: () -> Unit,
+    onPositions: () -> Unit,
+    onRolesAndPermissions: () -> Unit,
+    onAndroidDevices: () -> Unit,
+    onSecurityAudit: () -> Unit,
+    onSchedules: () -> Unit,
     onKioskDeviceSettings: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
 ) {
     val sessionUser by UserSessionManager.currentUser.collectAsState()
     val permissionCsv = sessionUser?.permissionsCsv.orEmpty()
-    var permissionsEventOpened by remember { mutableStateOf(false) }
-    var portalEventOpened by remember { mutableStateOf(false) }
-    fun can(permission: String): Boolean = permissionCsv.isBlank() || permissionCsv.hasPermission(permission)
+    fun can(permission: String): Boolean =
+        permissionCsv.isBlank() || permissionCsv.hasPermission(permission)
 
     OSINETScreen {
-        OSINETLogo(subtitle = "Panel Administrador · Menú por permisos")
+        OSINETLogo(subtitle = "Panel Administrador")
         Spacer(Modifier.height(16.dp))
-        if (can(PermissionCatalog.DASHBOARD)) { OSINETActionCard("Dashboard", "Métricas operativas y jornadas recientes", onClick = onDashboard); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Empleados", "Gestión de perfiles, rostros y datos laborales", onClick = onEmployees); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Asistencia", "Registros y control diario", onClick = onAttendance); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEE_MODE)) { OSINETActionCard("Activar modo empleado", "Abrir identificación facial para empleados", onClick = onEmployeeMode); Spacer(Modifier.height(10.dp)) }
-        if (permissionCsv.hasPermission(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)) { OSINETActionCard("Autenticación del kiosco", "Administrar el código alternativo; el rostro continúa obligatorio", onClick = onKioskFaceAuthSettings); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.INCIDENTS)) { OSINETActionCard("Centro de Incidencias", "Jornadas pendientes y eventos nuevos", onClick = onIncidents); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.BRANCH_MANAGER)) { OSINETActionCard("Panel Encargado", "Eventos y empleados de mi sucursal", onClick = onBranchManager); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.PAYROLL)) { OSINETActionCard("GENERAL NÓMINA", "Generación, plantillas y exportación", onClick = onGeneralPayroll); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.REPORTS)) { OSINETActionCard("Reportes", "Consultas generales del sistema", onClick = onReports); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Administración del sistema", "Empresa, organización, accesos, seguridad y apariencia", onClick = onSettings); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.SETTINGS)) { OSINETActionCard("Configuración del Dispositivo", "Estado, contraseña de salida y modo kiosco empresarial", onClick = onKioskDeviceSettings); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.ATTENDANCE)) { OSINETActionCard("Vacaciones", "Solicitudes y seguimiento", onClick = onVacations); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.LOANS)) { OSINETActionCard("Préstamos", "Solicitudes, aprobación, entrega y balance", onClick = onLoans); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS)) { OSINETActionCard("Permisos Empleados", "Solicitudes, archivos, aprobación y rechazo", onClick = onEmployeePermissions); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEES)) { OSINETActionCard("Registro facial", "Registrar rostro", onClick = onFingerprint); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEE_MODE)) { OSINETActionCard("Permisos Supervisores", "Solicitudes preparadas para aprobación", onClick = onPermissions); Spacer(Modifier.height(10.dp)) }
-        if (can(PermissionCatalog.EMPLOYEE_PORTAL)) { OSINETNeonEventCard("Portal del Empleado", "Pagos, préstamos, historial y solicitudes", isNew = !portalEventOpened, onOpen = { portalEventOpened = true; onEmployeePortal() }); Spacer(Modifier.height(10.dp)) }
+
+        if (can(PermissionCatalog.DASHBOARD)) {
+            OSINETActionCard(
+                title = "Dashboard",
+                subtitle = "Métricas operativas y jornadas recientes",
+                onClick = onDashboard,
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+
+        MenuSectionHeader("PERSONAL")
+        if (can(PermissionCatalog.EMPLOYEES)) {
+            OSINETActionCard(
+                title = "Empleados",
+                subtitle = "Perfiles, datos laborales y filtro Solo mi equipo",
+                onClick = onEmployees,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Empleados dados de baja",
+                subtitle = "Consulta de empleados inactivos o desvinculados",
+                onClick = onTerminatedEmployees,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        if (can(PermissionCatalog.USER_PERMISSIONS) || can(PermissionCatalog.SETTINGS)) {
+            OSINETActionCard(
+                title = "Usuarios",
+                subtitle = "Cuentas, roles y estado de acceso",
+                onClick = onUsers,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        MenuSectionHeader("OPERACIONES")
+        if (can(PermissionCatalog.ATTENDANCE)) {
+            OSINETActionCard(
+                title = "Asistencia",
+                subtitle = "Registros y control diario",
+                onClick = onAttendance,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Jornadas",
+                subtitle = "Reglas y seguimiento operativo",
+                onClick = onJourneys,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        if (can(PermissionCatalog.INCIDENTS)) {
+            OSINETActionCard(
+                title = "Incidencias",
+                subtitle = "Todas, pendientes o asignadas a mí",
+                onClick = onIncidents,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS) || can(PermissionCatalog.ATTENDANCE)) {
+            OSINETActionCard(
+                title = "Pendientes",
+                subtitle = "Solicitudes de empleados y vacaciones por revisar",
+                onClick = onPending,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        MenuSectionHeader("NÓMINA")
+        if (can(PermissionCatalog.PAYROLL)) {
+            OSINETActionCard(
+                title = "Procesamiento",
+                subtitle = "Generación y exportación de nómina",
+                onClick = onPayrollProcessing,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Descuentos",
+                subtitle = "Configuración de descuentos y préstamos",
+                onClick = onPayrollDiscounts,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Pagos",
+                subtitle = "Resultado y archivos de la nómina generada",
+                onClick = onPayrollPayments,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        MenuSectionHeader("ORGANIZACIÓN")
+        if (can(PermissionCatalog.SETTINGS)) {
+            OSINETActionCard(
+                title = "Empresas",
+                subtitle = "Datos corporativos",
+                onClick = onCompany,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Sucursales",
+                subtitle = "Ubicaciones y encargados",
+                onClick = onBranches,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Departamentos",
+                subtitle = "Estructura organizacional",
+                onClick = onDepartments,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Cargos",
+                subtitle = "Cargos laborales y departamentos",
+                onClick = onPositions,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        MenuSectionHeader("SEGURIDAD")
+        if (can(PermissionCatalog.USER_PERMISSIONS) || can(PermissionCatalog.SETTINGS)) {
+            OSINETActionCard(
+                title = "Roles y permisos",
+                subtitle = "Roles asignados y permisos de acceso",
+                onClick = onRolesAndPermissions,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+        if (can(PermissionCatalog.SETTINGS)) {
+            OSINETActionCard(
+                title = "Dispositivos Android",
+                subtitle = "Dispositivos registrados y sincronización",
+                onClick = onAndroidDevices,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Seguridad y auditoría",
+                subtitle = "Sesión, auditoría y accesos",
+                onClick = onSecurityAudit,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        MenuSectionHeader("CONFIGURACIÓN")
+        if (can(PermissionCatalog.SETTINGS)) {
+            OSINETActionCard(
+                title = "Horarios",
+                subtitle = "Plantillas y filtro Solo mi equipo",
+                onClick = onSchedules,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Jornadas",
+                subtitle = "Reglas de registro y pendientes",
+                onClick = onJourneys,
+            )
+            Spacer(Modifier.height(10.dp))
+            OSINETActionCard(
+                title = "Modo kiosco",
+                subtitle = "Configuración y estado del dispositivo",
+                onClick = onKioskDeviceSettings,
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+
         Spacer(Modifier.height(8.dp))
         OSINETSecondaryButton("Cerrar sesión", onLogout)
     }
 }
 
 @Composable
-private fun SystemAdministrationRoute(
-    onSection: (AdministrationSection) -> Unit,
-    onBack: () -> Unit,
-) {
-    val principal by AuthSessionStore.principal.collectAsState()
-    val current = principal
-    if (current == null) {
-        SystemAdministrationScreen(
-            state = AdministrationState.Error("La sesión administrativa no está disponible."),
-            onSection = onSection,
-            onBack = onBack,
-        )
-        return
-    }
-    val vm: SystemAdministrationViewModel = viewModel(
-        key = "system-administration-${current.authUid}",
-        factory = SystemAdministrationViewModelFactory(current),
+private fun MenuSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft,
+        modifier = Modifier.fillMaxWidth(),
     )
-    val state by vm.state.collectAsState()
-    SystemAdministrationScreen(state = state, onSection = onSection, onBack = onBack)
+    Spacer(Modifier.height(8.dp))
 }
 
 @Composable
@@ -1813,6 +1944,62 @@ private fun EmployeePortalScreen(
 }
 
 @Composable
+private fun PayrollDiscountsScreen(
+    onPayrollSettings: () -> Unit,
+    onLoans: () -> Unit,
+    onBack: () -> Unit,
+) {
+    OSINETScreen {
+        OSINETHeader(
+            title = "Descuentos",
+            subtitle = "Configuración de descuentos y gestión de préstamos",
+        )
+        Spacer(Modifier.height(18.dp))
+        OSINETActionCard(
+            title = "Configuración de descuentos",
+            subtitle = "AFP, SFS, ISR y otros descuentos de nómina",
+            onClick = onPayrollSettings,
+        )
+        Spacer(Modifier.height(10.dp))
+        OSINETActionCard(
+            title = "Préstamos",
+            subtitle = "Solicitudes, aprobación, entrega y balance",
+            onClick = onLoans,
+        )
+        Spacer(Modifier.height(18.dp))
+        OSINETSecondaryButton("Volver", onBack)
+    }
+}
+
+@Composable
+private fun PendingOperationsScreen(
+    onEmployeeRequests: () -> Unit,
+    onVacations: () -> Unit,
+    onBack: () -> Unit,
+) {
+    OSINETScreen {
+        OSINETHeader(
+            title = "Pendientes",
+            subtitle = "Solicitudes operativas pendientes de revisión",
+        )
+        Spacer(Modifier.height(18.dp))
+        OSINETActionCard(
+            title = "Permisos de empleados",
+            subtitle = "Solicitudes, adjuntos, aprobación y rechazo",
+            onClick = onEmployeeRequests,
+        )
+        Spacer(Modifier.height(10.dp))
+        OSINETActionCard(
+            title = "Vacaciones",
+            subtitle = "Solicitudes y seguimiento",
+            onClick = onVacations,
+        )
+        Spacer(Modifier.height(18.dp))
+        OSINETSecondaryButton("Volver", onBack)
+    }
+}
+
+@Composable
 private fun ModuleScreen(title: String, detail: String, onBack: () -> Unit) {
     OSINETScreen {
         OSINETHeader(title = title, subtitle = detail)
@@ -1859,6 +2046,7 @@ private object Route {
     const val EMPLOYEE_ADD = "employee_add"
     const val EMPLOYEE_EDIT = "employee_edit"
     const val EMPLOYEE_LIST = "employee_list"
+    const val EMPLOYEE_TERMINATED = "employee_terminated"
     const val EMPLOYEE_SYNC_DASHBOARD = "employee_sync_dashboard"
     const val EMPLOYEE_PROFILE = "employee_profile"
     const val EMPLOYEE_FILE = "employee_file"
@@ -1871,25 +2059,20 @@ private object Route {
     const val ATTENDANCE = "attendance"
     const val PAYROLL_MENU = "payroll_menu"
     const val REPORTS_MENU = "reports_menu"
-    const val SETTINGS_MENU = "settings_menu"
-    const val ADMIN_EMPRESA = "admin_empresa"
-    const val ADMIN_SUCURSALES = "admin_sucursales"
-    const val ADMIN_DEPARTAMENTOS = "admin_departamentos"
     const val ADMIN_CARGOS = "admin_cargos"
     const val ADMIN_USUARIOS = "admin_usuarios"
-    const val ADMIN_HORARIOS = "admin_horarios"
     const val ADMIN_JORNADAS = "admin_jornadas"
     const val ADMIN_DISPOSITIVOS = "admin_dispositivos"
     const val ADMIN_SEGURIDAD = "admin_seguridad"
-    const val ADMIN_APARIENCIA = "admin_apariencia"
     const val VACATIONS_MENU = "vacations_menu"
     const val LOANS_MENU = "loans_menu"
     const val FINGERPRINTS = "fingerprints"
     const val PERMISSIONS = "permissions"
     const val EMPLOYEE_PERMISSION_REQUESTS = "employee_permission_requests"
     const val INCIDENTS_CENTER = "incidents_center"
+    const val PENDING_OPERATIONS = "pending_operations"
     const val GENERAL_PAYROLL = "general_payroll"
-    const val SUPERVISORS_ADMIN = "supervisors_admin"
+    const val PAYROLL_DISCOUNTS = "payroll_discounts"
     const val SUPERVISOR_LOGIN = "supervisor_login"
     const val SUPERVISOR_HOME = "supervisor_home"
     const val SUPERVISOR_JORNADAS = "supervisor_jornadas"

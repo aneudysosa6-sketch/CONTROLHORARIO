@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.AttendanceEntity
 import com.example.controlhorario.database.PendingAttendanceReviewEntity
 import com.example.controlhorario.engine.AttendanceAction
+import com.example.controlhorario.session.UserSessionManager
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETCard
 import com.example.controlhorario.ui.components.OSINETColors
@@ -26,6 +27,12 @@ import com.example.controlhorario.ui.components.OSINETHeader
 import com.example.controlhorario.ui.components.OSINETScreen
 import com.example.controlhorario.ui.components.OSINETSecondaryButton
 import com.example.controlhorario.ui.components.OSINETTextField
+
+private enum class IncidentFilter {
+    ALL,
+    PENDING,
+    ASSIGNED_TO_ME,
+}
 
 @Composable
 fun PendingAttendanceReviewScreen(
@@ -36,7 +43,9 @@ fun PendingAttendanceReviewScreen(
     val message by viewModel.message.collectAsState()
     val dashboardDate by viewModel.dashboardDate.collectAsState()
     val attendanceRecords by viewModel.attendanceRecords.collectAsState()
+    val currentUser by UserSessionManager.currentUser.collectAsState()
     var historyFilter by remember { mutableStateOf("") }
+    var incidentFilter by remember { mutableStateOf(IncidentFilter.ALL) }
     val dayRecords = attendanceRecords.filter { it.date == dashboardDate }
     val started = dayRecords.filter { it.actionType == AttendanceAction.INICIO_JORNADA.name }
     val pauses = dayRecords.filter { it.actionType == AttendanceAction.PAUSA.name }
@@ -46,12 +55,34 @@ fun PendingAttendanceReviewScreen(
             val last = records.maxByOrNull { it.id }
             if (last != null && last.actionType != AttendanceAction.FIN_JORNADA.name) last else null
         }
+    val filteredReviews = reviews.filter { review ->
+        when (incidentFilter) {
+            IncidentFilter.ALL -> true
+            IncidentFilter.PENDING -> review.status == PendingAttendanceReviewEntity.STATUS_PENDING
+            IncidentFilter.ASSIGNED_TO_ME -> assignedToCurrentUser(
+                review = review,
+                departmentId = currentUser?.departmentId ?: 0,
+                branchId = currentUser?.branchId ?: 0,
+            )
+        }
+    }
 
     OSINETScreen {
         OSINETHeader(
             title = "Centro de Incidencias",
             subtitle = "Jornadas pendientes clasificadas por gravedad"
         )
+        Spacer(Modifier.height(14.dp))
+        OSINETCard {
+            Text("Filtros", color = OSINETColors.TextPrimary, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OSINETButton("TODAS", onClick = { incidentFilter = IncidentFilter.ALL }, modifier = Modifier.weight(1f))
+                OSINETButton("PENDIENTES", onClick = { incidentFilter = IncidentFilter.PENDING }, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            OSINETButton("ASIGNADAS A MÍ", onClick = { incidentFilter = IncidentFilter.ASSIGNED_TO_ME })
+        }
         Spacer(Modifier.height(14.dp))
         OSINETButton("Ejecutar cierre de ayer", onClick = { viewModel.runClosureForYesterday() })
         Spacer(Modifier.height(8.dp))
@@ -97,13 +128,14 @@ fun PendingAttendanceReviewScreen(
         }
         Spacer(Modifier.height(18.dp))
 
-        val ordered = reviews.sortedWith(compareBy<PendingAttendanceReviewEntity> { severityOrder(it.severity) }.thenByDescending { it.createdAt })
+        val ordered = filteredReviews.sortedWith(compareBy<PendingAttendanceReviewEntity> { severityOrder(it.severity) }.thenByDescending { it.createdAt })
         if (ordered.isEmpty()) {
             OSINETCard { Text("No hay jornadas pendientes de aprobación.", color = OSINETColors.TextSecondary) }
         }
         ordered.forEach { review ->
             PendingReviewCard(
                 review = review,
+                canReview = review.status == PendingAttendanceReviewEntity.STATUS_PENDING,
                 onApprove = { viewModel.approve(review) },
                 onEdit = { viewModel.markEdited(review) },
                 onReject = { viewModel.reject(review) }
@@ -142,6 +174,7 @@ private fun AttendanceHistoryRow(
 @Composable
 private fun PendingReviewCard(
     review: PendingAttendanceReviewEntity,
+    canReview: Boolean,
     onApprove: () -> Unit,
     onEdit: () -> Unit,
     onReject: () -> Unit
@@ -155,6 +188,7 @@ private fun PendingReviewCard(
     OSINETCard {
         Text("$icon ${review.severity}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.Bold)
         Text("Empleado: ${review.employeeName}", color = OSINETColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+        Text("Estado: ${review.status}", color = OSINETColors.GreenSoft)
         Text("Código: ${review.employeeCode}", color = OSINETColors.TextSecondary)
         Text("Departamento: ${review.departmentName}", color = OSINETColors.TextSecondary)
         Text("Fecha: ${review.reviewDate}", color = OSINETColors.TextSecondary)
@@ -165,13 +199,25 @@ private fun PendingReviewCard(
         Text("Horas calculadas: ${"%.2f".format(review.calculatedHours)}", color = OSINETColors.Warning)
         Text("Motivo: ${review.reason}", color = OSINETColors.TextSecondary)
         Text("Notificación interna: pendiente de revisión", color = OSINETColors.GreenSoft)
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = onApprove) { Text("Aprobar") }
-            OutlinedButton(onClick = onEdit) { Text("Editar") }
-            OutlinedButton(onClick = onReject) { Text("Rechazar") }
+        if (canReview) {
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onApprove) { Text("Aprobar") }
+                OutlinedButton(onClick = onEdit) { Text("Editar") }
+                OutlinedButton(onClick = onReject) { Text("Rechazar") }
+            }
         }
     }
+}
+
+private fun assignedToCurrentUser(
+    review: PendingAttendanceReviewEntity,
+    departmentId: Int,
+    branchId: Int,
+): Boolean = when {
+    departmentId > 0 -> review.departmentId == departmentId
+    branchId > 0 -> review.branchId == branchId
+    else -> false
 }
 
 private fun severityOrder(severity: String): Int = when (severity) {

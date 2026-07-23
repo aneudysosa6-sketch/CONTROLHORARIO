@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { navigationItems, navigationSections } from '../app/navigation';
 import { useAuth } from '../context/AuthContext';
 import { createPermissionReader, isAdministratorRole, visibleNavigationItems } from '../infrastructure/permissions/permissionAdapter';
 import { BrandMark } from '../components/BrandMark';
 
 const dashboardShortcuts = [
-  { to: '/dashboard', label: 'Inicio' },
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/empleados', label: 'Empleados' },
+  { to: '/asistencia', label: 'Asistencia' },
   { to: '/jornadas', label: 'Jornadas' },
   { to: '/nomina', label: 'Nómina' },
-  { to: '/reportes', label: 'Reportes' },
-  { to: '/administracion', label: 'Configuración' },
 ] as const;
 
 export function AdminLayout() {
@@ -36,11 +35,10 @@ export function AdminLayout() {
     {navigationSections.map((section) => {
       const children = items.filter((item) => item.section === section);
       return children.length ? <div className="nav-section" key={section}>
-        <span>{section}</span>
+        {section !== 'Dashboard' && <span>{section}</span>}
         {children.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} className={current === to ? 'active' : undefined} onClick={afterNavigation}><Icon size={19} /><span>{label}</span></NavLink>)}
       </div> : null;
     })}
-    <div className="nav-section"><span>Cuenta</span><NavLink to="/cambiar-password" onClick={afterNavigation}><KeyRound size={19} /><span>Cambiar contraseña</span></NavLink></div>
   </>;
 
   useEffect(() => {

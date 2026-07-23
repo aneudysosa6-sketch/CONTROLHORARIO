@@ -1,9 +1,8 @@
 import type{PostgrestError}from'@supabase/supabase-js';
 import{getSupabaseClient}from'../../infrastructure/supabase/client';
 
-export type AdminSection='empresa'|'sucursales'|'departamentos'|'cargos'|'usuarios'|'horarios'|'jornadas'|'dispositivos'|'seguridad'|'apariencia';
-export type Company={id:string;name:string;legal_name:string|null;slug:string;tax_id:string|null;logo_url:string|null;address:string|null;email:string|null;phone:string|null;timezone:string;status:string;ui_preferences:Appearance};
-export type Appearance={theme:'dark'|'system';density:'comfortable'|'compact';primary:string;accent:string};
+export type AdminSection='empresa'|'sucursales'|'departamentos'|'cargos'|'usuarios'|'horarios'|'jornadas'|'dispositivos'|'seguridad';
+export type Company={id:string;name:string;legal_name:string|null;slug:string;tax_id:string|null;logo_url:string|null;address:string|null;email:string|null;phone:string|null;timezone:string;status:string};
 export type AdministrationOverview={company:Company;sections:Record<AdminSection,boolean>;counts:{branches:number;departments:number;positions:number;profiles:number;schedules:number;pending_journeys:number;devices:number;audit_events:number};session:{auth_uid:string;company_id:string;role:string}};
 export type Branch={id:string;company_id:string;name:string;code:string;address:string|null;phone:string|null;email:string|null;timezone:string|null;is_main:boolean;status:'active'|'inactive'};
 export type Department={id:string;company_id:string;branch_id:string|null;name:string;code:string;description:string|null;is_active:boolean};
@@ -33,7 +32,6 @@ export const administrationService={
  async saveRole(id:string|null,name:string,code:string,description:string,active:boolean,reason:string){const normalizedName=name.trim();const normalizedCode=code.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,'').replace(/_+/g,'_').replace(/^_+|_+$/g,'');if(!normalizedName)throw new AdministrationError('guardar_rol_administracion','ROLE_NAME_REQUIRED','El nombre del rol es obligatorio.');if(!normalizedCode)throw new AdministrationError('guardar_rol_administracion','ROLE_CODE_REQUIRED','El código del rol es obligatorio.');const payload={p_id:id,p_nombre:normalizedName,p_codigo:normalizedCode,p_descripcion:description.trim(),p_activo:active,p_motivo:reason.trim()||'Creación inicial de usuario'};if(import.meta.env.DEV)console.debug('[administration] guardar rol',{function:'guardar_rol_administracion',payload});try{const result=await rpc<string>('guardar_rol_administracion',payload);if(import.meta.env.DEV)console.debug('[administration] rol creado',{result});return result}catch(error){if(import.meta.env.DEV)console.error('[administration] error guardar rol',{payload,error});throw error}},
  setRolePermission:(roleId:string,permissionId:string,allowed:boolean,reason:string)=>rpc<void>('asignar_permiso_rol_administracion',{p_rol:roleId,p_permiso:permissionId,p_permitido:allowed,p_motivo:reason}),
  updateUserRole:(profileId:string,roleId:string,reason:string)=>rpc<void>('actualizar_rol_usuario_administracion',{p_perfil:profileId,p_rol:roleId,p_motivo:reason}),
- updateAppearance:(data:Appearance,reason:string)=>rpc<Appearance>('actualizar_apariencia_administracion',{p_preferencias:data,p_motivo:reason}),
  schedules:()=>rows<Schedule>('horarios_empleados','id,empleado_id,fecha_vigencia,fecha_fin,hora_entrada,hora_salida,inicio_almuerzo,duracion_almuerzo_min,dias_laborales,tolerancia_min,activo','fecha_vigencia'),
  audit:()=>rows<AuditEvent>('administracion_auditoria','id,actor_id,seccion,accion,entidad,entidad_id,motivo,fecha','fecha'),
 };

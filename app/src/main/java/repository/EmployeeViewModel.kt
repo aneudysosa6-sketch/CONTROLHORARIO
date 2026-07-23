@@ -22,6 +22,13 @@ class EmployeeViewModel(
             initialValue = emptyList()
         )
 
+    val terminatedEmployees = repository.getTerminatedEmployees()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     private val _lastCreatedEmployeeId = MutableStateFlow<Int?>(null)
     val lastCreatedEmployeeId: StateFlow<Int?> = _lastCreatedEmployeeId.asStateFlow()
 

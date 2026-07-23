@@ -47,6 +47,7 @@ fun AccessManagementScreen(
     var password by remember { mutableStateOf("") }
     var selectedRoleId by remember { mutableStateOf("") }
     var selectedStatus by remember { mutableStateOf(ACCESS_STATUS_ACTIVE) }
+    var creatingUser by remember { mutableStateOf(false) }
     var editingProfileId by remember { mutableStateOf<String?>(null) }
     var passwordTarget by remember { mutableStateOf<AccessAccount?>(null) }
     var replacementPassword by remember { mutableStateOf("") }
@@ -62,6 +63,7 @@ fun AccessManagementScreen(
             password = ""
             selectedRoleId = catalog?.roles?.firstOrNull()?.id.orEmpty()
             selectedStatus = ACCESS_STATUS_ACTIVE
+            creatingUser = false
             editingProfileId = null
         }
     }
@@ -93,9 +95,21 @@ fun AccessManagementScreen(
                     }
                     .sortedWith(compareBy(AccessEmployee::employeeCode, AccessEmployee::fullName))
 
-                if (capabilities.canCreate || editing != null) OSINETCard {
+                if (capabilities.canCreate && editing == null && !creatingUser) {
+                    OSINETButton(
+                        text = "Crear usuario",
+                        enabled = !state.busy,
+                        onClick = {
+                            creatingUser = true
+                            viewModel.clearFeedback()
+                        },
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                if ((capabilities.canCreate && creatingUser) || editing != null) OSINETCard {
                     Text(
-                        if (editing == null) "Crear acceso" else "Editar acceso",
+                        if (editing == null) "Crear usuario" else "Editar usuario",
                         color = OSINETColors.TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -140,7 +154,7 @@ fun AccessManagementScreen(
                         onSelected = { selectedStatus = it },
                     )
                     OSINETButton(
-                        text = if (editing == null) "CREAR ACCESO" else "GUARDAR CAMBIOS",
+                        text = if (editing == null) "CREAR USUARIO" else "GUARDAR CAMBIOS",
                         enabled = !state.busy,
                         onClick = {
                             if (editing == null) {
@@ -166,10 +180,11 @@ fun AccessManagementScreen(
                             }
                         },
                     )
-                    if (editing != null) {
+                    if (editing != null || creatingUser) {
                         OSINETSecondaryButton(
-                            text = "Cancelar edición",
+                            text = if (editing == null) "Cancelar creación" else "Cancelar edición",
                             onClick = {
+                                creatingUser = false
                                 editingProfileId = null
                                 selectedEmployeeId = ""
                                 username = ""
@@ -210,6 +225,7 @@ fun AccessManagementScreen(
                         canEdit = capabilities.canEdit,
                         canManage = capabilities.canManage,
                         onEdit = {
+                            creatingUser = false
                             editingProfileId = access.id
                             selectedEmployeeId = access.employeeId
                             username = access.username
