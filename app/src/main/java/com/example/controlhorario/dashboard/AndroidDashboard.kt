@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.text.Normalizer
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -91,20 +93,76 @@ sealed interface DashboardState {
     data class Error(val message: String) : DashboardState
 }
 
-enum class DashboardDestination { LOADING, ADMIN, EMPLOYEE, SUPERVISOR_RC3, SUPERVISOR_FALLBACK, ERROR }
+enum class DashboardDestination {
+    LOADING,
+    ADMIN,
+    RRHH,
+    NOMINA,
+    AUDITOR,
+    EMPLOYEE,
+    SUPERVISOR_RC3,
+    SUPERVISOR_FALLBACK,
+    ERROR,
+}
+
+enum class NormalizedRole { ADMIN, SUPERVISOR, EMPLEADO, RRHH, NOMINA, AUDITOR, UNKNOWN }
 
 object DashboardRoutePolicy {
-    fun destination(roleCode: String?, permissionCodes: Set<String>, loading: Boolean): DashboardDestination {
-        if (loading) return DashboardDestination.LOADING
-        return when (roleCode) {
-            "admin" -> DashboardDestination.ADMIN
-            "employee", "empleado" -> if (permissionCodes.any { it.startsWith("empleado.") }) DashboardDestination.EMPLOYEE else DashboardDestination.ERROR
-            "supervisor" -> if ("supervisor.dashboard" in permissionCodes) DashboardDestination.SUPERVISOR_RC3 else DashboardDestination.SUPERVISOR_FALLBACK
-            else -> DashboardDestination.ERROR
+    fun normalizeRole(roleCode: String?): NormalizedRole {
+        return when (normalizedRoleInput(roleCode)) {
+            "ADMIN", "ADMINISTRADOR", "ADM", "SUPER ADMIN" -> NormalizedRole.ADMIN
+            "SUP", "SUPERVISOR", "SUPERVISORAPP", "SUPERVISOR APP" -> NormalizedRole.SUPERVISOR
+            "EMPLEADO", "EMPLOYEE" -> NormalizedRole.EMPLEADO
+            "RRHH", "RR H H", "RR H", "RECURSOS HUMANOS", "RH", "HUMAN RESOURCES" -> NormalizedRole.RRHH
+            "NOMINA", "PLANILLA", "PAYROLL", "NOMINA ADMIN" -> NormalizedRole.NOMINA
+            "AUDITOR", "AUDITORIA", "AUDITORÍA", "AUDIT" -> NormalizedRole.AUDITOR
+            else -> NormalizedRole.UNKNOWN
         }
     }
 
+    fun destination(roleCode: String?, permissionCodes: Set<String>, loading: Boolean): DashboardDestination {
+        if (loading) return DashboardDestination.LOADING
+
+        return when (normalizeRole(roleCode)) {
+            NormalizedRole.ADMIN -> DashboardDestination.ADMIN
+            NormalizedRole.SUPERVISOR -> if ("supervisor.dashboard" in permissionCodes) DashboardDestination.SUPERVISOR_RC3 else DashboardDestination.SUPERVISOR_FALLBACK
+            NormalizedRole.EMPLEADO -> if (permissionCodes.any { it.startsWith("empleado.") }) DashboardDestination.EMPLOYEE else DashboardDestination.ERROR
+            NormalizedRole.RRHH -> DashboardDestination.RRHH
+            NormalizedRole.NOMINA -> DashboardDestination.NOMINA
+            NormalizedRole.AUDITOR -> DashboardDestination.AUDITOR
+            NormalizedRole.UNKNOWN -> DashboardDestination.ERROR
+        }
+    }
+
+    fun dashboardLabel(destination: DashboardDestination): String = when (destination) {
+        DashboardDestination.ADMIN -> "DashboardAdministrador"
+        DashboardDestination.SUPERVISOR_RC3, DashboardDestination.SUPERVISOR_FALLBACK -> "DashboardSupervisor"
+        DashboardDestination.EMPLOYEE -> "DashboardEmpleado"
+        DashboardDestination.RRHH -> "DashboardRRHH"
+        DashboardDestination.NOMINA -> "DashboardNomina"
+        DashboardDestination.AUDITOR -> "DashboardAuditor"
+        DashboardDestination.LOADING -> "Dashboard"
+        DashboardDestination.ERROR -> "Sin destino"
+    }
+
+    fun isAdministrativeDestination(destination: DashboardDestination): Boolean =
+        destination in setOf(DashboardDestination.ADMIN, DashboardDestination.RRHH, DashboardDestination.NOMINA, DashboardDestination.AUDITOR)
+
     fun shouldFallbackFromRc3(code: String?): Boolean = code in setOf("PGRST202", "42883", "HTTP_404")
+
+    private fun normalizedRoleInput(roleCode: String?): String {
+        val raw = roleCode
+            .orEmpty()
+            .trim()
+            .lowercase(Locale.ROOT)
+            .replace("-", " ")
+            .replace("_", " ")
+        return Normalizer.normalize(raw, Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}"), "")
+            .trim()
+            .replace(Regex("\\s+"), " ")
+            .uppercase(Locale.ROOT)
+    }
 }
 
 interface DashboardGateway {
@@ -227,7 +285,15 @@ class AndroidDashboardViewModel(
         _state.value = DashboardState.Loading
         viewModelScope.launch {
             val destination = DashboardRoutePolicy.destination(principal.roleCode, principal.permissionCodes, loading = false)
-            Log.i(TAG, "role_id=${principal.roleId}; company_id=${principal.companyId}; permisos=${principal.permissionCodes.sorted().joinToString(",")}; destino=$destination")
+            Log.i(
+                TAG,
+                "rol_recibido=${principal.roleCode}; " +
+                    "rol_normalizado=${DashboardRoutePolicy.normalizeRole(principal.roleCode)}; " +
+                    "dashboard_seleccionado=${DashboardRoutePolicy.dashboardLabel(destination)}; " +
+                    "role_id=${principal.roleId}; " +
+                    "company_id=${principal.companyId}; " +
+                    "permisos=${principal.permissionCodes.sorted().joinToString(",")}"
+            )
             try {
                 val result = when (destination) {
                     DashboardDestination.SUPERVISOR_RC3 -> try {
@@ -236,17 +302,28 @@ class AndroidDashboardViewModel(
                         if (DashboardRoutePolicy.shouldFallbackFromRc3(error.code)) {
                             Log.w(TAG, "rpc_rc3_no_disponible=true; fallback=consultas_rls; codigo=${error.code}; error=${error.message}")
                             if (principal.permissionCodes.none { it == "jornadas.ver_todas" || it == "jornadas.ver_asignadas" }) throw AuthFlowException("dashboard_permissions", "JOURNEYS_PERMISSION_MISSING", "La sesión no tiene permiso para consultar jornadas; no se mostrarán métricas en cero.")
-                            DashboardState.Ready(gateway.scopedDashboard(principal.accessToken, principal.companyId), "Supervisor")
+                            DashboardState.Ready(gateway.scopedDashboard(principal.accessToken, principal.companyId), DashboardRoutePolicy.dashboardLabel(destination))
                         } else throw error
                     }
-                    DashboardDestination.SUPERVISOR_FALLBACK, DashboardDestination.ADMIN, DashboardDestination.EMPLOYEE -> {
+                    DashboardDestination.SUPERVISOR_FALLBACK,
+                    DashboardDestination.ADMIN,
+                    DashboardDestination.RRHH,
+                    DashboardDestination.NOMINA,
+                    DashboardDestination.AUDITOR -> {
                         if (principal.permissionCodes.none { it == "jornadas.ver_todas" || it == "jornadas.ver_asignadas" }) throw AuthFlowException("dashboard_permissions", "JOURNEYS_PERMISSION_MISSING", "La sesión no tiene permiso para consultar jornadas; no se mostrarán métricas en cero.")
                         DashboardState.Ready(
                             gateway.scopedDashboard(principal.accessToken, principal.companyId),
-                            if (destination == DashboardDestination.ADMIN) "Administrador" else "Supervisor",
+                            DashboardRoutePolicy.dashboardLabel(destination),
                         )
                     }
-                    DashboardDestination.ERROR -> throw AuthFlowException("dashboard_route", "INVALID_ROLE", "El rol no tiene un Dashboard Android válido.")
+                    DashboardDestination.EMPLOYEE -> {
+                        if (principal.permissionCodes.none { it.startsWith("empleado.") }) throw AuthFlowException("dashboard_permissions", "EMPLOYEE_DASHBOARD_FORBIDDEN", "La sesión de empleado no tiene acceso a este dashboard.")
+                        DashboardState.Ready(
+                            gateway.scopedDashboard(principal.accessToken, principal.companyId),
+                            DashboardRoutePolicy.dashboardLabel(destination),
+                        )
+                    }
+                    DashboardDestination.ERROR -> throw AuthFlowException("dashboard_route", "INVALID_ROLE", "Rol no reconocido.")
                     DashboardDestination.LOADING -> return@launch
                 }
                 _state.value = result

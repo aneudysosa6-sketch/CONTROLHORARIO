@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.controlhorario.auth.AuthFlowException
 import com.example.controlhorario.auth.AuthRepository
 import com.example.controlhorario.auth.AuthSessionStore
+import com.example.controlhorario.dashboard.DashboardRoutePolicy
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.repository.AppUserRepository
 import com.example.controlhorario.session.UserSessionManager
@@ -41,10 +42,14 @@ class AppUserViewModel(
                 AuthSessionStore.setPrincipal(result.principal)
                 UserSessionManager.loginRemote(result.user)
                 _currentUser.value = result.user
-                val destination = if(result.principal.roleCode in setOf("employee","empleado")) "employee_portal" else if (result.principal.roleCode == "supervisor") {
-                    if ("supervisor.dashboard" in result.principal.permissionCodes) "dashboard_supervisor_rc3" else "dashboard_supervisor_fallback"
-                } else "panel_principal_administrativo"
-                Log.i(TAG, "sesion_nueva=true; destino_navegacion=$destination")
+                val destination = DashboardRoutePolicy.destination(result.principal.roleCode, result.principal.permissionCodes, loading = false)
+                Log.i(
+                    TAG,
+                    "sesion_nueva=true; " +
+                        "rol_recibido=${result.principal.roleCode}; " +
+                        "rol_normalizado=${DashboardRoutePolicy.normalizeRole(result.principal.roleCode)}; " +
+                        "dashboard_seleccionado=${DashboardRoutePolicy.dashboardLabel(destination)}",
+                )
             } catch (error: AuthFlowException) {
                 _loginError.value = error.visibleMessage()
                 Log.e(TAG, "login=error; etapa=${error.stage}; codigo=${error.code}; error=${error.message}; details=${error.details}; hint=${error.hint}")

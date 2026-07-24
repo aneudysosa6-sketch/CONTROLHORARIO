@@ -1,4 +1,4 @@
-package com.example.controlhorario.ui.navigation
+﻿package com.example.controlhorario.ui.navigation
 
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -426,7 +426,7 @@ fun AppNavigation(
         composable("home") {
             val principal by AuthSessionStore.principal.collectAsState()
             if (principal == null) {
-                ModuleScreen("Sesión requerida", "La sesión Supabase no está disponible. Inicia sesión nuevamente.") {
+                ModuleScreen("SesiÃ³n requerida", "La sesiÃ³n Supabase no estÃ¡ disponible. Inicia sesiÃ³n nuevamente.") {
                     UserSessionManager.logout()
                     navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
                 }
@@ -434,6 +434,12 @@ fun AppNavigation(
             }
             val authenticated = principal!!
             val destination = DashboardRoutePolicy.destination(authenticated.roleCode, authenticated.permissionCodes, loading = false)
+            Log.i(
+                "RoleResolver",
+                "rol_recibido=${authenticated.roleCode}; " +
+                    "rol_normalizado=${DashboardRoutePolicy.normalizeRole(authenticated.roleCode)}; " +
+                    "dashboard_seleccionado=${DashboardRoutePolicy.dashboardLabel(destination)}",
+            )
             val logout = {
                 UserSessionManager.logout()
                 navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
@@ -448,11 +454,19 @@ fun AppNavigation(
                 return@composable
             }
             if(destination==DashboardDestination.EMPLOYEE){
-                EmployeeSelfServiceScreen(authenticated){AuthSessionStore.clear();UserSessionManager.logout();navController.navigate(Route.ADMIN_LOGIN){popUpTo(0)}}
+                EmployeeSelfServiceScreen(authenticated){
+                    AuthSessionStore.clear()
+                    UserSessionManager.logout()
+                    navController.navigate(Route.ADMIN_LOGIN){ popUpTo(0) }
+                }
                 return@composable
             }
             if (destination == DashboardDestination.ERROR) {
-                ModuleScreen("Dashboard no disponible", "Rol '${authenticated.roleCode}' sin destino Android válido.", logout)
+                ModuleScreen("Rol no reconocido.", "El rol recibido no tiene un destino Android válido.", logout)
+                return@composable
+            }
+            if (!DashboardRoutePolicy.isAdministrativeDestination(destination)) {
+                ModuleScreen("Rol no reconocido.", "El rol '${authenticated.roleCode}' no se puede resolver en Android.", logout)
                 return@composable
             }
             AdminHomeScreen(
@@ -501,8 +515,12 @@ fun AppNavigation(
         composable(Route.ADMIN_DASHBOARD) {
             val principal by AuthSessionStore.principal.collectAsState()
             val authenticated = principal
-            if (authenticated == null || authenticated.roleCode != "admin") {
-                ModuleScreen("Dashboard no disponible", "Se requiere una sesión administrativa válida.") { navController.popBackStack() }
+            val destination = authenticated?.let { DashboardRoutePolicy.destination(it.roleCode, it.permissionCodes, loading = false) } ?: run {
+                ModuleScreen("Rol no reconocido.", "Se requiere una sesiÃ³n administrativa vÃ¡lida.") { navController.popBackStack() }
+                return@composable
+            }
+            if (!DashboardRoutePolicy.isAdministrativeDestination(destination)) {
+                ModuleScreen("Rol no reconocido.", "Se requiere una sesión administrativa válida.") { navController.popBackStack() }
                 return@composable
             }
             val dashboardVm: AndroidDashboardViewModel = viewModel(
@@ -511,7 +529,7 @@ fun AppNavigation(
             )
             val dashboardState by dashboardVm.state.collectAsState()
             OSINETScreen {
-                OSINETHeader("Dashboard Administrador", authenticated.fullName)
+                OSINETHeader(DashboardRoutePolicy.dashboardLabel(destination), authenticated.fullName)
                 Spacer(Modifier.height(16.dp))
                 AndroidDashboardPanel(dashboardState)
                 Spacer(Modifier.height(18.dp))
@@ -768,7 +786,7 @@ fun AppNavigation(
                         )
                     },
                     onBack = { navController.popBackStack(Route.EMPLOYEE_PUNCH, false) },
-                    backLabel = "Volver a identificación",
+                    backLabel = "Volver a identificaciÃ³n",
                     initialRegistrationOnly = true,
                 )
             }
@@ -904,7 +922,7 @@ fun AppNavigation(
                     onRegisterFingerprint={code->navController.navigate("${Route.FINGERPRINTS}/$code")},
                     onSaved={navController.popBackStack()},onBack={navController.popBackStack()}
                 )
-            } ?: Text("Cargando empleado…")
+            } ?: Text("Cargando empleadoâ€¦")
         }
 
         composable(Route.EMPLOYEE_LIST) {
@@ -1450,7 +1468,7 @@ private fun RoleSelectionScreen(
         androidx.compose.foundation.layout.Column {
             Spacer(Modifier.height(28.dp))
             OSINETHeader(
-                title = "Selección de acceso",
+                title = "SelecciÃ³n de acceso",
                 subtitle = "Elige el tipo de acceso para continuar"
             )
             Spacer(Modifier.height(34.dp))
@@ -1483,12 +1501,12 @@ private fun EmployeeKioskScreen(
     OSINETScreen {
         OSINETHeader(
             title = "Modo Kiosko",
-            subtitle = "Identificación facial para registrar la jornada"
+            subtitle = "IdentificaciÃ³n facial para registrar la jornada"
         )
         Spacer(Modifier.height(28.dp))
         OSINETActionCard(
             title = "ROSTRO",
-            subtitle = "Mire a la cámara para identificarse",
+            subtitle = "Mire a la cÃ¡mara para identificarse",
             onClick = onFace
         )
         Spacer(Modifier.height(22.dp))
@@ -1532,7 +1550,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.DASHBOARD)) {
             OSINETActionCard(
                 title = "Dashboard",
-                subtitle = "Métricas operativas y jornadas recientes",
+                subtitle = "MÃ©tricas operativas y jornadas recientes",
                 onClick = onDashboard,
             )
             Spacer(Modifier.height(16.dp))
@@ -1580,7 +1598,7 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.INCIDENTS)) {
             OSINETActionCard(
                 title = "Incidencias",
-                subtitle = "Todas, pendientes o asignadas a mí",
+                subtitle = "Todas, pendientes o asignadas a mÃ­",
                 onClick = onIncidents,
             )
             Spacer(Modifier.height(10.dp))
@@ -1594,29 +1612,29 @@ private fun AdminHomeScreen(
             Spacer(Modifier.height(10.dp))
         }
 
-        MenuSectionHeader("NÓMINA")
+        MenuSectionHeader("NÃ“MINA")
         if (can(PermissionCatalog.PAYROLL)) {
             OSINETActionCard(
                 title = "Procesamiento",
-                subtitle = "Generación y exportación de nómina",
+                subtitle = "GeneraciÃ³n y exportaciÃ³n de nÃ³mina",
                 onClick = onPayrollProcessing,
             )
             Spacer(Modifier.height(10.dp))
             OSINETActionCard(
                 title = "Descuentos",
-                subtitle = "Configuración de descuentos y préstamos",
+                subtitle = "ConfiguraciÃ³n de descuentos y prÃ©stamos",
                 onClick = onPayrollDiscounts,
             )
             Spacer(Modifier.height(10.dp))
             OSINETActionCard(
                 title = "Pagos",
-                subtitle = "Resultado y archivos de la nómina generada",
+                subtitle = "Resultado y archivos de la nÃ³mina generada",
                 onClick = onPayrollPayments,
             )
             Spacer(Modifier.height(10.dp))
         }
 
-        MenuSectionHeader("ORGANIZACIÓN")
+        MenuSectionHeader("ORGANIZACIÃ“N")
         if (can(PermissionCatalog.SETTINGS)) {
             OSINETActionCard(
                 title = "Empresas",
@@ -1656,19 +1674,19 @@ private fun AdminHomeScreen(
         if (can(PermissionCatalog.SETTINGS)) {
             OSINETActionCard(
                 title = "Dispositivos Android",
-                subtitle = "Dispositivos registrados y sincronización",
+                subtitle = "Dispositivos registrados y sincronizaciÃ³n",
                 onClick = onAndroidDevices,
             )
             Spacer(Modifier.height(10.dp))
             OSINETActionCard(
-                title = "Seguridad y auditoría",
-                subtitle = "Sesión, auditoría y accesos",
+                title = "Seguridad y auditorÃ­a",
+                subtitle = "SesiÃ³n, auditorÃ­a y accesos",
                 onClick = onSecurityAudit,
             )
             Spacer(Modifier.height(10.dp))
         }
 
-        MenuSectionHeader("CONFIGURACIÓN")
+        MenuSectionHeader("CONFIGURACIÃ“N")
         if (can(PermissionCatalog.SETTINGS)) {
             OSINETActionCard(
                 title = "Horarios",
@@ -1684,14 +1702,14 @@ private fun AdminHomeScreen(
             Spacer(Modifier.height(10.dp))
             OSINETActionCard(
                 title = "Modo kiosco",
-                subtitle = "Configuración y estado del dispositivo",
+                subtitle = "ConfiguraciÃ³n y estado del dispositivo",
                 onClick = onKioskDeviceSettings,
             )
             Spacer(Modifier.height(10.dp))
         }
 
         Spacer(Modifier.height(8.dp))
-        OSINETSecondaryButton("Cerrar sesión", onLogout)
+        OSINETSecondaryButton("Cerrar sesiÃ³n", onLogout)
     }
 }
 
@@ -1716,7 +1734,7 @@ private fun SystemAdministrationDetailRoute(
     if (current == null) {
         SystemAdministrationDetailScreen(
             section = section,
-            state = AdministrationState.Error("La sesión administrativa no está disponible."),
+            state = AdministrationState.Error("La sesiÃ³n administrativa no estÃ¡ disponible."),
             onBack = onBack,
         )
         return
@@ -1736,7 +1754,7 @@ private fun AccessManagementRoute(onBack: () -> Unit) {
     if (current == null) {
         ModuleScreen(
             title = "Accesos no disponibles",
-            detail = "Se requiere una sesión administrativa válida.",
+            detail = "Se requiere una sesiÃ³n administrativa vÃ¡lida.",
             onBack = onBack,
         )
         return
@@ -1799,35 +1817,35 @@ private fun EmployeePortalScreen(
         if (uri != null) medicalAttachment = "Archivo cargado: $uri"
     }
     val medicalGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) medicalAttachment = "Foto de galería cargada: $uri"
+        if (uri != null) medicalAttachment = "Foto de galerÃ­a cargada: $uri"
     }
     val medicalCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) medicalAttachment = "Foto tomada con cámara"
+        if (bitmap != null) medicalAttachment = "Foto tomada con cÃ¡mara"
     }
     val licenseFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) licenseAttachment = "Archivo cargado: $uri"
     }
     val licenseGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) licenseAttachment = "Foto de galería cargada: $uri"
+        if (uri != null) licenseAttachment = "Foto de galerÃ­a cargada: $uri"
     }
     val licenseCameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) licenseAttachment = "Foto tomada con cámara"
+        if (bitmap != null) licenseAttachment = "Foto tomada con cÃ¡mara"
     }
 
     OSINETScreen {
         OSINETHeader(
             title = "Portal del Empleado",
-            subtitle = "Información personal del empleado autenticado"
+            subtitle = "InformaciÃ³n personal del empleado autenticado"
         )
         Spacer(Modifier.height(16.dp))
         if (section == "MENU") {
             OSINETActionCard("PAGOS", "Sueldo bruto, incentivos, horas extras, descuentos y total a cobrar", onClick = { section = "PAGOS" })
             Spacer(Modifier.height(10.dp))
-            OSINETActionCard("PRÉSTAMOS", "Total, pendiente, solicitud y estado", onClick = { section = "PRESTAMOS" })
+            OSINETActionCard("PRÃ‰STAMOS", "Total, pendiente, solicitud y estado", onClick = { section = "PRESTAMOS" })
             Spacer(Modifier.height(10.dp))
-            OSINETActionCard("HISTORIAL", "Descuentos de préstamos por nómina", onClick = { section = "HISTORIAL" })
+            OSINETActionCard("HISTORIAL", "Descuentos de prÃ©stamos por nÃ³mina", onClick = { section = "HISTORIAL" })
             Spacer(Modifier.height(10.dp))
-            OSINETActionCard("PERMISOS", "Llegaré tarde, médico, licencia médica y motivo personal", onClick = { section = "PERMISOS" })
+            OSINETActionCard("PERMISOS", "LlegarÃ© tarde, mÃ©dico, licencia mÃ©dica y motivo personal", onClick = { section = "PERMISOS" })
             Spacer(Modifier.height(18.dp))
             OSINETSecondaryButton("Volver", onBack)
             return@OSINETScreen
@@ -1836,42 +1854,42 @@ private fun EmployeePortalScreen(
         when (section) {
             "PAGOS" -> {
                 OSINETCard {
-                    Text("Sueldo bruto: según última nómina generada", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Incentivo: según perfil de nómina", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("Sueldo bruto: segÃºn Ãºltima nÃ³mina generada", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("Incentivo: segÃºn perfil de nÃ³mina", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
                     Text("Ganancia horas extras: calculada por ponches", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Descuento crédito: según crédito activo", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
-                    Text("Descuento préstamo: según préstamo entregado", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
+                    Text("Descuento crÃ©dito: segÃºn crÃ©dito activo", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
+                    Text("Descuento prÃ©stamo: segÃºn prÃ©stamo entregado", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
                     Text("Otros descuentos: plantilla o perfil", color = com.example.controlhorario.ui.components.OSINETColors.Danger)
-                    Text("Total a cobrar: resultado de nómina", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
+                    Text("Total a cobrar: resultado de nÃ³mina", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
                 }
             }
             "PRESTAMOS" -> {
                 OSINETCard {
-                    Text("Total préstamo: se carga cuando el dinero está ENTREGADO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("Total prÃ©stamo: se carga cuando el dinero estÃ¡ ENTREGADO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
                     Text("Pendiente a pagar: balance actual", color = com.example.controlhorario.ui.components.OSINETColors.Warning)
                     Text("Estado solicitud: $requestStatus", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
                 }
                 Spacer(Modifier.height(10.dp))
                 OSINETCard {
-                    Text("SOLICITAR PRÉSTAMO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("SOLICITAR PRÃ‰STAMO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
                     Spacer(Modifier.height(8.dp))
                     OSINETTextField(loanAmount, { loanAmount = it }, "Monto solicitado", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     OSINETTextField(loanDiscount, { loanDiscount = it }, "Descuento quincenal", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    OSINETButton("ENVIAR SOLICITUD", enabled = loanAmount.isNotBlank() && loanDiscount.isNotBlank(), onClick = { requestStatus = "Pendiente de aprobación" })
+                    OSINETButton("ENVIAR SOLICITUD", enabled = loanAmount.isNotBlank() && loanDiscount.isNotBlank(), onClick = { requestStatus = "Pendiente de aprobaciÃ³n" })
                 }
             }
             "HISTORIAL" -> {
                 OSINETCard {
-                    Text("Historial de descuentos de préstamos", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
-                    Text("Fecha · Monto descontado · Nómina · Balance pendiente", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
-                    Text("Se alimentará automáticamente desde cada nómina generada.", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
+                    Text("Historial de descuentos de prÃ©stamos", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("Fecha Â· Monto descontado Â· NÃ³mina Â· Balance pendiente", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
+                    Text("Se alimentarÃ¡ automÃ¡ticamente desde cada nÃ³mina generada.", color = com.example.controlhorario.ui.components.OSINETColors.GreenSoft)
                 }
             }
             "PERMISOS" -> {
                 OSINETCard {
-                    Text("LLEGARÉ TARDE", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("LLEGARÃ‰ TARDE", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
                     OSINETTextField(lateHour, { lateHour = it }, "Hora estimada de llegada", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     OSINETButton("ENVIAR", enabled = lateHour.isNotBlank(), onClick = {
@@ -1882,7 +1900,7 @@ private fun EmployeePortalScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 OSINETCard {
-                    Text("MÉDICO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("MÃ‰DICO", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
                     OSINETTextField(medicalMsg, { medicalMsg = it }, "Mensaje", Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -1892,21 +1910,21 @@ private fun EmployeePortalScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OSINETButton("ARCHIVO", onClick = { medicalFileLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f))
-                        OSINETButton("GALERÍA", onClick = { medicalGalleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f))
+                        OSINETButton("GALERÃA", onClick = { medicalGalleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(8.dp))
-                    OSINETButton("CÁMARA", onClick = { medicalCameraLauncher.launch(null) })
+                    OSINETButton("CÃMARA", onClick = { medicalCameraLauncher.launch(null) })
                     Spacer(Modifier.height(8.dp))
                     OSINETButton("ENVIAR", enabled = medicalMsg.isNotBlank() || medicalAttachment.isNotBlank(), onClick = {
                         submitPermission(EmployeePermissionRequestEntity.TYPE_MEDICAL, medicalMsg, medicalAttachment)
                         medicalMsg = ""
                         medicalAttachment = ""
-                        requestStatus = "Solicitud médica enviada"
+                        requestStatus = "Solicitud mÃ©dica enviada"
                     })
                 }
                 Spacer(Modifier.height(10.dp))
                 OSINETCard {
-                    Text("LICENCIA MÉDICA", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
+                    Text("LICENCIA MÃ‰DICA", color = com.example.controlhorario.ui.components.OSINETColors.TextPrimary)
                     Text(
                         "Adjunto: ${licenseAttachment.ifBlank { "Sin archivo o foto" }}",
                         color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary
@@ -1914,15 +1932,15 @@ private fun EmployeePortalScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OSINETButton("ARCHIVO", onClick = { licenseFileLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.weight(1f))
-                        OSINETButton("GALERÍA", onClick = { licenseGalleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f))
+                        OSINETButton("GALERÃA", onClick = { licenseGalleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(8.dp))
-                    OSINETButton("CÁMARA", onClick = { licenseCameraLauncher.launch(null) })
+                    OSINETButton("CÃMARA", onClick = { licenseCameraLauncher.launch(null) })
                     Spacer(Modifier.height(8.dp))
                     OSINETButton("ENVIAR", enabled = licenseAttachment.isNotBlank(), onClick = {
-                        submitPermission(EmployeePermissionRequestEntity.TYPE_MEDICAL_LICENSE, "Licencia médica enviada para revisión", licenseAttachment)
+                        submitPermission(EmployeePermissionRequestEntity.TYPE_MEDICAL_LICENSE, "Licencia mÃ©dica enviada para revisiÃ³n", licenseAttachment)
                         licenseAttachment = ""
-                        requestStatus = "Licencia médica enviada a revisión"
+                        requestStatus = "Licencia mÃ©dica enviada a revisiÃ³n"
                     })
                 }
                 Spacer(Modifier.height(10.dp))
@@ -1952,18 +1970,18 @@ private fun PayrollDiscountsScreen(
     OSINETScreen {
         OSINETHeader(
             title = "Descuentos",
-            subtitle = "Configuración de descuentos y gestión de préstamos",
+            subtitle = "ConfiguraciÃ³n de descuentos y gestiÃ³n de prÃ©stamos",
         )
         Spacer(Modifier.height(18.dp))
         OSINETActionCard(
-            title = "Configuración de descuentos",
-            subtitle = "AFP, SFS, ISR y otros descuentos de nómina",
+            title = "ConfiguraciÃ³n de descuentos",
+            subtitle = "AFP, SFS, ISR y otros descuentos de nÃ³mina",
             onClick = onPayrollSettings,
         )
         Spacer(Modifier.height(10.dp))
         OSINETActionCard(
-            title = "Préstamos",
-            subtitle = "Solicitudes, aprobación, entrega y balance",
+            title = "PrÃ©stamos",
+            subtitle = "Solicitudes, aprobaciÃ³n, entrega y balance",
             onClick = onLoans,
         )
         Spacer(Modifier.height(18.dp))
@@ -1980,12 +1998,12 @@ private fun PendingOperationsScreen(
     OSINETScreen {
         OSINETHeader(
             title = "Pendientes",
-            subtitle = "Solicitudes operativas pendientes de revisión",
+            subtitle = "Solicitudes operativas pendientes de revisiÃ³n",
         )
         Spacer(Modifier.height(18.dp))
         OSINETActionCard(
             title = "Permisos de empleados",
-            subtitle = "Solicitudes, adjuntos, aprobación y rechazo",
+            subtitle = "Solicitudes, adjuntos, aprobaciÃ³n y rechazo",
             onClick = onEmployeeRequests,
         )
         Spacer(Modifier.height(10.dp))
