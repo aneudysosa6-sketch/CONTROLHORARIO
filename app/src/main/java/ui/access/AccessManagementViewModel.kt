@@ -1,5 +1,6 @@
 package com.example.controlhorario.ui.access
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -94,10 +95,12 @@ class UserProvisioningGateway(
                 ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
                 val error = runCatching { JSONObject(response) }.getOrNull()
-                throw IllegalStateException(
-                    error?.optString("message")?.takeIf(String::isNotBlank)
-                        ?: error?.optString("error")?.takeIf(String::isNotBlank)
-                        ?: "No fue posible actualizar el acceso (HTTP $status)."
+                val message = error?.optString("error")?.takeIf(String::isNotBlank)
+                    ?: error?.optString("message")?.takeIf(String::isNotBlank)
+                    ?: "No fue posible completar la operaciÃ³n de acceso (HTTP $status)."
+                throw AccessServiceException(
+                    statusCode = status,
+                    message = message,
                 )
             }
             response
@@ -123,6 +126,7 @@ class UserProvisioningGateway(
                 fullName = row.optString("nombre_completo"),
                 employeeCode = row.optString("codigo_empleado"),
                 companyId = row.optString("empresa_id"),
+                isActive = row.optBoolean("activo"),
                 profileId = row.nullableId("perfil_id"),
             )
         }
@@ -159,6 +163,7 @@ class UserProvisioningGateway(
 
 data class AccessManagementUiState(
     val catalog: AccessCatalog? = null,
+    val catalogLoadState: AccessCatalogLoadState = AccessCatalogLoadState.LOADING,
     val loading: Boolean = true,
     val busy: Boolean = false,
     val message: String = "",
@@ -167,6 +172,7 @@ data class AccessManagementUiState(
 
 class AccessManagementViewModel(
     private val currentProfileId: String,
+    private val currentCompanyId: String,
     private val capabilities: AccessCapabilities,
     private val gateway: AccessManagementGateway,
 ) : ViewModel() {
@@ -179,11 +185,34 @@ class AccessManagementViewModel(
         if (!capabilities.canView) return reject(AccessPolicyDecision.denied("No tienes permiso para consultar accesos."))
         if (mutableState.value.busy) return
         viewModelScope.launch {
-            mutableState.value = mutableState.value.copy(loading = true, error = "", message = "")
+            mutableState.value = mutableState.value.copy(
+                loading = true,
+                catalogLoadState = AccessCatalogLoadState.LOADING,
+                error = "",
+                message = "",
+            )
             mutableState.value = runCatching { gateway.load() }
                 .fold(
-                    onSuccess = { mutableState.value.copy(catalog = it, loading = false) },
-                    onFailure = { mutableState.value.copy(loading = false, error = it.visibleMessage()) },
+                    onSuccess = { catalog ->
+                        logCatalogLoad(catalog)
+                        mutableState.value.copy(
+                            catalog = catalog,
+                            catalogLoadState = AccessCatalogLoadState.READY,
+                            loading = false,
+                        )
+                    },
+                    onFailure = {
+                        if (BuildConfig.DEBUG) {
+                            val state = stateErrorType(it)
+                            Log.e("AccessManagement", "No fue posible cargar empleados. company_id=$currentCompanyId state=$state", it)
+                        }
+                        val loadState = stateErrorType(it)
+                        mutableState.value.copy(
+                            loading = false,
+                            catalogLoadState = loadState,
+                            error = if (loadState == AccessCatalogLoadState.ERROR_QUERY) it.visibleMessage() else "",
+                        )
+                    },
                 )
         }
     }
@@ -247,17 +276,57 @@ class AccessManagementViewModel(
                 mutableState.value = mutableState.value.copy(
                     catalog = fresh,
                     loading = false,
+                    catalogLoadState = AccessCatalogLoadState.READY,
                     busy = false,
                     message = successMessage,
                 )
+                logCatalogLoad(fresh)
             } catch (error: Exception) {
                 mutableState.value = mutableState.value.copy(busy = false, error = error.visibleMessage())
             }
         }
     }
 
+    private fun logCatalogLoad(catalog: AccessCatalog) {
+        if (!BuildConfig.DEBUG) return
+        val activeEmployees = catalog.employees.count { it.isActive }
+        val activeEmployeesWithoutProfile = catalog.employees.count { it.isActive && it.profileId.isNullOrBlank() }
+        val activeEmployeesExcludedByProfile = catalog.employees.count { it.isActive && it.profileId?.isNotBlank() == true }
+        Log.d(
+            "AccessManagement",
+            "company_id=$currentCompanyId employees=${catalog.employees.size} active_employees=$activeEmployees " +
+                "available_employees=$activeEmployeesWithoutProfile excluded_with_profile=$activeEmployeesExcludedByProfile " +
+                "accesses=${catalog.accesses.size}",
+        )
+    }
+
+    private fun stateErrorType(error: Throwable): AccessCatalogLoadState {
+        val statusCode = (error as? AccessServiceException)?.statusCode
+        val message = error.message.orEmpty().lowercase()
+        return when {
+            statusCode == 403 && message.contains("permiso") -> AccessCatalogLoadState.ERROR_PERMISSION
+            statusCode == 403 && message.contains("profile activo requerido") -> AccessCatalogLoadState.ERROR_COMPANY_MISSING
+            statusCode == 401 -> AccessCatalogLoadState.ERROR_COMPANY_MISSING
+            message.contains("no se pudo determinar la empresa activa") -> AccessCatalogLoadState.ERROR_COMPANY_MISSING
+            else -> AccessCatalogLoadState.ERROR_QUERY
+        }
+    }
+
     private fun Throwable.visibleMessage(): String = message?.takeIf(String::isNotBlank)
         ?: "No fue posible completar la operación de acceso."
+}
+
+private class AccessServiceException(
+    val statusCode: Int,
+    override val message: String,
+) : Exception(message)
+
+enum class AccessCatalogLoadState(val userMessage: String?) {
+    LOADING("Cargando empleados"),
+    READY(null),
+    ERROR_QUERY("No fue posible cargar los empleados. IntÃ©ntalo nuevamente."),
+    ERROR_PERMISSION("No tienes permisos para consultar los empleados de esta empresa."),
+    ERROR_COMPANY_MISSING("No se pudo determinar la empresa activa."),
 }
 
 class AccessManagementViewModelFactory(
@@ -268,6 +337,7 @@ class AccessManagementViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
         AccessManagementViewModel(
             currentProfileId = principal.authUid,
+            currentCompanyId = principal.companyId,
             capabilities = AccessCapabilities.from(principal.permissionCodes),
             gateway = gateway,
         ) as T

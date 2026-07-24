@@ -21,6 +21,7 @@ data class AccessEmployee(
     val fullName: String,
     val employeeCode: String,
     val companyId: String,
+    val isActive: Boolean,
     val profileId: String?,
 )
 

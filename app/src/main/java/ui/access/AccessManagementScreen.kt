@@ -42,6 +42,7 @@ fun AccessManagementScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val catalog = state.catalog
+    val catalogLoadMessage = state.catalogLoadState.userMessage
     var selectedEmployeeId by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -76,24 +77,61 @@ fun AccessManagementScreen(
         Spacer(Modifier.height(14.dp))
 
         when {
-            state.loading && catalog == null -> CircularProgressIndicator(color = OSINETColors.Green)
+            state.loading && catalog == null -> {
+                OSINETCard {
+                    Text("Cargando empleados", color = OSINETColors.TextSecondary)
+                    Spacer(Modifier.height(8.dp))
+                    CircularProgressIndicator(color = OSINETColors.Green)
+                }
+            }
+            catalog == null && catalogLoadMessage != null -> {
+                OSINETCard {
+                    Text(catalogLoadMessage, color = OSINETColors.Danger)
+                    Spacer(Modifier.height(8.dp))
+                    OSINETButton(
+                        text = "Recargar empleados",
+                        enabled = !state.busy,
+                        onClick = viewModel::refresh,
+                    )
+                }
+            }
             catalog == null -> {
                 OSINETCard {
-                    Text(state.error.ifBlank { "No fue posible cargar los accesos." }, color = OSINETColors.Danger)
+                    Text("No fue posible cargar los accesos.", color = OSINETColors.Danger)
                     OSINETButton("REINTENTAR", onClick = viewModel::refresh)
                 }
             }
             else -> {
-                val editing = editingProfileId?.let { id -> catalog.accesses.firstOrNull { it.id == id } }
-                val occupiedEmployeeIds = catalog.accesses
-                    .filter { it.id != editingProfileId }
-                    .mapTo(mutableSetOf(), AccessAccount::employeeId)
-                val employeeOptions = catalog.employees
-                    .filter { employee ->
-                        employee.id == selectedEmployeeId ||
-                            (employee.id !in occupiedEmployeeIds && employee.profileId.isNullOrBlank())
+                val catalogLoadError = state.catalogLoadState.userMessage
+                if (catalogLoadError != null && state.catalogLoadState != AccessCatalogLoadState.READY) {
+                    OSINETCard {
+                        Text(catalogLoadError, color = OSINETColors.Danger)
+                        Spacer(Modifier.height(8.dp))
+                        OSINETButton(
+                            text = "Recargar empleados",
+                            enabled = !state.busy,
+                            onClick = viewModel::refresh,
+                        )
                     }
-                    .sortedWith(compareBy(AccessEmployee::employeeCode, AccessEmployee::fullName))
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                val editing = editingProfileId?.let { id -> catalog.accesses.firstOrNull { it.id == id } }
+                val employeeOptions = buildList {
+                    if (editing != null) {
+                        addAll(catalog.employees)
+                    } else {
+                        addAll(
+                            catalog.employees.filter { employee ->
+                                employee.isActive && employee.profileId.isNullOrBlank()
+                            },
+                        )
+                    }
+                    val selectedEmployee = catalog.employees.firstOrNull { it.id == selectedEmployeeId }
+                    if (selectedEmployee != null && none { it.id == selectedEmployee.id }) {
+                        add(selectedEmployee)
+                    }
+                }.sortedWith(compareBy(AccessEmployee::employeeCode, AccessEmployee::fullName))
 
                 if (capabilities.canCreate && editing == null && !creatingUser) {
                     OSINETButton(
@@ -113,49 +151,62 @@ fun AccessManagementScreen(
                         color = OSINETColors.TextPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    AccessSelector(
-                        label = "Empleado",
-                        selectedId = selectedEmployeeId,
-                        options = employeeOptions.map { it.id to "${it.employeeCode} · ${it.fullName}" },
-                        enabled = !state.busy,
-                        onSelected = { selectedEmployeeId = it },
-                    )
-                    OSINETTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = "Usuario",
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (editing == null) {
+                    if (editing == null && employeeOptions.isEmpty()) {
+                        Text(
+                            "Todos los empleados activos ya tienen un usuario asociado.",
+                            color = OSINETColors.TextSecondary,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OSINETButton(
+                            text = "Recargar empleados",
+                            enabled = !state.busy,
+                            onClick = viewModel::refresh,
+                        )
+                    } else {
+                        AccessSelector(
+                            label = "Empleado",
+                            selectedId = selectedEmployeeId,
+                            options = employeeOptions.map { it.id to "${it.employeeCode} Â· ${it.fullName}" },
+                            enabled = !state.busy,
+                            onSelected = { selectedEmployeeId = it },
+                        )
                         OSINETTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = "Contraseña",
+                            value = username,
+                            onValueChange = { username = it },
+                            label = "Usuario",
                             modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = PasswordVisualTransformation(),
+                        )
+                        if (editing == null) {
+                            OSINETTextField(
+                                value = password,
+                                onValueChange = { password = it },
+                                label = "ContraseÃ±a",
+                                modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = PasswordVisualTransformation(),
+                            )
+                        }
+                        AccessSelector(
+                            label = "Rol",
+                            selectedId = selectedRoleId,
+                            options = catalog.roles.map { it.id to it.name },
+                            enabled = !state.busy,
+                            onSelected = { selectedRoleId = it },
+                        )
+                        AccessSelector(
+                            label = "Estado",
+                            selectedId = selectedStatus,
+                            options = if (editing?.id == currentProfileId) {
+                                listOf(ACCESS_STATUS_ACTIVE to "Activo")
+                            } else {
+                                listOf(ACCESS_STATUS_ACTIVE to "Activo", ACCESS_STATUS_INACTIVE to "Inactivo")
+                            },
+                            enabled = !state.busy,
+                            onSelected = { selectedStatus = it },
                         )
                     }
-                    AccessSelector(
-                        label = "Rol",
-                        selectedId = selectedRoleId,
-                        options = catalog.roles.map { it.id to it.name },
-                        enabled = !state.busy,
-                        onSelected = { selectedRoleId = it },
-                    )
-                    AccessSelector(
-                        label = "Estado",
-                        selectedId = selectedStatus,
-                        options = if (editing?.id == currentProfileId) {
-                            listOf(ACCESS_STATUS_ACTIVE to "Activo")
-                        } else {
-                            listOf(ACCESS_STATUS_ACTIVE to "Activo", ACCESS_STATUS_INACTIVE to "Inactivo")
-                        },
-                        enabled = !state.busy,
-                        onSelected = { selectedStatus = it },
-                    )
                     OSINETButton(
                         text = if (editing == null) "CREAR USUARIO" else "GUARDAR CAMBIOS",
-                        enabled = !state.busy,
+                        enabled = !state.busy && (editing != null || selectedEmployeeId.isNotBlank()),
                         onClick = {
                             if (editing == null) {
                                 viewModel.create(
@@ -182,7 +233,7 @@ fun AccessManagementScreen(
                     )
                     if (editing != null || creatingUser) {
                         OSINETSecondaryButton(
-                            text = if (editing == null) "Cancelar creación" else "Cancelar edición",
+                            text = if (editing == null) "Cancelar creaciÃ³n" else "Cancelar ediciÃ³n",
                             onClick = {
                                 creatingUser = false
                                 editingProfileId = null
@@ -258,7 +309,7 @@ fun AccessManagementScreen(
     passwordTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { if (!state.busy) passwordTarget = null },
-            title = { Text("Cambiar contraseña") },
+            title = { Text("Cambiar contraseÃ±a") },
             text = {
                 Column {
                     Text("Acceso: ${target.username}")
@@ -266,7 +317,7 @@ fun AccessManagementScreen(
                     OSINETTextField(
                         value = replacementPassword,
                         onValueChange = { replacementPassword = it },
-                        label = "Nueva contraseña",
+                        label = "Nueva contraseÃ±a",
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
                     )
@@ -290,7 +341,7 @@ fun AccessManagementScreen(
         AlertDialog(
             onDismissRequest = { if (!state.busy) deleteTarget = null },
             title = { Text("Eliminar acceso") },
-            text = { Text("Se eliminará el acceso de ${target.employeeName}. El empleado y sus datos no serán eliminados.") },
+            text = { Text("Se eliminarÃ¡ el acceso de ${target.employeeName}. El empleado y sus datos no serÃ¡n eliminados.") },
             confirmButton = {
                 TextButton(
                     enabled = !state.busy,
@@ -354,15 +405,15 @@ private fun AccessRow(
         AccessValue("Usuario", access.username)
         AccessValue(
             "Empleado",
-            listOf(access.employeeCode, access.employeeName).filter(String::isNotBlank).joinToString(" · ")
+            listOf(access.employeeCode, access.employeeName).filter(String::isNotBlank).joinToString(" Â· ")
                 .ifBlank { "Empleado no vinculado" },
         )
         AccessValue("Rol", access.roleName)
         AccessValue("Estado", if (access.isActive) "Activo" else "Inactivo")
-        AccessValue("Último acceso", access.lastSignInAt ?: "Nunca")
+        AccessValue("Ãšltimo acceso", access.lastSignInAt ?: "Nunca")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onEdit, enabled = !busy && canEdit, modifier = Modifier.weight(1f)) { Text("Editar") }
-            OutlinedButton(onClick = onPassword, enabled = !busy && canManage, modifier = Modifier.weight(1f)) { Text("Cambiar contraseña") }
+            OutlinedButton(onClick = onPassword, enabled = !busy && canManage, modifier = Modifier.weight(1f)) { Text("Cambiar contraseÃ±a") }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onStatus, enabled = !busy && canManage && statusChangeAllowed, modifier = Modifier.weight(1f)) {
@@ -378,5 +429,5 @@ private fun AccessRow(
 @Composable
 private fun AccessValue(label: String, value: String) {
     Text(label, color = OSINETColors.TextSecondary)
-    Text(value.ifBlank { "—" }, color = OSINETColors.TextPrimary, fontWeight = FontWeight.Medium)
+    Text(value.ifBlank { "â€”" }, color = OSINETColors.TextPrimary, fontWeight = FontWeight.Medium)
 }

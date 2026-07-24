@@ -125,11 +125,14 @@ object AccessManagementPolicy {
         val employee = catalog.employees.firstOrNull { it.id == employeeId }
             ?: return AccessPolicyDecision.denied("El empleado seleccionado ya no está disponible.")
         val profileAssignedToEmployee = employee.profileId?.takeIf(String::isNotBlank)
+        if (!employee.isActive) {
+            return AccessPolicyDecision.denied("El empleado seleccionado no estÃ¡ activo.")
+        }
         if (profileAssignedToEmployee != null && profileAssignedToEmployee != editingProfileId) {
-            return AccessPolicyDecision.denied("Este empleado ya tiene un acceso.")
+            return AccessPolicyDecision.denied("El empleado seleccionado ya tiene un usuario.")
         }
         if (catalog.accesses.any { it.employeeId == employeeId && it.id != editingProfileId }) {
-            return AccessPolicyDecision.denied("Este empleado ya tiene un acceso.")
+            return AccessPolicyDecision.denied("El empleado seleccionado ya tiene un usuario.")
         }
         if (catalog.accesses.any { it.username.equals(username.trim(), ignoreCase = true) && it.id != editingProfileId }) {
             return AccessPolicyDecision.denied("El nombre de usuario ya está en uso.")

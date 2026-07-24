@@ -76,7 +76,8 @@ const errorStatus = (error: unknown) => {
 const publicErrorMessage = (error: unknown) => {
   const message = errorMessage(error);
   const known: Record<string, string> = {
-    EMPLEADO_YA_TIENE_ACCESO: 'El empleado seleccionado ya tiene un acceso.',
+    EMPLEADO_YA_TIENE_ACCESO: 'El empleado seleccionado ya tiene un usuario.',
+    ACCESS_ADMIN_PERMISSION_DENIED: 'No tienes permisos para consultar los empleados de esta empresa.',
     AUTO_ELIMINACION_NO_PERMITIDA: 'No puedes eliminar el acceso de la sesión actual.',
     ULTIMO_ADMINISTRADOR_NO_ELIMINABLE: 'No se puede eliminar el último administrador activo.',
     ULTIMO_ADMINISTRADOR_NO_DESACTIVABLE: 'No se puede desactivar el último administrador activo.',
@@ -85,6 +86,12 @@ const publicErrorMessage = (error: unknown) => {
     AUTO_CAMBIO_ACCESO_NO_PERMITIDO: 'No puedes cambiar tu propio rol o estado desde este módulo.',
     ACCESO_NO_ENCONTRADO: 'El acceso no existe o no pertenece a tu empresa.',
   };
+  if (/^Permiso requerido:/i.test(message)) {
+    return 'No tienes permisos para consultar los empleados de esta empresa.';
+  }
+  if (message === 'Profile activo requerido') {
+    return 'No se pudo determinar la empresa activa.';
+  }
   return known[message] ?? message;
 };
 
