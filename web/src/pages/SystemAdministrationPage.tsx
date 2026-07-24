@@ -1,9 +1,9 @@
-import{useEffect,useMemo,useState,type FormEvent,type ReactNode}from'react';
-import{Activity,ArrowLeft,Building2,CalendarClock,ChevronDown,ChevronRight,ContactRound,GitBranch,HelpCircle,KeyRound,MonitorCog,Search,ShieldCheck,Smartphone,UsersRound}from'lucide-react';
+﻿import{useEffect,useMemo,useRef,useState,type FormEvent,type ReactNode}from'react';
+import{Activity,ArrowLeft,Building2,CalendarClock,ChevronDown,ChevronRight,CheckCircle2,ContactRound,GitBranch,HelpCircle,Info,KeyRound,Loader2,MonitorCog,Search,ShieldCheck,Smartphone,UsersRound}from'lucide-react';
 import{Link,useNavigate}from'react-router-dom';
 import{Badge,Empty,PageHeader,Toast}from'../components/UI';
 import{useAuth}from'../context/AuthContext';
-import{AdministrationError,administrationService,type AdminSection,type AdministrationOverview,type AuditEvent,type Branch,type Department,type Permission,type OrganizationData,type Position}from'../modules/administration/administrationService';
+import{AdministrationError,administrationService,type AdminSection,type AdministrationOverview,type AuditEvent,type Branch,type Department,type Permission,type OrganizationData,type Position,type Role}from'../modules/administration/administrationService';
 
 const cards:{key:AdminSection;title:string;description:string;icon:(p:{size?:number})=>ReactNode;count?:keyof AdministrationOverview['counts']}[]=[
  {key:'empresa',title:'Empresa',description:'Identidad, logo, RNC, contacto y zona horaria.',icon:Building2},
@@ -22,24 +22,69 @@ const defaultBranch={name:'',code:'',address:'',phone:'',email:'',timezone:'',st
 const defaultDepartment={name:'',code:'',branch_id:'',description:'',is_active:true,supervisor:''};
 const defaultPosition={name:'',code:'',department_id:'',description:'',level:1,is_active:true};
 const permissionCategoryColors=['blue','green','amber','red','purple','teal','indigo','orange'];
-function generateRoleCode(roleName: string) {
-  const normalized = roleName
+const roleCodePattern=/^[A-Z](?:[A-Z0-9_]*[A-Z0-9])?$/;
+function normalizeRoleNameInput(value: string) {
+  return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s-_]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
-
-  const parts = normalized
+}
+function generateRoleCode(roleName: string) {
+  const normalized = normalizeRoleNameInput(roleName).toUpperCase();
+  const code = normalized
+    .replace(/[^A-Z0-9\s_-]/g, ' ')
     .split(/[\s_-]+/)
-    .map((word) => word.replace(/[^A-Z0-9]/g, '').replace(/^[^A-Z]+/g, ''))
-    .filter(Boolean);
+    .map((token) =>
+      token
+        .replace(/[^A-Z0-9]/g, '')
+        .replace(/^[^A-Z]+/g, ''),
+    )
+    .filter(Boolean)
+    .join('_');
+  return roleCodePattern.test(code) ? code : '';
+}
+function isValidRoleCode(value: string) {
+  return roleCodePattern.test(value);
+}
+function mapRoleCreationError(error: unknown) {
+  if (error instanceof AdministrationError) {
+    const details = (error.details || '').toLowerCase();
+    const message = (error.message || '').toLowerCase();
+    const full = `${error.code} ${details} ${message}`;
 
-  const code = parts.join('_');
-  if (!code) {
-    return '';
+    if (error.code === 'roles_code_format' || full.includes('roles_code_format')) {
+      return 'El código interno generado no tiene un formato válido.';
+    }
+    if (error.code === 'ROLE_NAME_REQUIRED') {
+      return 'El nombre del rol es obligatorio.';
+    }
+    if (error.code === 'ROLE_CODE_REQUIRED') {
+      return 'No se pudo generar un código interno para el rol.';
+    }
+    if (
+      error.code === '23505' ||
+      full.includes('duplicate key') ||
+      (full.includes('unique') && full.includes('roles'))
+    ) {
+      return 'Ya existe un rol con ese nombre o ese código interno.';
+    }
+    if (full.includes('permission denied') || full.includes('rls') || full.includes('policy')) {
+      return 'No tienes permisos para crear roles.';
+    }
   }
-  return code.match(/^\d/) ? `ROL_${code}` : code;
+
+  const text = error instanceof Error ? error.message.toLowerCase() : String(error || '').toLowerCase();
+  if (!text) {
+    return 'No se pudo crear el rol. Inténtalo nuevamente.';
+  }
+  if (text.includes('failed to fetch') || text.includes('network') || text.includes('failed to load') || text.includes('ERR_INTERNET_DISCONNECTED')) {
+    return 'No fue posible conectar con el servidor. Revisa tu conexión.';
+  }
+  if (text.includes('timeout')) {
+    return 'La operación tardó demasiado. Inténtalo nuevamente.';
+  }
+  return 'No se pudo crear el rol. Inténtalo nuevamente.';
 }
 const quickTemplates=[
   {key:'administrador',label:'Administrador',match:(permission:Permission)=>['roles','permisos','usuarios','configuracion','dispositivos'].includes((permission.modulo||'').toLowerCase())||permission.codigo.toLowerCase()==='*'},
@@ -102,15 +147,15 @@ export function SystemAdministrationPage({section}: {section?:AdminSection}){
  useEffect(()=>{void load()},[section]);
  async function run(action:()=>Promise<unknown>,ok:string){setBusy(true);setError('');try{await action();setMessage(ok);await load();return true}catch(e){setError(errorText(e));return false}finally{setBusy(false)}}
  if(loading)return <Empty text="Cargando datos reales de la empresa…"/>;
- if(!overview)return <><PageHeader eyebrow="ADMINISTRACIÓN" title="Administración del sistema" description="No fue posible cargar el contexto administrativo."/>{error&&<div className="error admin-error">{error}</div>}</>;
+  if(!overview)return <><PageHeader eyebrow="ADMINISTRACIÓN" title="Administración del sistema" description="No fue posible cargar el contexto administrativo."/>{error&&<div className="error admin-error">{error}</div>}</>;
  if(!section)return <AdministrationHub overview={overview}/>;
- if(!overview.sections[section])return <AdminShell title={cards.find(x=>x.key===section)?.title??section} onBack={()=>nav('/administracion')}><div className="error">Permisos insuficientes para abrir este módulo. La navegación administrativa permanece disponible.</div></AdminShell>;
+  if(!overview.sections[section])return <AdminShell title={cards.find(x=>x.key===section)?.title??section} onBack={()=>nav('/administracion')}><div className="error">Permisos insuficientes para abrir este módulo. La navegación administrativa permanece disponible.</div></AdminShell>;
  const common={overview,organization,busy,run};
  return <>{error&&<div className="error admin-floating-error"><b>Error real de Supabase</b><span>{error}</span></div>}{section==='empresa'&&<CompanySection {...common}/>} {section==='sucursales'&&<BranchesSection {...common}/>} {section==='departamentos'&&<DepartmentsSection {...common}/>} {section==='cargos'&&<PositionsSection {...common}/>} {section==='usuarios'&&<UsersSection {...common} hasPermission={hasPermission}/>} {section==='jornadas'&&<JourneysSection overview={overview}/>} {section==='seguridad'&&<SecuritySection overview={overview} audit={audit}/>}<Toast message={message}/></>;
 }
 
 function AdministrationHub({overview}:{overview:AdministrationOverview}){return <><PageHeader eyebrow="CONTROL CENTRAL" title="Administración del sistema" description={`${overview.company.name} · Configuración segura por permisos efectivos y aislamiento multiempresa.`}/><section className="admin-cards">{cards.filter(c=>overview.sections[c.key]).map(({key,title,description,icon:Icon,count})=><Link className="admin-card panel" to={key==='usuarios'?'/accesos':`/administracion/${key}`} key={key}><span className="admin-card-icon"><Icon size={22}/></span><div><h2>{title}</h2><p>{description}</p>{count&&<Badge tone="blue">{overview.counts[count]} registros</Badge>}</div><ChevronRight/></Link>)}</section></>}
-function AdminShell({title,children,action}:{title:string;children:ReactNode;action?:ReactNode;onBack?:()=>void}){return <><PageHeader eyebrow="ADMINISTRACIÓN DEL SISTEMA" title={title} description="Datos reales de la empresa autenticada y operaciones protegidas por permisos." action={<div className="button-row"><Link className="secondary" to="/administracion"><ArrowLeft/>Administración</Link>{action}</div>}/>{children}</>}
+function AdminShell({title,children,action,onBack}:{title:string;children:ReactNode;action?:ReactNode;onBack?:()=>void}){return <><PageHeader eyebrow="ADMINISTRACIÓN DEL SISTEMA" title={title} description="Datos reales de la empresa autenticada y operaciones protegidas por permisos." action={<div className="button-row">{onBack?<button className="secondary" type="button" onClick={onBack}><ArrowLeft/>Administración</button>:<Link className="secondary" to="/administracion"><ArrowLeft/>Administración</Link>}{action}</div>}/>{children}</>}
 
 type Common={overview:AdministrationOverview;organization:OrganizationData;busy:boolean;run:(action:()=>Promise<unknown>,ok:string)=>Promise<boolean>};
 function CompanySection({overview,busy,run}:Common){const c=overview.company,[form,setForm]=useState({name:c.name,legal_name:c.legal_name??'',tax_id:c.tax_id??'',logo_url:c.logo_url??'',address:c.address??'',email:c.email??'',phone:c.phone??'',timezone:c.timezone}),[reason,setReason]=useState('');return <AdminShell title="Empresa"><form className="panel admin-form" onSubmit={e=>{e.preventDefault();void run(()=>administrationService.updateCompany(form,reason),'Datos de empresa actualizados')}}><label>Nombre comercial<input value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))} required/></label><label>Razón social<input value={form.legal_name} onChange={e=>setForm(v=>({...v,legal_name:e.target.value}))}/></label><label>RNC<input value={form.tax_id} onChange={e=>setForm(v=>({...v,tax_id:e.target.value}))}/></label><label>Logo URL<input type="url" value={form.logo_url} onChange={e=>setForm(v=>({...v,logo_url:e.target.value}))}/></label><label className="span-2">Dirección<input value={form.address} onChange={e=>setForm(v=>({...v,address:e.target.value}))}/></label><label>Correo<input type="email" value={form.email} onChange={e=>setForm(v=>({...v,email:e.target.value}))}/></label><label>Teléfono<input value={form.phone} onChange={e=>setForm(v=>({...v,phone:e.target.value}))}/></label><label>Zona horaria<input value={form.timezone} onChange={e=>setForm(v=>({...v,timezone:e.target.value}))} required/></label><label>Motivo del cambio<input value={reason} onChange={e=>setReason(e.target.value)} required/></label><button className="primary" disabled={busy}>Guardar cambios</button></form></AdminShell>}
@@ -123,121 +168,193 @@ function PositionsSection({organization,busy,run}:Common){const[editing,setEditi
 
 function UsersSection({
   organization,
+  overview,
   busy,
   run,
   hasPermission,
 }: Common & {
   hasPermission: (permission: string) => boolean;
 }) {
+  type LocalRolePermission = {
+    rol_id: string;
+    permiso_id: string;
+    permitido: boolean;
+    alcance: string;
+  };
+
+  const nav = useNavigate();
   const [reason, setReason] = useState('');
+  const [roles, setRoles] = useState<Role[]>(organization.roles);
+  const [rolePermissionsState, setRolePermissionsState] = useState<LocalRolePermission[]>(organization.rolePermissions);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [roleForm, setRoleForm] = useState({
-    name: '',
-    description: '',
-    isActive: true,
-  });
-  const generatedCode = useMemo(() => generateRoleCode(roleForm.name), [roleForm.name]);
+  const [roleForm, setRoleForm] = useState({ name: '', description: '', isActive: true });
+  const [editingRoleSnapshot, setEditingRoleSnapshot] = useState<{ name: string; description: string; isActive: boolean; permissions: string[] } | null>(null);
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [roleSuccess, setRoleSuccess] = useState<{ name: string; code: string } | null>(null);
+  const [roleError, setRoleError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({ name: '', code: '', permissions: '', duplicate: '' });
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [highlightedRoleId, setHighlightedRoleId] = useState('');
+  const [discardDialog, setDiscardDialog] = useState<null | (() => void)>(null);
+
+  const roleMessageRef = useRef<HTMLDivElement>(null);
+  const roleNameRef = useRef<HTMLInputElement>(null);
+  const permissionErrorRef = useRef<HTMLDivElement>(null);
+  const roleRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const canManageRoles = hasPermission('roles.administrar');
   const canManagePermissions = hasPermission('permisos.administrar');
-  const activePermissions = useMemo(
-    () => organization.permissions.filter((permission) => permission.activo),
-    [organization.permissions],
-  );
-  const dependencyMap = useMemo(
-    () => buildDependencyMap(activePermissions),
-    [activePermissions],
-  );
-  const editingRole = organization.roles.find(
-    (role) => role.id === editingRoleId,
+  const activePermissions = useMemo(() => organization.permissions.filter((permission) => permission.activo), [organization.permissions]);
+  const dependencyMap = useMemo(() => buildDependencyMap(activePermissions), [activePermissions]);
+
+  const generatedCode = useMemo(() => generateRoleCode(roleForm.name), [roleForm.name]);
+  const normalizedRoleName = useMemo(() => normalizeRoleNameInput(roleForm.name).toUpperCase(), [roleForm.name]);
+  const selectedPermissionsSet = useMemo(() => new Set(selectedPermissions), [selectedPermissions]);
+  const normalizedSelectedPermissions = useMemo(() => {
+    let next = new Set(selectedPermissions);
+    for (const permissionId of Array.from(next)) {
+      next = applyDependencyRules(next, dependencyMap, permissionId, true);
+    }
+    return [...next];
+  }, [selectedPermissions, dependencyMap]);
+
+  const canCreateRole = Boolean(
+    normalizedRoleName &&
+      generatedCode &&
+      isValidRoleCode(generatedCode) &&
+      !validationErrors.name &&
+      !validationErrors.code &&
+      !validationErrors.duplicate &&
+      !validationErrors.permissions,
   );
 
-  const selectedPermissionsSet = useMemo(
-    () => new Set(selectedPermissions),
-    [selectedPermissions],
-  );
+  const duplicateRole = useMemo(() => {
+    if (!normalizedRoleName) {
+      return null;
+    }
+    return roles.find(
+      (role) => role.id !== (editingRoleId ?? 'new') && normalizeRoleNameInput(role.name).toUpperCase() === normalizedRoleName,
+    );
+  }, [roles, editingRoleId, normalizedRoleName]);
+  const duplicateCodeRole = useMemo(() => {
+    if (!generatedCode) {
+      return null;
+    }
+    return roles.find((role) => role.id !== (editingRoleId ?? 'new') && role.code === generatedCode);
+  }, [roles, editingRoleId, generatedCode]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (editingRoleId === null || !editingRoleSnapshot) {
+      return roleForm.name.trim().length > 0 || roleForm.description.trim().length > 0 || selectedPermissions.length > 0;
+    }
+    if (roleForm.name !== editingRoleSnapshot.name || roleForm.description !== editingRoleSnapshot.description || roleForm.isActive !== editingRoleSnapshot.isActive) {
+      return true;
+    }
+    const current = new Set(selectedPermissions);
+    const original = new Set(editingRoleSnapshot.permissions);
+    if (current.size !== original.size) {
+      return true;
+    }
+    for (const permissionId of current) {
+      if (!original.has(permissionId)) {
+        return true;
+      }
+    }
+    return false;
+  }, [editingRoleId, editingRoleSnapshot, roleForm.name, roleForm.description, roleForm.isActive, selectedPermissions]);
 
   const groupedPermissions = useMemo(() => {
     const groups = new Map<string, Permission[]>();
     for (const permission of activePermissions) {
       const module = moduleFrom(permission);
-      const permissions = groups.get(module);
-      if (permissions) {
-        permissions.push(permission);
+      const list = groups.get(module);
+      if (list) {
+        list.push(permission);
       } else {
         groups.set(module, [permission]);
       }
     }
-    for (const permissions of groups.values()) {
-      permissions.sort((a, b) => permissionLabel(a).localeCompare(permissionLabel(b)));
+    for (const list of groups.values()) {
+      list.sort((a, b) => permissionLabel(a).localeCompare(permissionLabel(b)));
     }
-
     const normalized = search.trim().toLowerCase();
     return [...groups.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([module, permissions]) => {
-        const list = normalized
-          ? permissions.filter((permission) => matchesSearch(permission, normalized))
-          : permissions;
+      .map(([module, list]) => {
+        const visible = normalized ? list.filter((permission) => matchesSearch(permission, normalized)) : list;
         return {
           module,
           title: moduleTitle(module),
           color: colorForModule(module),
-          permissions: list,
-          total: permissions.length,
-          selectedCount: list.filter((permission) =>
-            selectedPermissionsSet.has(permission.id),
-          ).length,
+          permissions: visible,
+          total: list.length,
+          selectedCount: visible.filter((permission) => selectedPermissionsSet.has(permission.id)).length,
         };
       });
   }, [activePermissions, search, selectedPermissionsSet]);
 
-  const anyPermissionVisible = useMemo(
-    () => groupedPermissions.some((group) => group.permissions.length > 0),
-    [groupedPermissions],
-  );
+  const anyPermissionVisible = useMemo(() => groupedPermissions.some((group) => group.permissions.length > 0), [groupedPermissions]);
+
+  useEffect(() => {
+    setRoles([...organization.roles].sort((a, b) => a.name.localeCompare(b.name)));
+    setRolePermissionsState([...organization.rolePermissions]);
+  }, [organization.roles, organization.rolePermissions]);
+
+  useEffect(() => {
+    if (!roleSuccess && !roleError) {
+      return;
+    }
+    if (roleMessageRef.current) {
+      roleMessageRef.current.focus();
+      roleMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [roleSuccess, roleError]);
+
+  useEffect(() => {
+    if (!highlightedRoleId) {
+      return;
+    }
+    const node = roleRowRefs.current[highlightedRoleId];
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    const id = window.setTimeout(() => setHighlightedRoleId(''), 2300);
+    return () => window.clearTimeout(id);
+  }, [highlightedRoleId]);
 
   useEffect(() => {
     if (!groupedPermissions.length) {
       setExpanded({});
       return;
     }
-
     setExpanded((current) => {
-      const next: Record<string, boolean> = { ...current };
+      const next = { ...current };
       let changed = false;
-      const visibleModules = new Set(groupedPermissions.map((group) => group.module));
-
+      const visible = new Set(groupedPermissions.map((item) => item.module));
       for (const module of Object.keys(next)) {
-        if (!visibleModules.has(module)) {
+        if (!visible.has(module)) {
           delete next[module];
           changed = true;
         }
       }
-
       for (const { module } of groupedPermissions) {
         if (next[module] === undefined) {
           next[module] = false;
           changed = true;
         }
       }
-
-      if (!changed) {
-        return current;
-      }
-      return next;
+      return changed ? next : current;
     });
   }, [groupedPermissions]);
 
   useEffect(() => {
     const normalized = search.trim();
+    if (!normalized) {
+      return;
+    }
     setExpanded((current) => {
-      if (!normalized) {
-        return current;
-      }
       const next = { ...current };
       let changed = false;
       for (const { module, permissions } of groupedPermissions) {
@@ -247,12 +364,44 @@ function UsersSection({
           changed = true;
         }
       }
-      if (!changed) {
-        return current;
-      }
-      return next;
+      return changed ? next : current;
     });
   }, [search, groupedPermissions]);
+
+  function setErrorMessages() {
+    const next = { name: '', code: '', permissions: '', duplicate: '' };
+    if (!normalizedRoleName.trim()) {
+      next.name = 'El nombre del rol es obligatorio.';
+    }
+    if (!generatedCode.trim()) {
+      next.code = 'No se pudo generar el código interno desde el nombre.';
+    } else if (!isValidRoleCode(generatedCode)) {
+      next.code = 'El código interno generado no tiene un formato válido.';
+    }
+    if (!normalizedSelectedPermissions.length) {
+      next.permissions = 'Selecciona al menos un permiso para crear el rol.';
+    }
+    if (duplicateRole || duplicateCodeRole) {
+      next.duplicate =
+        'Ya existe un rol con ese nombre.\\nCódigo interno:\\n' + generatedCode + '\\nUtiliza un nombre diferente.';
+    }
+    setValidationErrors(next);
+    return next;
+  }
+
+  function clearValidation() {
+    setValidationErrors({ name: '', code: '', permissions: '', duplicate: '' });
+    setRoleError('');
+    setRoleSuccess(null);
+  }
+
+  function rolePermissionIds(roleId: string) {
+    return rolePermissionsState.filter((item) => item.rol_id === roleId && item.permitido).map((item) => item.permiso_id);
+  }
+
+  function assignedUsers(roleId: string) {
+    return organization.profiles.filter((profile) => profile.role_id === roleId);
+  }
 
   function isAdministratorRole(role: { code: string; name: string }) {
     const normalized = `${role.code} ${role.name}`
@@ -260,7 +409,6 @@ function UsersSection({
       .replace(/[\u0300-\u036f]/g, '')
       .toUpperCase()
       .replace(/[^A-Z]/g, '');
-
     return (
       normalized.includes('ADMIN') ||
       normalized.includes('ADMINISTRADOR') ||
@@ -268,42 +416,22 @@ function UsersSection({
     );
   }
 
-  function rolePermissionIds(roleId: string) {
-    return organization.rolePermissions
-      .filter(
-        (rolePermission) =>
-          rolePermission.rol_id === roleId && rolePermission.permitido,
-      )
-      .map((rolePermission) => rolePermission.permiso_id);
+  function setModuleExpanded(module: string) {
+    if (roleSaving) {
+      return;
+    }
+    setExpanded((current) => ({ ...current, [module]: !current[module] }));
   }
 
-  function assignedUsers(roleId: string) {
-    return organization.profiles.filter((profile) => profile.role_id === roleId);
-  }
-
-  function syncDependencies(
-    nextSet: Set<string>,
-    permissionId: string,
-    checked: boolean,
-  ) {
+  function syncDependencies(nextSet: Set<string>, permissionId: string, checked: boolean) {
     return applyDependencyRules(nextSet, dependencyMap, permissionId, checked);
   }
 
-  function applyTemplatePermissionSet(
-    templateKey:
-      | 'administrador'
-      | 'supervisor'
-      | 'rrhh'
-      | 'nomina'
-      | 'auditor'
-      | 'empleado',
-    current: Set<string>,
-  ) {
+  function applyTemplatePermissionSet(templateKey: 'administrador' | 'supervisor' | 'rrhh' | 'nomina' | 'auditor' | 'empleado', current: Set<string>) {
     const template = quickTemplates.find((item) => item.key === templateKey);
     if (!template) {
       return current;
     }
-
     const next = new Set(current);
     for (const permission of activePermissions) {
       if (template.match(permission)) {
@@ -313,179 +441,207 @@ function UsersSection({
     return next;
   }
 
-  function normalizeSelected(permissions: Iterable<string>) {
-    let next = new Set(permissions);
-    for (const permissionId of Array.from(next)) {
-      next = syncDependencies(next, permissionId, true);
+  function applyQuickTemplate(templateKey: 'administrador' | 'supervisor' | 'rrhh' | 'nomina' | 'auditor' | 'empleado') {
+    if (roleSaving) {
+      return;
     }
-    return [...next];
+    setSelectedPermissions((current) => [...applyTemplatePermissionSet(templateKey, new Set(current))]);
+  }
+
+  function togglePermission(permission: Permission, checked: boolean) {
+    if (roleSaving) {
+      return;
+    }
+    setSelectedPermissions((current) => [...syncDependencies(new Set(current), permission.id, checked)]);
   }
 
   function resetRoleForm() {
     setEditingRoleId(null);
-    setRoleForm({
-      name: '',
-      description: '',
-      isActive: true,
-    });
+    setEditingRoleSnapshot(null);
+    setRoleForm({ name: '', description: '', isActive: true });
     setSearch('');
     setSelectedPermissions([]);
+    setExpanded({});
+    clearValidation();
+    setDiscardDialog(null);
   }
 
-  function editRole(role: {
-    id: string;
-    name: string;
-    code: string;
-    description: string | null;
-    is_active: boolean;
-  }) {
-    const normalized = normalizeSelected(rolePermissionIds(role.id));
+  function requestResetOrLeave(action: () => void) {
+    if (!hasUnsavedChanges || roleSaving) {
+      action();
+      return;
+    }
+    setDiscardDialog(() => action);
+  }
+
+  function editRole(role: { id: string; name: string; code: string; description: string | null; is_active: boolean }) {
+    const normalized = rolePermissionIds(role.id);
     setEditingRoleId(role.id);
-    setRoleForm({
+    setEditingRoleSnapshot({
       name: role.name,
       description: role.description ?? '',
       isActive: role.is_active,
+      permissions: normalized,
     });
+    setRoleForm({ name: role.name, description: role.description ?? '', isActive: role.is_active });
     setSelectedPermissions(normalized);
     setSearch('');
+    clearValidation();
+    setRoleSuccess(null);
   }
 
   async function saveRole(event: FormEvent) {
     event.preventDefault();
+    if (roleSaving || busy || !canManageRoles) {
+      return;
+    }
 
-    if (
-      busy ||
-      !roleForm.name.trim() ||
-      !generatedCode.trim() ||
-      (editingRoleId !== null && !reason.trim())
-    ) {
+    const errors = setErrorMessages();
+    if (errors.name || errors.code || errors.permissions || errors.duplicate) {
+      if (errors.name) {
+        roleNameRef.current?.focus();
+      } else {
+        permissionErrorRef.current?.focus();
+      }
+      return;
+    }
+
+    if (editingRoleId !== null && !reason.trim()) {
+      setRoleError('Para editar un rol, especifica un motivo de cambio.');
       return;
     }
 
     const created = editingRoleId === null;
-    const saved = await run(async () => {
+    const roleName = roleForm.name.trim();
+    const roleDescription = roleForm.description.trim();
+    const roleCode = generatedCode;
+    const desiredPermissions = new Set(normalizedSelectedPermissions);
+    setRoleSaving(true);
+    setRoleError('');
+
+    try {
       const roleId = await administrationService.saveRole(
         editingRoleId,
-        roleForm.name,
-        generatedCode,
-        roleForm.description,
+        roleName,
+        roleCode,
+        roleDescription,
         roleForm.isActive,
         created ? '' : reason,
       );
-      const previousPermissions = new Set(
-        editingRoleId ? rolePermissionIds(editingRoleId) : [],
-      );
-      const nextPermissions = new Set(selectedPermissions);
-      const permissionReason = created
-        ? 'Creación inicial del rol'
-        : reason;
-      for (const permission of activePermissions) {
-        const wasAssigned = previousPermissions.has(permission.id);
-        const isAssigned = nextPermissions.has(permission.id);
 
+      const previousPermissions = new Set(editingRoleId ? rolePermissionIds(editingRoleId) : []);
+      const permissionReason = created ? 'Creación inicial del rol' : reason;
+      for (const permission of activePermissions) {
+        const isAssigned = desiredPermissions.has(permission.id);
+        const wasAssigned = previousPermissions.has(permission.id);
         if (wasAssigned !== isAssigned) {
-          await administrationService.setRolePermission(
-            roleId,
-            permission.id,
-            isAssigned,
-            permissionReason,
-          );
+          await administrationService.setRolePermission(roleId, permission.id, isAssigned, permissionReason);
         }
       }
-    }, created ? 'Rol creado' : 'Rol actualizado');
 
-    if (saved) {
+      const newRole: Role = {
+        id: roleId,
+        company_id: overview.company.id,
+        name: roleName,
+        code: roleCode,
+        description: roleDescription || null,
+        is_active: roleForm.isActive,
+      };
+
+      setRoles((current) => {
+        const next = editingRoleId ? current.map((role) => (role.id === roleId ? newRole : role)) : [...current, newRole];
+        return [...next].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setRolePermissionsState((current) => {
+        const kept = current.filter((permission) => permission.rol_id !== roleId);
+        const permissionEntries = activePermissions
+          .filter((permission) => desiredPermissions.has(permission.id))
+          .map((permission) => ({
+            rol_id: roleId,
+            permiso_id: permission.id,
+            permitido: true,
+            alcance: 'manual',
+          }));
+        return [...kept, ...permissionEntries];
+      });
+
+      if (created) {
+        setRoleSuccess({ name: roleName, code: roleCode });
+      }
+
       resetRoleForm();
+      setHighlightedRoleId(roleId);
+    } catch (error) {
+      console.error('[roles] error al guardar rol', error);
+      setRoleError(mapRoleCreationError(error));
+    } finally {
+      setRoleSaving(false);
     }
   }
 
-  async function toggleRoleStatus(role: {
-    id: string;
-    name: string;
-    code: string;
-    description: string | null;
-    is_active: boolean;
-  }) {
+  async function toggleRoleStatus(role: { id: string; name: string; code: string; description: string | null; is_active: boolean }) {
     if (!reason.trim()) {
       return;
     }
-
     const users = assignedUsers(role.id);
     const deactivating = role.is_active;
-
     if (deactivating && isAdministratorRole(role)) {
       return;
     }
     if (deactivating && users.length > 0) {
       return;
     }
-
     const action = deactivating ? 'desactivar' : 'activar';
-    if (
-      !window.confirm(
-        `¿Confirmas ${action} el rol "${role.name}"? Esta acción quedará auditada.`,
-      )
-    ) {
+    if (!window.confirm(`¿Confirmas ${action} el rol "${role.name}"? Esta acción quedará auditada.`)) {
       return;
     }
-
     await run(
-      () =>
-        administrationService.saveRole(
-          role.id,
-          role.name,
-          role.code,
-          role.description ?? '',
-          !deactivating,
-          reason,
-        ),
+      () => administrationService.saveRole(role.id, role.name, role.code, role.description ?? '', !deactivating, reason),
       deactivating ? 'Rol desactivado' : 'Rol activado',
     );
   }
 
-  function setModuleExpanded(module: string) {
-    setExpanded((current) => ({
-      ...current,
-      [module]: !current[module],
-    }));
-  }
-
-  function applyQuickTemplate(
-    key:
-      | 'administrador'
-      | 'supervisor'
-      | 'rrhh'
-      | 'nomina'
-      | 'auditor'
-      | 'empleado',
-  ) {
-    setSelectedPermissions((current) => {
-      const next = applyTemplatePermissionSet(key, new Set(current));
-      return [...next];
-    });
-  }
-
-  function togglePermission(permission: Permission, checked: boolean) {
-    setSelectedPermissions((current) => {
-      const next = syncDependencies(new Set(current), permission.id, checked);
-      return [...next];
-    });
-  }
-
   return (
-    <AdminShell title="Roles y permisos">
+    <AdminShell
+      title="Roles y permisos"
+      onBack={() => requestResetOrLeave(() => void nav('/administracion'))}
+    >
+      {discardDialog && (
+        <div className="admin-discard-overlay">
+          <div className="admin-discard-dialog" role="alertdialog" aria-modal="true" aria-label="confirmar descartar cambios">
+            <h3>¿Descartar los cambios?</h3>
+            <p>Los datos y permisos seleccionados se perderán.</p>
+            <div className="button-row">
+              <button type="button" className="secondary" onClick={() => setDiscardDialog(null)}>
+                Seguir editando
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  discardDialog?.();
+                  setDiscardDialog(null);
+                }}
+              >
+                Descartar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="admin-users-actions">
         {hasPermission('usuarios.administrar') && (
           <Link className="primary" to="/accesos">
             Administrar accesos
           </Link>
         )}
-
         <label>
           Motivo para cambios
           <input
             value={reason}
             onChange={(event) => setReason(event.target.value)}
+            aria-label="Motivo para cambios"
             placeholder="Obligatorio para editar, permisos y estado"
           />
         </label>
@@ -494,86 +650,120 @@ function UsersSection({
       {canManageRoles && (
         <>
           <section className="panel admin-role-panel">
-            <form
-              className="admin-inline-form"
-              onSubmit={(event) => void saveRole(event)}
-            >
-              <h2>{editingRoleId ? 'Editar rol' : 'Nuevo rol'}</h2>
+            <h2>{editingRoleId ? 'Editar rol' : 'Nuevo rol'}</h2>
+            {roleError && (
+              <div className="admin-inline-alert admin-inline-alert-error" role="alert" aria-live="assertive">
+                {roleError}
+              </div>
+            )}
+             {roleSuccess && (
+              <div className="admin-inline-alert admin-inline-alert-success" role="alert" aria-live="polite" ref={roleMessageRef} tabIndex={-1}>
+                <p>Rol creado correctamente</p>
+                <p><strong>Nombre:</strong> {roleSuccess.name}</p>
+                <p><strong>Código:</strong> {roleSuccess.code}</p>
+              </div>
+            )}
+              <form className="admin-inline-form" onSubmit={(event) => void saveRole(event)} aria-busy={roleSaving ? 'true' : 'false'}>
+                <label>
+                  <span>Nombre</span>
+                  <input
+                    ref={roleNameRef}
+                    placeholder="Nombre"
+                    value={roleForm.name}
+                    onChange={(event) => {
+                      setRoleForm((current) => ({ ...current, name: event.target.value }));
+                    if (validationErrors.name || validationErrors.duplicate || validationErrors.code || validationErrors.permissions) {
+                        clearValidation();
+                      }
+                    }}
+                    aria-label="Nombre del rol"
+                    aria-describedby="role-name-error role-code-hint role-permission-error role-duplicate-error"
+                    required
+                    disabled={roleSaving}
+                  />
+                  {validationErrors.name && <small id="role-name-error" role="alert">{validationErrors.name}</small>}
+                </label>
+                <div className="admin-inline-code">
+                  <small>Código interno</small>
+                  <div id="role-code-hint" className="admin-readonly-code">
+                    <Info size={15} />
+                    <span aria-live="polite">{generatedCode || '—'}</span>
+                  </div>
+                  {validationErrors.code && <small role="alert" className="admin-field-error">{validationErrors.code}</small>}
+                </div>
+                <label>
+                  <span>Descripción</span>
+                  <input
+                    placeholder="Descripción"
+                    aria-label="Descripción del rol"
+                    value={roleForm.description}
+                    onChange={(event) => setRoleForm((current) => ({ ...current, description: event.target.value }))}
+                    disabled={roleSaving}
+                  />
+                </label>
 
-              <input
-                placeholder="Nombre"
-                value={roleForm.name}
-                onChange={(event) =>
-                  setRoleForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
-                required
-              />
-              <label>
-                Código (solo lectura)
-                <input readOnly value={generatedCode} />
-              </label>
-              <input
-                placeholder="Descripción"
-                value={roleForm.description}
-                onChange={(event) =>
-                  setRoleForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-              />
-
-              <button
-                className="primary"
-                disabled={
-                  busy ||
-                  !roleForm.name.trim() ||
-                  !generatedCode.trim() ||
-                  (editingRoleId !== null && !reason.trim())
-                }
-              >
-                {busy
-                  ? 'Guardando…'
-                  : editingRoleId
-                    ? 'Guardar cambios'
-                    : 'Crear rol'}
-              </button>
-              {editingRoleId && (
+              <div className="admin-row-actions">
                 <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={resetRoleForm}
+                  className="primary"
+                  aria-label={editingRoleId ? 'Guardar cambios del rol' : 'Crear rol'}
+                  disabled={
+                    busy ||
+                    roleSaving ||
+                    !canCreateRole ||
+                    Boolean(duplicateRole || duplicateCodeRole) ||
+                    (editingRoleId !== null && !reason.trim())
+                  }
+                  aria-busy={roleSaving ? 'true' : 'false'}
                 >
-                  Cancelar edición
+                  {roleSaving ? (
+                    <><Loader2 size={16} className="spin" />{editingRoleId ? 'Guardando...' : 'Creando rol...'}</>
+                  ) : editingRoleId ? 'Guardar cambios' : 'Crear rol'}
                 </button>
+                {editingRoleId && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy || roleSaving}
+                    onClick={() => requestResetOrLeave(resetRoleForm)}
+                  >
+                    Cancelar edición
+                  </button>
+                )}
+              </div>
+
+              {validationErrors.duplicate && (
+                <small id="role-duplicate-error" role="alert" className="admin-field-error">
+                  {validationErrors.duplicate.split('\\n').map((line) => (
+                    <span key={line}>{line}<br /></span>
+                  ))}
+                </small>
+              )}
+              {validationErrors.permissions && (
+                <small id="role-permission-error" role="alert" className="admin-field-error">
+                  {validationErrors.permissions}
+                </small>
               )}
             </form>
           </section>
 
-          <section className="panel admin-role-permissions">
+          <section className="panel admin-role-permissions" aria-busy={roleSaving ? 'true' : 'false'}>
             <header className="admin-role-permissions__header">
               <div>
                 <h2>{editingRoleId ? 'Permisos del rol' : 'Permisos iniciales del rol'}</h2>
-                <small>
-                  {editingRole
-                    ? `Rol: ${editingRole.name}`
-                    : 'Plantilla visual de permisos'}
-                </small>
+                <small>{roleForm.name ? `Rol: ${roleForm.name}` : 'Plantilla visual de permisos'}</small>
               </div>
-              {canManagePermissions && (
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setSelectedPermissions([])}
-                >
-                  Limpiar selección
-                </button>
-              )}
-            </header>
+                {canManagePermissions && (
+                  <button
+                    className="secondary"
+                    type="button"
+                    onClick={() => setSelectedPermissions([])}
+                    aria-label="Limpiar selección de permisos"
+                    disabled={roleSaving}
+                  >
+                    Limpiar selección
+                  </button>
+                )}
+              </header>
 
             <div className="admin-role-toolbar">
               <label className="admin-permission-search">
@@ -582,9 +772,11 @@ function UsersSection({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Buscar permisos por nombre, código o módulo"
+                  aria-label="Buscar permisos"
+                  aria-describedby="role-permission-error"
+                  disabled={roleSaving}
                 />
               </label>
-
               {canManagePermissions && (
                 <div className="admin-template-row">
                   {quickTemplates.map((template) => (
@@ -592,17 +784,9 @@ function UsersSection({
                       key={template.key}
                       type="button"
                       className="secondary"
-                      onClick={() =>
-                        applyQuickTemplate(
-                          template.key as
-                            | 'administrador'
-                            | 'supervisor'
-                            | 'rrhh'
-                            | 'nomina'
-                            | 'auditor'
-                            | 'empleado',
-                        )
-                      }
+                      aria-label={`Aplicar plantilla ${template.label}`}
+                      onClick={() => applyQuickTemplate(template.key as 'administrador' | 'supervisor' | 'rrhh' | 'nomina' | 'auditor' | 'empleado')}
+                      disabled={roleSaving}
                     >
                       {template.label}
                     </button>
@@ -611,150 +795,127 @@ function UsersSection({
               )}
             </div>
 
-            {canManagePermissions && (
-              <div className="admin-permission-categories">
-                {!anyPermissionVisible && (
-                  <div className="admin-empty-permissions">
-                    Sin coincidencias para esta búsqueda.
-                  </div>
-                )}
-                {groupedPermissions.map(
-                  ({ module, title, color, permissions, total, selectedCount }) => {
-                    if (!permissions.length) {
-                      return null;
-                    }
-                    const isOpen = expanded[module] ?? false;
-                    return (
-                      <section
-                        key={module}
-                        className={`admin-permission-category admin-permission-category-${color}`}
-                      >
-                        <button
-                          className="admin-permission-category-head"
-                          type="button"
-                          onClick={() => setModuleExpanded(module)}
-                          aria-expanded={isOpen}
-                        >
-                          <span>
-                            <ChevronDown size={14} />
-                            {title}
-                          </span>
-                          <small>{selectedCount}/{total}</small>
-                        </button>
-                        <div className={`admin-permission-list ${isOpen ? 'open' : 'closed'}`}>
-                          {permissions.map((permission) => {
-                            const checked = selectedPermissionsSet.has(permission.id);
-                            return (
-                              <label
-                                key={permission.id}
-                                className={`admin-permission-row ${checked ? 'selected' : ''}`}
-                                title={tooltipForPermission(permission)}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  disabled={busy || (editingRoleId !== null && !reason.trim())}
-                                  onChange={(event) =>
-                                    togglePermission(permission, event.target.checked)
-                                  }
-                                />
-                                <div>
-                                  <strong>{permissionLabel(permission)}</strong>
-                                  <small>{permission.codigo}</small>
-                                </div>
-                                <span className="admin-permission-help" title={tooltipForPermission(permission)}>
-                                  <HelpCircle size={13} />
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  },
-                )}
-              </div>
-            )}
+            <div className="admin-permission-categories" ref={permissionErrorRef} tabIndex={-1}>
+              {!anyPermissionVisible && <div className="admin-empty-permissions">Sin coincidencias para esta búsqueda.</div>}
+              {canManagePermissions && groupedPermissions.map(({ module, title, color, permissions, total, selectedCount }) => {
+                if (!permissions.length) {
+                  return null;
+                }
+                const isOpen = expanded[module] ?? false;
+                return (
+                    <section key={module} className={`admin-permission-category admin-permission-category-${color}`}>
+                    <button
+                      className="admin-permission-category-head"
+                      type="button"
+                      aria-label={`${isOpen ? 'Ocultar' : 'Mostrar'} permisos del módulo ${title}`}
+                      onClick={() => setModuleExpanded(module)}
+                      aria-expanded={isOpen}
+                    >
+                      <span>
+                        <ChevronDown size={14} />
+                        {title}
+                      </span>
+                      <small>{selectedCount}/{total}</small>
+                    </button>
+                    <div className={`admin-permission-list ${isOpen ? 'open' : 'closed'}`}>
+                      {permissions.map((permission) => {
+                        const checked = selectedPermissionsSet.has(permission.id);
+                        return (
+                          <label key={permission.id} className={`admin-permission-row ${checked ? 'selected' : ''}`} title={tooltipForPermission(permission)}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              aria-label={`Permiso ${permissionLabel(permission)} ${checked ? 'seleccionado' : 'no seleccionado'}`}
+                              disabled={busy || roleSaving || (editingRoleId !== null && !reason.trim())}
+                              onChange={(event) => togglePermission(permission, event.target.checked)}
+                            />
+                            <div>
+                              <strong>{permissionLabel(permission)}</strong>
+                              <small>{permission.codigo}</small>
+                            </div>
+                            <span className="admin-permission-help" title={tooltipForPermission(permission)}>
+                              <HelpCircle size={13} />
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
 
-            {!canManagePermissions && (
-              <div className="admin-empty-permissions">
-                No tienes permiso para administrar permisos.
-              </div>
-            )}
-
-            {editingRoleId && !reason.trim() && (
-              <small>Escribe el motivo para modificar los permisos del rol.</small>
-            )}
+             {!canManagePermissions && <div className="admin-empty-permissions">No tienes permiso para administrar permisos.</div>}
+             {editingRoleId && !reason.trim() && <small>Escribe el motivo para modificar los permisos del rol.</small>}
           </section>
 
           <section className="panel admin-role-panel">
             <h2>Roles existentes</h2>
-            <SimpleTable
-              headers={[
-                'Nombre',
-                'Código',
-                'Descripción',
-                'Estado',
-                'Permisos',
-                'Acciones',
-              ]}
-              rows={organization.roles.map((role) => {
-                const users = assignedUsers(role.id);
-                const isPrimaryAdministrator = isAdministratorRole(role);
-                const canDeactivate =
-                  role.is_active &&
-                  !isPrimaryAdministrator &&
-                  users.length === 0;
-                const actionDisabled =
-                  busy ||
-                  !reason.trim() ||
-                  (role.is_active && !canDeactivate);
-
-                return [
-                  role.name,
-                  <code key={`${role.id}-code`}>{role.code}</code>,
-                  role.description || '—',
-                  <Badge
-                    key={`${role.id}-status`}
-                    tone={role.is_active ? 'green' : 'gray'}
-                  >
-                    {role.is_active ? 'Activo' : 'Inactivo'}
-                  </Badge>,
-                  `${rolePermissionIds(role.id).length} permiso(s)`,
-                  <div key={`${role.id}-actions`} className="button-row">
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => editRole(role)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={actionDisabled}
-                      title={
-                        isPrimaryAdministrator && role.is_active
-                          ? 'El rol Administrador principal no se puede desactivar.'
-                          : users.length > 0 && role.is_active
-                            ? `Reasigna los ${users.length} usuario(s) antes de desactivar.`
-                            : !reason.trim()
-                              ? 'Escribe el motivo para cambiar el estado.'
-                              : undefined
-                      }
-                      onClick={() => void toggleRoleStatus(role)}
-                    >
-                      {role.is_active ? 'Desactivar' : 'Activar'}
-                    </button>
-                    {users.length > 0 && (
-                      <small>
-                        {users.length} usuario(s) asignado(s): reasignación
-                        requerida
-                      </small>
-                    )}
-                  </div>,
-                ];
-              })}
-            />
+            <div className="table-wrap">
+              <table>
+                <thead>
+                      <tr>
+                    <th>Nombre</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th>Estado</th>
+                    <th>Permisos</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roles.map((role) => {
+                    const users = assignedUsers(role.id);
+                    const isPrimaryAdministrator = isAdministratorRole(role);
+                    const canDeactivate = role.is_active && !isPrimaryAdministrator && users.length === 0;
+                    const actionDisabled = busy || !reason.trim() || (role.is_active && !canDeactivate);
+                    return (
+                      <tr
+                        key={role.id}
+                        ref={(node) => {
+                          roleRowRefs.current[role.id] = node;
+                        }}
+                        className={highlightedRoleId === role.id ? 'admin-role-highlighted' : undefined}
+                      >
+                        <td>{role.name}</td>
+                        <td><code>{role.code}</code></td>
+                        <td>{role.description || '—'}</td>
+                        <td><Badge tone={role.is_active ? 'green' : 'gray'}>{role.is_active ? 'Activo' : 'Inactivo'}</Badge></td>
+                        <td>{rolePermissionIds(role.id).length} permiso(s)</td>
+                        <td>
+                          <div className="button-row">
+                             <button className="secondary" disabled={busy || roleSaving} aria-label={`Editar rol ${role.name}`} onClick={() => editRole(role)}>Editar</button>
+                             <button
+                               className="secondary"
+                               disabled={actionDisabled}
+                               aria-label={role.is_active ? `Desactivar rol ${role.name}` : `Activar rol ${role.name}`}
+                               title={
+                                 isPrimaryAdministrator && role.is_active
+                                   ? 'El rol Administrador principal no se puede desactivar.'
+                                  : users.length > 0 && role.is_active
+                                    ? `Reasigna los ${users.length} usuario(s) antes de desactivar.`
+                                    : !reason.trim()
+                                      ? 'Escribe el motivo para cambiar el estado.'
+                                      : undefined
+                              }
+                              onClick={() => void toggleRoleStatus(role)}
+                            >
+                              {role.is_active ? 'Desactivar' : 'Activar'}
+                            </button>
+                             {users.length > 0 && <small>{users.length} usuario(s) asignado(s): reasignación requerida</small>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!roles.length && (
+                    <tr>
+                      <td colSpan={6}><Empty text="No hay roles registrados." /></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         </>
       )}

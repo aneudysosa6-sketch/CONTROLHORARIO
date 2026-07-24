@@ -3,6 +3,25 @@
 @media(max-width:1100px){.stats{grid-template-columns:repeat(3,1fr)}.form-grid,.detail-grid{grid-template-columns:repeat(2,1fr)}.journey-grid,.settings-grid{grid-template-columns:repeat(2,1fr)}.report-filters{grid-template-columns:repeat(2,1fr)}.login-page{grid-template-columns:1fr 1fr}.login-copy h1{font-size:40px}}
 @media(max-width:760px){.mobile{display:grid}.sidebar{transform:translateX(-100%);transition:.25s}.sidebar.open{transform:translateX(0);box-shadow:20px 0 60px #000a}.workspace{margin-left:0;width:100%}.topbar{padding:0 16px}.company{display:none}.user div{display:none}main{padding:24px 16px}.page-header{align-items:flex-start;flex-direction:column}.page-header h1{font-size:26px}.stats,.report-stats{grid-template-columns:repeat(2,1fr)}.dashboard-grid{grid-template-columns:1fr}.hours{grid-template-columns:1fr}.toolbar{align-items:stretch;flex-direction:column}.search{min-width:0}.form-grid,.detail-grid,.journey-grid,.settings-grid,.report-filters{grid-template-columns:1fr}.login-page{display:block}.login-art{display:none}.login-card{min-height:100vh;padding:9%}.kiosk-options{grid-template-columns:1fr}.kiosk-options button{height:150px}.kiosk-brand{left:18px;top:18px}.kiosk-close{right:18px;top:18px;font-size:0}.process-success{align-items:flex-start;flex-wrap:wrap}.download{margin-left:0;width:100%}.button-row{flex-wrap:wrap}.save-settings{width:100%}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.admin-inline-form{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:10px;align-items:end}
+.admin-inline-code{display:grid;gap:6px}
+.admin-readonly-code{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:12px;font-weight:600;background:#0d1a2c;border:1px dashed #2f4865;border-radius:8px;padding:9px 11px}
+.admin-readonly-code svg{color:#7aa5d9;opacity:.95}
+.admin-inline-alert{display:grid;gap:5px;padding:11px 12px;border-radius:9px;border:1px solid #30486b;background:#0e1c32}
+.admin-inline-alert-error{border-color:#ff6f7d;background:#3a1b24;color:#ffb4bf}
+.admin-inline-alert-success{border-color:#2ac28f;background:#113a2f;color:#9af7d4}
+.admin-field-error{color:var(--red);display:block;margin-top:6px;font-size:12px}
+.admin-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.admin-discard-overlay{position:fixed;inset:0;z-index:60;background:#020711cc;display:grid;place-items:center;padding:18px}
+.admin-discard-dialog{width:min(480px,100%);background:#0d1930;border:1px solid #2b496f;border-radius:12px;padding:16px;display:grid;gap:10px;box-shadow:0 18px 45px #000a}
+.admin-discard-dialog h3{margin:0}
+.admin-discard-dialog p{margin:0;color:#c0cee5}
+.admin-role-highlighted{background:linear-gradient(90deg,#102d4f,#1b487c)!important;box-shadow:0 0 0 1px #37b8ff55,0 8px 24px #1689ff26}
+.spin{animation:spin 0.95s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.admin-permission-row.selected{background:var(--admin-permission-soft);border-color:#5f89c2;transition:background .25s,border-color .25s}
+.admin-permission-row input[type=checkbox],.admin-permission-row input[type=checkbox]:focus-visible{accent-color:var(--admin-permission-color)}
+
 .payroll-error{display:grid;gap:4px;margin-bottom:16px}.payroll-periods{display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:end;margin-bottom:16px}.payroll-periods>label,.payroll-create label{display:grid;gap:7px;color:#a8b6c9;font-size:12px}.payroll-create{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:12px;align-items:end}.payroll-status{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.payroll-status>div:first-child{display:flex;gap:10px;align-items:center}.payroll-status span{color:var(--muted);font-size:12px}.payroll-stats{grid-template-columns:repeat(4,1fr);margin-bottom:16px}.payroll-stats strong{font-size:20px}.payroll-tabs,.payroll-exports{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.payroll-tabs button{text-transform:capitalize}.payroll-grid{display:grid;grid-template-columns:minmax(330px,.7fr) minmax(520px,1.3fr);gap:16px}.payroll-form{grid-template-columns:1fr 1fr;align-content:start}.payroll-form h2{grid-column:1/-1}.payroll-form button{align-self:end}.upload.compact{padding:28px}.upload.compact input{max-width:460px}.upload.compact .error,.upload.compact .success{display:grid;gap:5px;text-align:left;width:100%}.button-row button{white-space:nowrap}button:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 .payroll-rule-form{grid-template-columns:repeat(3,1fr)}.payroll-rule-form>h2,.payroll-rule-form>p{grid-column:1/-1}.payroll-rule-form>label,.payroll-tax label{display:grid;gap:7px;color:#a8b6c9;font-size:12px}.payroll-tax{display:grid;grid-template-columns:1fr 1fr;gap:8px}.payroll-rule-form>button{align-self:end}
 .payroll-wide{overflow-x:auto}.payroll-wide table{min-width:1000px}.payroll-wide input{min-width:110px}.payroll-wide small{display:block;margin-top:4px;color:var(--muted)}
