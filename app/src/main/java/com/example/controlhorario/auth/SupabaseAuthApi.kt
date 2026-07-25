@@ -46,10 +46,11 @@ class SupabaseAuthApi(
     }
 
     override suspend fun loadAuthorization(session: SupabaseSession): AuthorizedProfile = withContext(Dispatchers.IO) {
+        val identity = resolveAuthIdentity(session)
         val profileRows = rows(
             table = "profiles",
             select = "id,company_id,status,full_name,role_id",
-            filters = listOf("id" to "eq.${session.authUid}"),
+            filters = listOf("id" to "eq.${identity.userId}"),
             token = session.accessToken,
             stage = "profile",
         )
@@ -72,7 +73,7 @@ class SupabaseAuthApi(
         if (!role.optBoolean("is_active")) throw AuthFlowException("role", code = "ROLE_INACTIVE", message = "El rol asignado está inactivo.")
 
         val roleAssignments = rows("rol_permisos", "permiso_id,permitido", listOf("rol_id" to "eq.$roleId"), session.accessToken, "role_permissions")
-        val profileAssignments = rows("perfil_permisos", "permiso_id,permitido", listOf("perfil_id" to "eq.${session.authUid}"), session.accessToken, "profile_permissions")
+        val profileAssignments = rows("perfil_permisos", "permiso_id,permitido", listOf("perfil_id" to "eq.${identity.userId}"), session.accessToken, "profile_permissions")
         val assignmentRows = buildList {
             repeat(roleAssignments.length()) { add(roleAssignments.getJSONObject(it)) }
             repeat(profileAssignments.length()) { add(profileAssignments.getJSONObject(it)) }
@@ -88,8 +89,8 @@ class SupabaseAuthApi(
         val permissions = effective.filterValues { it }.keys
         if ("portal.acceder" !in permissions) throw AuthFlowException("permissions", code = "PORTAL_ACCESS_DENIED", message = "La cuenta no tiene permiso para acceder al portal.")
         AuthorizedProfile(
-            authUid = session.authUid,
-            email = session.email,
+            authUid = identity.userId,
+            email = identity.email,
             companyId = companyId,
             roleId = roleId,
             roleCode = role.optString("code"),
@@ -98,6 +99,27 @@ class SupabaseAuthApi(
             permissionCodes = permissions,
         )
     }
+
+    private fun resolveAuthIdentity(session: SupabaseSession): AuthIdentity {
+        val fallbackEmail = session.email.trim()
+        if (session.authUid.isNotBlank() && fallbackEmail.isNotBlank()) {
+            return AuthIdentity(
+                userId = session.authUid,
+                email = fallbackEmail,
+            )
+        }
+        val body = request("GET", "/auth/v1/user", token = session.accessToken, stage = "auth_user")
+        val user = runCatching { JSONObject(body) }.getOrNull() ?: throw AuthFlowException("auth_user", code = "AUTH_USER_ERROR", message = "No fue posible leer la sesiÃ³n del usuario desde Supabase.")
+        val userId = user.optString("id").ifBlank { user.optJSONObject("user")?.optString("id") ?: "" }
+        if (userId.isBlank()) throw AuthFlowException("auth_user", code = "AUTH_USER_ID_MISSING", message = "Supabase Auth no devolviÃ³ el identificador de usuario.")
+        val userEmail = user.optString("email", fallbackEmail).ifBlank {
+            user.optJSONObject("user")?.optString("email", "") ?: ""
+        }
+        if (userEmail.isBlank()) throw AuthFlowException("auth_user", code = "AUTH_USER_EMAIL_MISSING", message = "Supabase Auth no devolviÃ³ el correo del usuario.")
+        return AuthIdentity(userId, userEmail)
+    }
+
+    private data class AuthIdentity(val userId: String, val email: String)
 
     private fun rows(table: String, select: String, filters: List<Pair<String, String>>, token: String, stage: String): JSONArray {
         val query = buildList {

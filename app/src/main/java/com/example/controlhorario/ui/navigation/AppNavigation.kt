@@ -1463,20 +1463,41 @@ private fun SessionBootstrapRoute(navController: NavHostController) {
     val context = LocalContext.current
     val db = remember(context) { DatabaseProvider.getDatabase(context) }
     val authRepository = remember(db) { AndroidAuthRepositoryFactory.create(db.appUserDao()) }
+    var bootstrapError by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        val hasSession = UserSessionManager.restoreFromSupabase(authRepository)
-        if (hasSession) {
-            navController.navigate("home") {
-                popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
-                launchSingleTop = true
+        when (val result = UserSessionManager.restoreFromSupabase(authRepository)) {
+            is com.example.controlhorario.session.SessionRestoreResult.Success -> {
+                navController.navigate("home") {
+                    popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
+                    launchSingleTop = true
+                }
             }
-        } else {
+            is com.example.controlhorario.session.SessionRestoreResult.NoStoredSession -> {
+                navController.navigate(Route.ADMIN_LOGIN) {
+                    popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            is com.example.controlhorario.session.SessionRestoreResult.ValidationError ->
+                bootstrapError = result.message
+            is com.example.controlhorario.session.SessionRestoreResult.NetworkError ->
+                bootstrapError = result.message
+        }
+    }
+
+    if (bootstrapError != null) {
+        ModuleScreen(
+            title = "No fue posible validar tu sesión",
+            detail = bootstrapError!!,
+        ) {
+            UserSessionManager.logout()
             navController.navigate(Route.ADMIN_LOGIN) {
                 popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
                 launchSingleTop = true
             }
         }
+        return
     }
 
     OSINETScreen {

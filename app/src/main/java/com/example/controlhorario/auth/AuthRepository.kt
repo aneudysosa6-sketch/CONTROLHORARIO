@@ -59,6 +59,8 @@ class AuthRepository(
         logger.info("permisos_efectivos=${authorization.permissionCodes.sorted().joinToString(",")}")
         val local = usernameResolver.findLocalByEmail(email)
         val localPermissions = mapLocalPermissions(authorization.permissionCodes)
+        if (authorization.roleCode.isBlank()) throw AuthFlowException("profile", code = "ROLE_CODE_MISSING", message = "El perfil no tiene un código de rol válido.")
+        if (authorization.roleName.isBlank()) throw AuthFlowException("profile", code = "ROLE_NAME_MISSING", message = "El perfil no tiene un nombre de rol válido.")
         val user = buildAppUser(local, email, authorization, localPermissions)
         return AuthenticatedLogin(
             user,
@@ -68,6 +70,7 @@ class AuthRepository(
                 companyId = authorization.companyId,
                 roleId = authorization.roleId,
                 roleCode = authorization.roleCode,
+                roleName = authorization.roleName,
                 fullName = authorization.fullName,
                 permissionCodes = authorization.permissionCodes,
                 accessToken = session.accessToken,
@@ -90,7 +93,9 @@ class AuthRepository(
         logger.info("profile=cargado; auth_uid=${authorization.authUid}; company_id=${authorization.companyId}")
         val local = usernameResolver.findLocalByEmail(activeSession.email)
         val localPermissions = mapLocalPermissions(authorization.permissionCodes)
-        val user = buildAppUser(local, activeSession.email, authorization, localPermissions)
+        if (authorization.roleCode.isBlank()) throw AuthFlowException("profile", code = "ROLE_CODE_MISSING", message = "El perfil no tiene un código de rol válido.")
+        if (authorization.roleName.isBlank()) throw AuthFlowException("profile", code = "ROLE_NAME_MISSING", message = "El perfil no tiene un nombre de rol válido.")
+        val user = buildAppUser(local, authorization.email, authorization, localPermissions)
         return AuthenticatedLogin(
             user,
             AuthenticatedPrincipal(
@@ -99,6 +104,7 @@ class AuthRepository(
                 companyId = authorization.companyId,
                 roleId = authorization.roleId,
                 roleCode = authorization.roleCode,
+                roleName = authorization.roleName,
                 fullName = authorization.fullName,
                 permissionCodes = authorization.permissionCodes,
                 accessToken = activeSession.accessToken,

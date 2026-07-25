@@ -4,8 +4,8 @@ data class SupabaseSession(
     val accessToken: String,
     val refreshToken: String,
     val accessTokenExpiresAt: Long,
-    val authUid: String,
-    val email: String,
+    val authUid: String = "",
+    val email: String = "",
 ) {
     fun isExpired(graceMillis: Long = 60_000L): Boolean =
         accessTokenExpiresAt > 0L && System.currentTimeMillis() >= (accessTokenExpiresAt - graceMillis)
@@ -28,6 +28,7 @@ data class AuthenticatedPrincipal(
     val companyId: String,
     val roleId: String,
     val roleCode: String,
+    val roleName: String,
     val fullName: String,
     val permissionCodes: Set<String>,
     val accessToken: String,
