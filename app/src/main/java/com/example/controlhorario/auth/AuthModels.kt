@@ -2,9 +2,14 @@ package com.example.controlhorario.auth
 
 data class SupabaseSession(
     val accessToken: String,
+    val refreshToken: String,
+    val accessTokenExpiresAt: Long,
     val authUid: String,
     val email: String,
-)
+) {
+    fun isExpired(graceMillis: Long = 60_000L): Boolean =
+        accessTokenExpiresAt > 0L && System.currentTimeMillis() >= (accessTokenExpiresAt - graceMillis)
+}
 
 data class AuthorizedProfile(
     val authUid: String,
@@ -26,6 +31,8 @@ data class AuthenticatedPrincipal(
     val fullName: String,
     val permissionCodes: Set<String>,
     val accessToken: String,
+    val refreshToken: String,
+    val accessTokenExpiresAt: Long,
 )
 
 class AuthFlowException(

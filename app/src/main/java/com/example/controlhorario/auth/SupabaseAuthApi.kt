@@ -11,6 +11,7 @@ import java.net.URLEncoder
 
 interface SupabaseAuthGateway {
     suspend fun signInWithPassword(email: String, password: String): SupabaseSession
+    suspend fun refreshSession(refreshToken: String, emailFallback: String = ""): SupabaseSession
     suspend fun loadAuthorization(session: SupabaseSession): AuthorizedProfile
 }
 
@@ -28,12 +29,20 @@ class SupabaseAuthApi(
             stage = "supabase_auth",
         )
         val json = JSONObject(response)
-        val token = json.optString("access_token")
-        val user = json.optJSONObject("user")
-            ?: throw AuthFlowException("supabase_auth", message = "Supabase Auth no devolvió el usuario autenticado.")
-        val uid = user.optString("id")
-        if (token.isBlank() || uid.isBlank()) throw AuthFlowException("supabase_auth", message = "Supabase Auth no devolvió una sesión válida.")
-        SupabaseSession(token, uid, user.optString("email", email))
+        parseSession(json, emailFallback = email, stage = "supabase_auth")
+    }
+
+    override suspend fun refreshSession(refreshToken: String, emailFallback: String): SupabaseSession = withContext(Dispatchers.IO) {
+        val token = refreshToken.trim()
+        if (token.isBlank()) throw AuthFlowException("supabase_auth", code = "REFRESH_TOKEN_MISSING", message = "No hay refresh_token para renovar la sesión.")
+        val response = request(
+            method = "POST",
+            path = "/auth/v1/token?grant_type=refresh_token",
+            body = JSONObject().put("refresh_token", token).toString(),
+            stage = "refresh_session",
+        )
+        val json = JSONObject(response)
+        parseSession(json, emailFallback = emailFallback, stage = "refresh_session")
     }
 
     override suspend fun loadAuthorization(session: SupabaseSession): AuthorizedProfile = withContext(Dispatchers.IO) {
@@ -96,6 +105,26 @@ class SupabaseAuthApi(
             filters.forEach { (key, value) -> add("${encode(key)}=${encode(value)}") }
         }.joinToString("&")
         return JSONArray(request("GET", "/rest/v1/$table?$query", token = token, stage = stage))
+    }
+
+    private fun parseSession(response: JSONObject, emailFallback: String, stage: String): SupabaseSession {
+        val accessToken = response.optString("access_token")
+        val refreshToken = response.optString("refresh_token")
+        val user = response.optJSONObject("user")
+            ?: throw AuthFlowException(stage, message = "Supabase Auth no devolvió el usuario autenticado.")
+        val uid = user.optString("id")
+        val email = user.optString("email", emailFallback)
+        val expiresAt = response.optLong("expires_at")
+            .let { if (it > 0L) it * 1000L else 0L }
+            .takeIf { it > 0L }
+            ?: run {
+                val seconds = response.optLong("expires_in", 0L)
+                if (seconds > 0L) System.currentTimeMillis() + seconds * 1000L else 0L
+            }
+        if (accessToken.isBlank() || refreshToken.isBlank() || uid.isBlank() || email.isBlank()) {
+            throw AuthFlowException(stage, message = "Supabase Auth no devolvió una sesión válida.")
+        }
+        return SupabaseSession(accessToken, refreshToken, expiresAt, uid, email)
     }
 
     private fun request(method: String, path: String, body: String? = null, token: String? = null, stage: String): String {

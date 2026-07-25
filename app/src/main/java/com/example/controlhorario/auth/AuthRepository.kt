@@ -59,25 +59,53 @@ class AuthRepository(
         logger.info("permisos_efectivos=${authorization.permissionCodes.sorted().joinToString(",")}")
         val local = usernameResolver.findLocalByEmail(email)
         val localPermissions = mapLocalPermissions(authorization.permissionCodes)
-        val user = AppUserEntity(
-            id = local?.id ?: ((authorization.authUid.hashCode() and Int.MAX_VALUE).takeIf { it != 0 } ?: 1),
-            fullName = authorization.fullName,
-            username = local?.username ?: email,
-            email = email,
-            password = "",
-            role = authorization.roleCode.uppercase(),
-            permissionsCsv = localPermissions.joinToString(","),
-            employeeId = local?.employeeId ?: 0,
-            branchId = local?.branchId ?: 0,
-            departmentId = local?.departmentId ?: 0,
-            createdAt = local?.createdAt.orEmpty(),
-            updatedAt = local?.updatedAt.orEmpty(),
-            lastLoginAt = System.currentTimeMillis().toString(),
-        )
+        val user = buildAppUser(local, email, authorization, localPermissions)
         return AuthenticatedLogin(
             user,
-            AuthenticatedPrincipal(authorization.authUid, email, authorization.companyId, authorization.roleId, authorization.roleCode, authorization.fullName, authorization.permissionCodes, session.accessToken),
+            AuthenticatedPrincipal(
+                authUid = authorization.authUid,
+                email = email,
+                companyId = authorization.companyId,
+                roleId = authorization.roleId,
+                roleCode = authorization.roleCode,
+                fullName = authorization.fullName,
+                permissionCodes = authorization.permissionCodes,
+                accessToken = session.accessToken,
+                refreshToken = session.refreshToken,
+                accessTokenExpiresAt = session.accessTokenExpiresAt,
+            ),
             mode,
+        )
+    }
+
+    suspend fun restore(rawSession: SupabaseSession): AuthenticatedLogin {
+        val activeSession = if (rawSession.isExpired()) {
+            logger.info("auth_session=refresh_inicio; reason=expired")
+            gateway.refreshSession(rawSession.refreshToken, rawSession.email)
+        } else {
+            rawSession
+        }
+        logger.info("auth_session=restored; auth_uid=${activeSession.authUid}")
+        val authorization = gateway.loadAuthorization(activeSession)
+        logger.info("profile=cargado; auth_uid=${authorization.authUid}; company_id=${authorization.companyId}")
+        val local = usernameResolver.findLocalByEmail(activeSession.email)
+        val localPermissions = mapLocalPermissions(authorization.permissionCodes)
+        val user = buildAppUser(local, activeSession.email, authorization, localPermissions)
+        return AuthenticatedLogin(
+            user,
+            AuthenticatedPrincipal(
+                authUid = authorization.authUid,
+                email = activeSession.email,
+                companyId = authorization.companyId,
+                roleId = authorization.roleId,
+                roleCode = authorization.roleCode,
+                fullName = authorization.fullName,
+                permissionCodes = authorization.permissionCodes,
+                accessToken = activeSession.accessToken,
+                refreshToken = activeSession.refreshToken,
+                accessTokenExpiresAt = activeSession.accessTokenExpiresAt,
+            ),
+            LoginMode.EMAIL,
         )
     }
 
@@ -93,6 +121,27 @@ class AuthRepository(
         if (codes.any { it.startsWith("dispositivos.") }) add(PermissionCatalog.EMPLOYEE_MODE)
         if (PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE in codes) add(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)
     }
+
+    private fun buildAppUser(
+        local: AppUserEntity?,
+        email: String,
+        authorization: AuthorizedProfile,
+        permissionsCsv: Set<String>,
+    ): AppUserEntity = AppUserEntity(
+        id = local?.id ?: ((authorization.authUid.hashCode() and Int.MAX_VALUE).takeIf { it != 0 } ?: 1),
+        fullName = local?.fullName ?: authorization.fullName,
+        username = local?.username ?: email,
+        email = email,
+        password = "",
+        role = authorization.roleCode.uppercase(),
+        permissionsCsv = permissionsCsv.joinToString(","),
+        employeeId = local?.employeeId ?: 0,
+        branchId = local?.branchId ?: 0,
+        departmentId = local?.departmentId ?: 0,
+        createdAt = local?.createdAt.orEmpty(),
+        updatedAt = local?.updatedAt.orEmpty(),
+        lastLoginAt = System.currentTimeMillis().toString(),
+    )
 }
 
 object AndroidAuthRepositoryFactory {

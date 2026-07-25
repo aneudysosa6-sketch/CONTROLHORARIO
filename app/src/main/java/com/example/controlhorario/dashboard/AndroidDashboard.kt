@@ -285,10 +285,11 @@ class AndroidDashboardViewModel(
         _state.value = DashboardState.Loading
         viewModelScope.launch {
             val destination = DashboardRoutePolicy.destination(principal.roleCode, principal.permissionCodes, loading = false)
+            val roleCode = DashboardRoutePolicy.normalizeRole(principal.roleCode)
             Log.i(
                 TAG,
                 "rol_recibido=${principal.roleCode}; " +
-                    "rol_normalizado=${DashboardRoutePolicy.normalizeRole(principal.roleCode)}; " +
+                    "rol_normalizado=$roleCode; " +
                     "dashboard_seleccionado=${DashboardRoutePolicy.dashboardLabel(destination)}; " +
                     "role_id=${principal.roleId}; " +
                     "company_id=${principal.companyId}; " +
@@ -328,11 +329,58 @@ class AndroidDashboardViewModel(
                 }
                 _state.value = result
             } catch (error: AuthFlowException) {
-                Log.e(TAG, "consulta=${error.stage}; code=${error.code}; error=${error.message}; details=${error.details}; hint=${error.hint}; role_id=${principal.roleId}; company_id=${principal.companyId}")
-                _state.value = DashboardState.Error(error.visibleMessage())
+                if (destination == DashboardDestination.SUPERVISOR_RC3) {
+                    logSupervisorDashboardError(error, principal.roleCode)
+                    _state.value = DashboardState.Error(friendlySupervisorMessage(error))
+                } else {
+                    Log.e(
+                        TAG,
+                        "consulta=${error.stage}; code=${error.code}; error=${error.message}; " +
+                            "details=${error.details}; hint=${error.hint}; role_id=${principal.roleId}; company_id=${principal.companyId}"
+                    )
+                    _state.value = DashboardState.Error(error.visibleMessage())
+                }
             } catch (error: Exception) {
                 Log.e(TAG, "dashboard=excepcion; error=${error.message}", error)
                 _state.value = DashboardState.Error(error.message ?: "Error de Dashboard no identificado.")
+            }
+        }
+    }
+
+    private fun logSupervisorDashboardError(error: AuthFlowException, roleCode: String) {
+        val detail = runCatching { JSONObject(error.details ?: "") }.getOrNull()
+        val departments = detail?.optInt("departamentos_asignados_count", -1)
+        val postgresCode = error.code ?: "unknown"
+        val userHasId = detail?.optBoolean("user_id_presente", false)
+        val companyHasId = detail?.optBoolean("empresa_id_presente", false)
+        val resultScope = detail?.optString("resultado_scope", "desconocido")
+        val requestedPermission = detail?.optString("permiso_solicitado", "supervisor.dashboard")
+        val backendRole = detail?.optString("role_code", roleCode)
+
+        Log.e(
+            TAG,
+            "rpc_dashboard=dashboard_supervisor; " +
+                "user_id_presente=$userHasId; " +
+                "empresa_id_presente=$companyHasId; " +
+                "role_code=$backendRole; " +
+                "permiso_solicitado=$requestedPermission; " +
+                "departamentos_asignados_count=$departments; " +
+                "resultado_scope=$resultScope; " +
+                "postgres_code=$postgresCode; " +
+                "stage=${error.stage}; details=${error.details ?: "<sin_details>"}; hint=${error.hint ?: "<sin_hint>"}"
+        )
+    }
+
+    private fun friendlySupervisorMessage(error: AuthFlowException): String {
+        val resultScope = runCatching { JSONObject(error.details ?: "").optString("resultado_scope") }.getOrNull()
+        return when (resultScope) {
+            "SIN_DEPARTAMENTOS" -> "No tienes departamentos asignados. Contacta al administrador."
+            "SIN_PERMISO" -> "Tu usuario no tiene permiso para consultar este dashboard."
+            "ROL_NO_SUPERVISOR", "PERFIL_INCONSISTENTE", "SCOPE_NO_AUTORIZADO" ->
+                "No fue posible validar tu acceso. Cierra sesión e inténtalo nuevamente."
+            else -> when (error.code) {
+                "P0001" -> "No fue posible validar tu acceso. Cierra sesión e inténtalo nuevamente."
+                else -> error.visibleMessage()
             }
         }
     }

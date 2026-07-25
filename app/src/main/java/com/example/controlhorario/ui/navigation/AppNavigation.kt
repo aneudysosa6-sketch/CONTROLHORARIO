@@ -235,8 +235,7 @@ fun AppNavigation(
         when {
             DeviceIdentityManager(context).deviceId == null -> Route.DEVICE_ENROLLMENT
             KioskModeManager.isActive.value -> Route.EMPLOYEE_PUNCH
-            UserSessionManager.isLoggedIn() -> "home"
-            else -> Route.ADMIN_LOGIN
+            else -> Route.SESSION_BOOTSTRAP
         }
     }
     LaunchedEffect(navController) {
@@ -249,6 +248,7 @@ fun AppNavigation(
     }
     NavHost(navController = navController, startDestination = start) {
         composable(Route.DEVICE_ENROLLMENT){DeviceEnrollmentScreen{navController.navigate(Route.ADMIN_LOGIN){popUpTo(Route.DEVICE_ENROLLMENT){inclusive=true}}}}
+        composable(Route.SESSION_BOOTSTRAP) { SessionBootstrapRoute(navController) }
         composable(Route.ROLE_SELECT) {
             RoleSelectionScreen(
                 onAdministrator = { navController.navigate(Route.ADMIN_LOGIN) },
@@ -1459,6 +1459,37 @@ fun AppNavigation(
 }
 
 @Composable
+private fun SessionBootstrapRoute(navController: NavHostController) {
+    val context = LocalContext.current
+    val db = remember(context) { DatabaseProvider.getDatabase(context) }
+    val authRepository = remember(db) { AndroidAuthRepositoryFactory.create(db.appUserDao()) }
+
+    LaunchedEffect(Unit) {
+        val hasSession = UserSessionManager.restoreFromSupabase(authRepository)
+        if (hasSession) {
+            navController.navigate("home") {
+                popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
+                launchSingleTop = true
+            }
+        } else {
+            navController.navigate(Route.ADMIN_LOGIN) {
+                popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    OSINETScreen {
+        OSINETHeader(
+            title = "Iniciando sesión",
+            subtitle = "Validando acceso almacenado..."
+        )
+        Spacer(Modifier.height(16.dp))
+        Text("Validando sesión", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
+    }
+}
+
+@Composable
 private fun RoleSelectionScreen(
     onAdministrator: () -> Unit,
     onSupervisor: () -> Unit,
@@ -2107,4 +2138,5 @@ private object Route {
     const val EMPLOYEE_PORTAL = "employee_portal"
     const val BRANCH_MANAGER_PANEL = "branch_manager_panel"
     const val ADMIN_DASHBOARD = "admin_dashboard"
+    const val SESSION_BOOTSTRAP = "session_bootstrap"
 }

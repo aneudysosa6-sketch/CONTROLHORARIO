@@ -40,7 +40,7 @@ class AppUserViewModel(
                 val auth = authRepository ?: throw AuthFlowException("configuration", code = "AUTH_NOT_CONFIGURED", message = "Supabase Auth no está configurado en Android.")
                 val result = auth.login(username, password)
                 AuthSessionStore.setPrincipal(result.principal)
-                UserSessionManager.loginRemote(result.user)
+                UserSessionManager.loginRemote(result.user, result.principal)
                 _currentUser.value = result.user
                 val destination = DashboardRoutePolicy.destination(result.principal.roleCode, result.principal.permissionCodes, loading = false)
                 Log.i(
