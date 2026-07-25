@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { ReactNode } from 'react';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { AdminLayout } from './layouts/AdminLayout';
 import { EmployeeLayout } from './layouts/EmployeeLayout';
@@ -17,7 +17,14 @@ import { EmployeePortalPage } from './pages/EmployeePortalPage';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { EventsPage } from './pages/EventsPage';
 import { ExecutiveDashboardPage } from './pages/ExecutiveDashboardPage';
-import { HolidaysReportPage, IncidentsReportPage, LoansReportPage, PayrollReportPage, PermissionsReportPage, ProductivityReportPage } from './pages/RemainingReportsPages';
+import {
+  HolidaysReportPage,
+  IncidentsReportPage,
+  LoansReportPage,
+  PayrollReportPage,
+  PermissionsReportPage,
+  ProductivityReportPage,
+} from './pages/RemainingReportsPages';
 import { JourneyReportPage } from './pages/JourneyReportPage';
 import { KioskPage } from './pages/OperationsPages';
 import { LoanHistoryPage } from './pages/LoanHistoryPage';
@@ -38,46 +45,63 @@ import { UsersAdministrationPage } from './pages/UsersAdministrationPage';
 
 function Protected() {
   const { session, loading } = useAuth();
-  if (loading) return <div className="empty">Restaurando sesión…</div>;
+  if (loading) return <div className="empty">Restaurando sesiÃ³nâ€¦</div>;
   return session ? <Outlet /> : <Navigate to="/login" replace />;
+}
+
+function toLogPayload(permissionType: 'single' | 'any', required: string | string[], allowed: boolean, session: any, locationPath: string, reason: string) {
+  const requiredArray = Array.isArray(required) ? required : [required];
+  return {
+    guard: permissionType === 'single' ? 'RequirePermission' : 'RequireAnyPermission',
+    usuario: session?.email ?? null,
+    empresa: session?.companyId ?? null,
+    rutaSolicitada: locationPath,
+    dashboardRequerido: locationPath,
+    permisoRequerido: permissionType === 'single' ? required : requiredArray,
+    permission_codes: session?.permissions ?? [],
+    role_code_canonical: session?.roleCodeCanonical ?? session?.roleCode ?? null,
+    hasPermission: allowed,
+    motivo: reason,
+  };
 }
 
 function RequirePermission({ permission, children }: { permission: string; children: ReactNode }) {
   const { session, loading, hasPermission } = useAuth();
-  if (loading) return <div className="empty">Cargando permisos…</div>;
+  const location = useLocation();
+  if (loading) return <div className="empty">Cargando permisosâ€¦</div>;
+
   const allowed = hasPermission(permission);
   if (import.meta.env.DEV && !allowed) {
-    console.debug('[auth] redirección acceso-denegado', {
-      guard: 'RequirePermission',
-      usuario: session?.email ?? null,
-      empresa: session?.companyId ?? null,
-      permisoRequerido: permission,
-    });
+    console.debug('[auth] redirección acceso-denegado', toLogPayload('single', permission, false, session, location.pathname, 'permiso faltante en sesión actual'));
   }
+
   return allowed ? children : <Navigate to="/acceso-denegado" replace />;
 }
 
 function RequireAnyPermission({ permissions, children }: { permissions: string[]; children: ReactNode }) {
   const { session, loading, hasPermission } = useAuth();
-  if (loading) return <div className="empty">Cargando permisos…</div>;
-  const allowed = permissions.some(hasPermission);
+  const location = useLocation();
+  if (loading) return <div className="empty">Cargando permisosâ€¦</div>;
+
+  const allowedByAdmin = permissions.length === 0;
+  const deniedReasons: string[] = [];
+  const allowed = permissions.some((permission) => {
+    const has = hasPermission(permission);
+    if (!has) deniedReasons.push(permission);
+    return has;
+  }) || allowedByAdmin;
+
   if (import.meta.env.DEV && !allowed) {
-    console.debug('[auth] redirección acceso-denegado', {
-      guard: 'RequireAnyPermission',
-      usuario: session?.email ?? null,
-      empresa: session?.companyId ?? null,
-      permisosRequeridos: permissions,
-    });
+    console.debug('[auth] redirección acceso-denegado', toLogPayload('any', permissions, false, session, location.pathname, `faltan permisos: ${deniedReasons.join(', ')}`));
   }
+
   return allowed ? children : <Navigate to="/acceso-denegado" replace />;
 }
 
 function RequireEmployee({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
-  if (loading) return <div className="empty">Cargando portal…</div>;
-  return ['employee', 'empleado'].includes(session?.roleCode ?? '')
-    ? children
-    : <Navigate to="/dashboard" replace />;
+  if (loading) return <div className="empty">Cargando portalâ€¦</div>;
+  return ['employee', 'empleado'].includes(session?.roleCode ?? '') ? children : <Navigate to="/dashboard" replace />;
 }
 
 function DashboardByRole() {
