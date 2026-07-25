@@ -130,7 +130,7 @@ export default function App() {
       </Route>
 
       <Route element={<AdminLayout />}>
-        <Route path="/dashboard" element={<RequirePermission permission="dashboard.view"><DashboardByRole /></RequirePermission>} />
+        <Route path="/dashboard" element={<RequirePermission permission="portal.ver_dashboard"><DashboardByRole /></RequirePermission>} />
 
         <Route path="/empleados" element={<RequireAnyPermission permissions={['empleados.view', 'empleados.ver_asignados']}><EmployeesPage /></RequireAnyPermission>} />
         <Route path="/empleados/bajas" element={<RequireAnyPermission permissions={['empleados.view', 'reportes.empleados_baja']}><TerminatedEmployeesPage /></RequireAnyPermission>} />

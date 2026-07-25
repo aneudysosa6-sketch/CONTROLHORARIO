@@ -42,7 +42,7 @@ export const navigationItems: NavigationItem[] = [
     to: '/dashboard',
     label: 'Dashboard',
     section: 'Dashboard',
-    permission: 'dashboard.view',
+    permission: 'portal.ver_dashboard',
     icon: LayoutDashboard,
   },
 
