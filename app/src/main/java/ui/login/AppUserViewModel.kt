@@ -5,11 +5,9 @@ import androidx.lifecycle.viewModelScope
 import android.util.Log
 import com.example.controlhorario.auth.AuthFlowException
 import com.example.controlhorario.auth.AuthRepository
-import com.example.controlhorario.auth.AuthSessionStore
-import com.example.controlhorario.dashboard.DashboardRoutePolicy
 import com.example.controlhorario.database.AppUserEntity
 import com.example.controlhorario.repository.AppUserRepository
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,8 +17,6 @@ class AppUserViewModel(
     private val authRepository: AuthRepository? = null,
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow<AppUserEntity?>(null)
-    val currentUser: StateFlow<AppUserEntity?> = _currentUser
     val users = repository.getAllUsers()
 
     private val _loginError = MutableStateFlow("")
@@ -39,16 +35,13 @@ class AppUserViewModel(
             try {
                 val auth = authRepository ?: throw AuthFlowException("configuration", code = "AUTH_NOT_CONFIGURED", message = "Supabase Auth no está configurado en Android.")
                 val result = auth.login(username, password)
-                AuthSessionStore.setPrincipal(result.principal)
-                UserSessionManager.loginRemote(result.user, result.principal)
-                _currentUser.value = result.user
-                val destination = DashboardRoutePolicy.destination(result.principal.roleCode, result.principal.permissionCodes, loading = false)
+                SessionCoordinator.start(result)
                 Log.i(
                     TAG,
                     "sesion_nueva=true; " +
-                        "rol_recibido=${result.principal.roleCode}; " +
-                        "rol_normalizado=${DashboardRoutePolicy.normalizeRole(result.principal.roleCode)}; " +
-                        "dashboard_seleccionado=${DashboardRoutePolicy.dashboardLabel(destination)}",
+                        "rol_recibido=${result.principal.roleCodeOriginal}; " +
+                        "rol_canonico=${result.principal.roleCode}; " +
+                        "authorization_source=REMOTE",
                 )
             } catch (error: AuthFlowException) {
                 _loginError.value = error.visibleMessage()
@@ -63,8 +56,7 @@ class AppUserViewModel(
     }
 
     fun logout() {
-        UserSessionManager.logout()
-        _currentUser.value = null
+        SessionCoordinator.logout()
     }
 
     fun saveUser(user: AppUserEntity) {

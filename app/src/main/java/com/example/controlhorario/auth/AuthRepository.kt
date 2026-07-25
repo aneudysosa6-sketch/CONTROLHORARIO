@@ -3,7 +3,6 @@ package com.example.controlhorario.auth
 import android.util.Log
 import com.example.controlhorario.database.AppUserDao
 import com.example.controlhorario.database.AppUserEntity
-import com.example.controlhorario.ui.login.PermissionCatalog
 
 interface AuthDiagnosticLogger {
     fun info(message: String)
@@ -11,8 +10,13 @@ interface AuthDiagnosticLogger {
 }
 
 object LogcatAuthDiagnosticLogger : AuthDiagnosticLogger {
-    override fun info(message: String) { Log.i("AndroidAuth", message) }
-    override fun error(message: String, throwable: Throwable?) { Log.e("AndroidAuth", message, throwable) }
+    override fun info(message: String) {
+        Log.i("AndroidAuth", message)
+    }
+
+    override fun error(message: String, throwable: Throwable?) {
+        Log.e("AndroidAuth", message, throwable)
+    }
 }
 
 interface UsernameResolver {
@@ -22,12 +26,21 @@ interface UsernameResolver {
 
 class RoomUsernameResolver(private val dao: AppUserDao) : UsernameResolver {
     override suspend fun resolveEmail(username: String): String? =
-        dao.getActiveUserByIdentifier(username.trim())?.email?.trim()?.lowercase()?.takeIf { '@' in it }
+        dao.getActiveUserByIdentifier(username.trim())
+            ?.email
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { '@' in it }
 
-    override suspend fun findLocalByEmail(email: String): AppUserEntity? = dao.getActiveUserByIdentifier(email)
+    override suspend fun findLocalByEmail(email: String): AppUserEntity? =
+        dao.getActiveUserByIdentifier(email)
 }
 
-data class AuthenticatedLogin(val user: AppUserEntity, val principal: AuthenticatedPrincipal, val mode: LoginMode)
+data class AuthenticatedLogin(
+    val user: AppUserEntity,
+    val principal: AuthenticatedPrincipal,
+    val mode: LoginMode,
+)
 
 class AuthRepository(
     private val usernameResolver: UsernameResolver,
@@ -36,49 +49,28 @@ class AuthRepository(
 ) {
     suspend fun login(rawIdentifier: String, password: String): AuthenticatedLogin {
         val identifier = rawIdentifier.trim()
-        if (identifier.isBlank()) throw AuthFlowException("identifier", code = "IDENTIFIER_REQUIRED", message = "Escribe tu correo o nombre de usuario.")
+        if (identifier.isBlank()) {
+            throw AuthFlowException(
+                "identifier",
+                code = "IDENTIFIER_REQUIRED",
+                message = "Escribe tu correo o nombre de usuario.",
+            )
+        }
         val mode = if ('@' in identifier) LoginMode.EMAIL else LoginMode.USERNAME
-        logger.info("modo=${mode.name}; supabase_auth_preparado=true")
-        val email = if (mode == LoginMode.EMAIL) identifier.lowercase() else {
+        val email = if (mode == LoginMode.EMAIL) {
+            identifier.lowercase()
+        } else {
             usernameResolver.resolveEmail(identifier)
-                ?: throw AuthFlowException("username_resolution", code = "USERNAME_NOT_FOUND", message = "El nombre de usuario no existe o no tiene correo Auth vinculado.")
+                ?: throw AuthFlowException(
+                    "username_resolution",
+                    code = "USERNAME_NOT_FOUND",
+                    message = "El nombre de usuario no existe o no tiene correo Auth vinculado.",
+                )
         }
         logger.info("modo=${mode.name}; supabase_auth_llamado=true")
-        val session = try { gateway.signInWithPassword(email, password) } catch (error: AuthFlowException) {
-            logger.error("autenticacion=error; etapa=${error.stage}; codigo=${error.code}; error=${error.message}; details=${error.details}; hint=${error.hint}")
-            throw error
-        }
-        logger.info("autenticacion=correcta; auth_uid=${session.authUid}")
-        logger.info("profile_carga=iniciada; auth_uid=${session.authUid}")
-        val authorization = try { gateway.loadAuthorization(session) } catch (error: AuthFlowException) {
-            logger.error("autorizacion=error; etapa=${error.stage}; codigo=${error.code}; error=${error.message}; details=${error.details}; hint=${error.hint}")
-            throw error
-        }
-        logger.info("profile=cargado; auth_uid=${authorization.authUid}; company_id=${authorization.companyId}")
-        logger.info("rol=cargado; role_id=${authorization.roleId}; role_code=${authorization.roleCode}")
-        logger.info("permisos_efectivos=${authorization.permissionCodes.sorted().joinToString(",")}")
-        val local = usernameResolver.findLocalByEmail(email)
-        val localPermissions = mapLocalPermissions(authorization.permissionCodes)
-        if (authorization.roleCode.isBlank()) throw AuthFlowException("profile", code = "ROLE_CODE_MISSING", message = "El perfil no tiene un código de rol válido.")
-        if (authorization.roleName.isBlank()) throw AuthFlowException("profile", code = "ROLE_NAME_MISSING", message = "El perfil no tiene un nombre de rol válido.")
-        val user = buildAppUser(local, email, authorization, localPermissions)
-        return AuthenticatedLogin(
-            user,
-            AuthenticatedPrincipal(
-                authUid = authorization.authUid,
-                email = email,
-                companyId = authorization.companyId,
-                roleId = authorization.roleId,
-                roleCode = authorization.roleCode,
-                roleName = authorization.roleName,
-                fullName = authorization.fullName,
-                permissionCodes = authorization.permissionCodes,
-                accessToken = session.accessToken,
-                refreshToken = session.refreshToken,
-                accessTokenExpiresAt = session.accessTokenExpiresAt,
-            ),
-            mode,
-        )
+        val session = gateway.signInWithPassword(email, password)
+        val authorization = gateway.loadAuthorization(session)
+        return buildLogin(session, authorization, mode)
     }
 
     suspend fun restore(rawSession: SupabaseSession): AuthenticatedLogin {
@@ -88,59 +80,70 @@ class AuthRepository(
         } else {
             rawSession
         }
-        logger.info("auth_session=restored; auth_uid=${activeSession.authUid}")
         val authorization = gateway.loadAuthorization(activeSession)
-        logger.info("profile=cargado; auth_uid=${authorization.authUid}; company_id=${authorization.companyId}")
-        val local = usernameResolver.findLocalByEmail(activeSession.email)
-        val localPermissions = mapLocalPermissions(authorization.permissionCodes)
-        if (authorization.roleCode.isBlank()) throw AuthFlowException("profile", code = "ROLE_CODE_MISSING", message = "El perfil no tiene un código de rol válido.")
-        if (authorization.roleName.isBlank()) throw AuthFlowException("profile", code = "ROLE_NAME_MISSING", message = "El perfil no tiene un nombre de rol válido.")
-        val user = buildAppUser(local, authorization.email, authorization, localPermissions)
-        return AuthenticatedLogin(
-            user,
-            AuthenticatedPrincipal(
-                authUid = authorization.authUid,
-                email = activeSession.email,
-                companyId = authorization.companyId,
-                roleId = authorization.roleId,
-                roleCode = authorization.roleCode,
-                roleName = authorization.roleName,
-                fullName = authorization.fullName,
-                permissionCodes = authorization.permissionCodes,
-                accessToken = activeSession.accessToken,
-                refreshToken = activeSession.refreshToken,
-                accessTokenExpiresAt = activeSession.accessTokenExpiresAt,
-            ),
-            LoginMode.EMAIL,
+        logger.info(
+            "authorization_source=REMOTE; auth_uid=${authorization.authUid}; " +
+                "role_code=${authorization.roleCode}; " +
+                "permission_count=${authorization.permissionCodes.size}",
         )
+        return buildLogin(activeSession, authorization, LoginMode.EMAIL)
     }
 
-    private fun mapLocalPermissions(codes: Set<String>): Set<String> = buildSet {
-        if (codes.any { it == "portal.ver_dashboard" || it == "supervisor.dashboard" }) add(PermissionCatalog.DASHBOARD)
-        if (codes.any { it.startsWith("empleados.") }) add(PermissionCatalog.EMPLOYEES)
-        if (codes.any { it.startsWith("jornadas.") }) add(PermissionCatalog.ATTENDANCE)
-        if (codes.any { it.startsWith("incidencias.") }) add(PermissionCatalog.INCIDENTS)
-        if (codes.any { it.startsWith("nomina.") }) add(PermissionCatalog.PAYROLL)
-        if (codes.any { it.startsWith("reportes.") }) add(PermissionCatalog.REPORTS)
-        if (codes.any { it.startsWith("configuracion.") }) add(PermissionCatalog.SETTINGS)
-        if (codes.any { it.startsWith("usuarios.") || it.startsWith("permisos.") || it.startsWith("roles.") }) add(PermissionCatalog.USER_PERMISSIONS)
-        if (codes.any { it.startsWith("dispositivos.") }) add(PermissionCatalog.EMPLOYEE_MODE)
-        if (PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE in codes) add(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)
-    }
-
-    private fun buildAppUser(
-        local: AppUserEntity?,
-        email: String,
+    private suspend fun buildLogin(
+        session: SupabaseSession,
         authorization: AuthorizedProfile,
-        permissionsCsv: Set<String>,
+        mode: LoginMode,
+    ): AuthenticatedLogin {
+        if (!authorization.active) {
+            throw AuthFlowException(
+                "authorization",
+                code = "PROFILE_INACTIVE",
+                message = "La cuenta esta inactiva.",
+            )
+        }
+        if (authorization.roleCode.isBlank()) {
+            throw AuthFlowException(
+                "authorization",
+                code = "ROLE_CODE_MISSING",
+                message = "El perfil no tiene un codigo de rol valido.",
+            )
+        }
+        val local = usernameResolver.findLocalByEmail(authorization.email)
+        val user = buildCompatibilityUser(local, authorization)
+        val principal = AuthenticatedPrincipal(
+            authUid = authorization.authUid,
+            profileId = authorization.profileId,
+            employeeId = authorization.employeeId,
+            email = authorization.email,
+            companyId = authorization.companyId,
+            roleId = authorization.roleId,
+            roleCodeOriginal = authorization.roleCodeOriginal,
+            roleCode = authorization.roleCode,
+            roleName = authorization.roleName,
+            fullName = authorization.fullName,
+            active = authorization.active,
+            permissionCodes = authorization.permissionCodes,
+            primaryDepartmentId = authorization.primaryDepartmentId,
+            additionalDepartmentIds = authorization.additionalDepartmentIds,
+            branchIds = authorization.branchIds,
+            authorizationVersion = authorization.authorizationVersion,
+            accessToken = session.accessToken,
+            refreshToken = session.refreshToken,
+            accessTokenExpiresAt = session.accessTokenExpiresAt,
+        )
+        return AuthenticatedLogin(user, principal, mode)
+    }
+
+    private fun buildCompatibilityUser(
+        local: AppUserEntity?,
+        authorization: AuthorizedProfile,
     ): AppUserEntity = AppUserEntity(
-        id = local?.id ?: ((authorization.authUid.hashCode() and Int.MAX_VALUE).takeIf { it != 0 } ?: 1),
-        fullName = local?.fullName ?: authorization.fullName,
-        username = local?.username ?: email,
-        email = email,
-        password = "",
-        role = authorization.roleCode.uppercase(),
-        permissionsCsv = permissionsCsv.joinToString(","),
+        id = local?.id
+            ?: ((authorization.authUid.hashCode() and Int.MAX_VALUE).takeIf { it != 0 } ?: 1),
+        fullName = authorization.fullName,
+        username = local?.username ?: authorization.email,
+        email = authorization.email,
+        role = authorization.roleCode,
         employeeId = local?.employeeId ?: 0,
         branchId = local?.branchId ?: 0,
         departmentId = local?.departmentId ?: 0,

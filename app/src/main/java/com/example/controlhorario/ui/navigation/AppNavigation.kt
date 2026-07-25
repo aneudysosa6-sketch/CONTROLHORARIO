@@ -47,15 +47,17 @@ import com.example.controlhorario.device.EmployeeSyncDashboardScreen
 import com.example.controlhorario.device.EmployeeSyncDashboardViewModel
 import com.example.controlhorario.device.EmployeeSyncDashboardViewModelFactory
 import com.example.controlhorario.auth.AndroidAuthRepositoryFactory
-import com.example.controlhorario.auth.AuthSessionStore
+import com.example.controlhorario.auth.AppCapability
+import com.example.controlhorario.auth.AuthorizationPolicy
 import com.example.controlhorario.auth.AuthenticatedPrincipal
+import com.example.controlhorario.auth.AuthenticatedLogin
 import com.example.controlhorario.dashboard.AndroidDashboardPanel
 import com.example.controlhorario.dashboard.AndroidDashboardViewModel
 import com.example.controlhorario.dashboard.AndroidDashboardViewModelFactory
 import com.example.controlhorario.dashboard.AuthenticatedSupervisorDashboard
 import com.example.controlhorario.dashboard.DashboardDestination
 import com.example.controlhorario.employeeportal.EmployeeSelfServiceScreen
-import com.example.controlhorario.dashboard.DashboardRoutePolicy
+import com.example.controlhorario.dashboard.DashboardResolver
 import com.example.controlhorario.dashboard.DashboardState
 import com.example.controlhorario.security.DeviceIdentityManager
 import com.example.controlhorario.session.EmployeeAccessRevocationBus
@@ -153,12 +155,11 @@ import com.example.controlhorario.ui.employeepermissions.EmployeePermissionReque
 import com.example.controlhorario.ui.login.LoginScreen
 import com.example.controlhorario.ui.login.AppUserViewModel
 import com.example.controlhorario.ui.login.AppUserViewModelFactory
-import com.example.controlhorario.ui.login.PermissionCatalog
-import com.example.controlhorario.ui.login.hasPermission
 import com.example.controlhorario.ui.loans.LoanViewModel
 import com.example.controlhorario.ui.loans.LoanViewModelFactory
 import com.example.controlhorario.ui.loans.LoansScreen
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
+import com.example.controlhorario.session.SessionState
 import com.example.controlhorario.session.KioskModeManager
 import com.example.controlhorario.ui.punch.AuthRepositoryKioskExitAuthenticator
 import com.example.controlhorario.ui.punch.KioskExitAuthViewModel
@@ -194,8 +195,6 @@ import com.example.controlhorario.ui.settings.PayrollSettingsViewModelFactory
 import com.example.controlhorario.ui.settings.WorkScheduleTemplateScreen
 import com.example.controlhorario.ui.settings.WorkScheduleTemplateViewModel
 import com.example.controlhorario.ui.settings.WorkScheduleTemplateViewModelFactory
-import com.example.controlhorario.ui.supervisors.SupervisorLoginScreen
-import com.example.controlhorario.ui.supervisors.SupervisorHomeScreen
 import com.example.controlhorario.ui.supervisors.SupervisorJornadasScreen
 import com.example.controlhorario.ui.supervisors.SupervisorEventosScreen
 import com.example.controlhorario.ui.supervisors.SupervisorPermisosScreen
@@ -252,7 +251,7 @@ fun AppNavigation(
         composable(Route.ROLE_SELECT) {
             RoleSelectionScreen(
                 onAdministrator = { navController.navigate(Route.ADMIN_LOGIN) },
-                onSupervisor = { navController.navigate(Route.SUPERVISOR_LOGIN) },
+                onSupervisor = { navController.navigate(Route.ADMIN_LOGIN) },
                 onEmployee = {
                     navController.navigate(Route.KIOSK_MODE) {
                         popUpTo(Route.ROLE_SELECT) { inclusive = false }
@@ -279,12 +278,8 @@ fun AppNavigation(
                         AndroidAuthRepositoryFactory.create(db.appUserDao()),
                     ),
                     runtime = object : KioskExitRuntime {
-                        override fun setPrincipal(principal: AuthenticatedPrincipal) {
-                            AuthSessionStore.setPrincipal(principal)
-                        }
-
-                        override fun loginRemote(user: AppUserEntity) {
-                            UserSessionManager.loginRemote(user)
+                        override fun startSession(login: AuthenticatedLogin) {
+                            SessionCoordinator.start(login)
                         }
 
                         override suspend fun deactivateAndPersist(): Boolean =
@@ -293,7 +288,7 @@ fun AppNavigation(
                         override fun isKioskActive(): Boolean = KioskModeManager.isActive.value
 
                         override fun clearSession() {
-                            UserSessionManager.logout()
+                            SessionCoordinator.logout()
                         }
                     },
                 )
@@ -321,39 +316,6 @@ fun AppNavigation(
 
         composable(Route.ADMIN_LOGIN) {
             LoginScreen(navController = navController)
-        }
-
-        composable(Route.SUPERVISOR_LOGIN) {
-            SupervisorLoginScreen(
-                onLoggedIn = { supervisorId ->
-                    navController.navigate("${Route.SUPERVISOR_HOME}/$supervisorId") {
-                        popUpTo(Route.ROLE_SELECT)
-                    }
-                },
-                onBack = {
-                    navController.navigate(Route.ROLE_SELECT) {
-                        popUpTo(0)
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
-
-        composable(
-            route = "${Route.SUPERVISOR_HOME}/{supervisorId}",
-            arguments = listOf(navArgument("supervisorId") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val supervisorId = backStackEntry.arguments?.getInt("supervisorId") ?: 0
-            SupervisorHomeScreen(
-                supervisorId = supervisorId,
-                onJornadas = { navController.navigate("${Route.SUPERVISOR_JORNADAS}/$supervisorId") },
-                onEventos = { navController.navigate("${Route.SUPERVISOR_EVENTOS}/$supervisorId") },
-                onPermisos = { navController.navigate(Route.SUPERVISOR_PERMISOS) },
-                onAdminOnOff = { navController.navigate("${Route.SUPERVISOR_ADMIN_ON_OFF}/$supervisorId") },
-                onLogout = {
-                    navController.navigate(Route.ROLE_SELECT) { popUpTo(0) }
-                }
-            )
         }
 
         composable(
@@ -424,30 +386,49 @@ fun AppNavigation(
         }
 
         composable("home") {
-            val principal by AuthSessionStore.principal.collectAsState()
-            if (principal == null) {
-                ModuleScreen("SesiÃ³n requerida", "La sesiÃ³n Supabase no estÃ¡ disponible. Inicia sesiÃ³n nuevamente.") {
-                    UserSessionManager.logout()
+            val sessionState by SessionCoordinator.state.collectAsState()
+            val authenticated = (sessionState as? SessionState.Authenticated)?.principal
+            if (authenticated == null) {
+                ModuleScreen(
+                    "Sesion requerida",
+                    "La autorizacion remota no esta disponible. Inicia sesion nuevamente.",
+                ) {
+                    SessionCoordinator.logout()
                     navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
                 }
                 return@composable
             }
-            val authenticated = principal!!
-            val destination = DashboardRoutePolicy.destination(authenticated.roleCode, authenticated.permissionCodes, loading = false)
+            val destination = DashboardResolver.resolve(authenticated.roleCode)
             Log.i(
                 "RoleResolver",
-                "rol_recibido=${authenticated.roleCode}; " +
-                    "rol_normalizado=${DashboardRoutePolicy.normalizeRole(authenticated.roleCode)}; " +
-                    "dashboard_seleccionado=${DashboardRoutePolicy.dashboardLabel(destination)}",
+                "rol_recibido=${authenticated.roleCodeOriginal}; " +
+                    "rol_canonico=${authenticated.roleCode}; " +
+                    "dashboard_seleccionado=${DashboardResolver.dashboardLabel(destination)}",
             )
             val logout = {
-                UserSessionManager.logout()
+                SessionCoordinator.logout()
                 navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
             }
-            if (destination == DashboardDestination.SUPERVISOR_RC3 || destination == DashboardDestination.SUPERVISOR_FALLBACK) {
+            if (destination == DashboardDestination.UNKNOWN) {
+                ModuleScreen(
+                    "Rol no reconocido.",
+                    "El rol remoto no tiene un destino Android valido.",
+                    logout,
+                )
+                return@composable
+            }
+            if (!AuthorizationPolicy.canOpenDashboard(authenticated, destination)) {
+                ModuleScreen(
+                    "Acceso denegado",
+                    "Tu usuario no tiene permiso para abrir este dashboard.",
+                    logout,
+                )
+                return@composable
+            }
+            if (destination == DashboardDestination.SUPERVISOR) {
                 val dashboardVm: AndroidDashboardViewModel = viewModel(
                     key = "dashboard-${authenticated.authUid}",
-                    factory = AndroidDashboardViewModelFactory(authenticated)
+                    factory = AndroidDashboardViewModelFactory(authenticated, destination)
                 )
                 val dashboardState by dashboardVm.state.collectAsState()
                 AuthenticatedSupervisorDashboard(authenticated, dashboardState, logout)
@@ -455,21 +436,17 @@ fun AppNavigation(
             }
             if(destination==DashboardDestination.EMPLOYEE){
                 EmployeeSelfServiceScreen(authenticated){
-                    AuthSessionStore.clear()
-                    UserSessionManager.logout()
+                    SessionCoordinator.logout()
                     navController.navigate(Route.ADMIN_LOGIN){ popUpTo(0) }
                 }
                 return@composable
             }
-            if (destination == DashboardDestination.ERROR) {
-                ModuleScreen("Rol no reconocido.", "El rol recibido no tiene un destino Android válido.", logout)
-                return@composable
-            }
-            if (!DashboardRoutePolicy.isAdministrativeDestination(destination)) {
+            if (!DashboardResolver.isAdministrativeDestination(destination)) {
                 ModuleScreen("Rol no reconocido.", "El rol '${authenticated.roleCode}' no se puede resolver en Android.", logout)
                 return@composable
             }
             AdminHomeScreen(
+                principal = authenticated,
                 onDashboard = { navController.navigate(Route.ADMIN_DASHBOARD) },
                 onEmployees = { navController.navigate(Route.EMPLOYEES_MENU) },
                 onUsers = { navController.navigate(Route.ADMIN_USUARIOS) },
@@ -501,7 +478,8 @@ fun AppNavigation(
         composable(Route.KIOSK_FACE_AUTH_SETTINGS) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val principal by AuthSessionStore.principal.collectAsState()
+            val sessionState by SessionCoordinator.state.collectAsState()
+            val principal = (sessionState as? SessionState.Authenticated)?.principal
             val vm: KioskFaceAuthAdminViewModel = viewModel(
                 factory = KioskFaceAuthAdminViewModelFactory(
                     principal = principal,
@@ -513,23 +491,29 @@ fun AppNavigation(
         }
 
         composable(Route.ADMIN_DASHBOARD) {
-            val principal by AuthSessionStore.principal.collectAsState()
-            val authenticated = principal
-            val destination = authenticated?.let { DashboardRoutePolicy.destination(it.roleCode, it.permissionCodes, loading = false) } ?: run {
+            val sessionState by SessionCoordinator.state.collectAsState()
+            val authenticated = (sessionState as? SessionState.Authenticated)?.principal
+            val destination = authenticated?.let { DashboardResolver.resolve(it.roleCode) } ?: run {
                 ModuleScreen("Rol no reconocido.", "Se requiere una sesiÃ³n administrativa vÃ¡lida.") { navController.popBackStack() }
                 return@composable
             }
-            if (!DashboardRoutePolicy.isAdministrativeDestination(destination)) {
+            if (!DashboardResolver.isAdministrativeDestination(destination)) {
                 ModuleScreen("Rol no reconocido.", "Se requiere una sesión administrativa válida.") { navController.popBackStack() }
+                return@composable
+            }
+            if (!AuthorizationPolicy.canOpenDashboard(authenticated, destination)) {
+                ModuleScreen("Acceso denegado", "No tienes permiso para consultar este dashboard.") {
+                    navController.popBackStack()
+                }
                 return@composable
             }
             val dashboardVm: AndroidDashboardViewModel = viewModel(
                 key = "dashboard-${authenticated.authUid}",
-                factory = AndroidDashboardViewModelFactory(authenticated)
+                factory = AndroidDashboardViewModelFactory(authenticated, destination)
             )
             val dashboardState by dashboardVm.state.collectAsState()
             OSINETScreen {
-                OSINETHeader(DashboardRoutePolicy.dashboardLabel(destination), authenticated.fullName)
+                OSINETHeader(DashboardResolver.dashboardLabel(destination), authenticated.fullName)
                 Spacer(Modifier.height(16.dp))
                 AndroidDashboardPanel(dashboardState)
                 Spacer(Modifier.height(18.dp))
@@ -544,7 +528,8 @@ fun AppNavigation(
         composable(Route.EMPLOYEE_PORTAL) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val currentUser by UserSessionManager.currentUser.collectAsState()
+            val sessionState by SessionCoordinator.state.collectAsState()
+            val currentUser = (sessionState as? SessionState.Authenticated)?.localUser
             val vm: EmployeePermissionRequestsViewModel = viewModel(
                 factory = EmployeePermissionRequestsViewModelFactory(
                     EmployeePermissionRequestRepository(
@@ -563,7 +548,8 @@ fun AppNavigation(
         composable(Route.BRANCH_MANAGER_PANEL) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val currentUser by UserSessionManager.currentUser.collectAsState()
+            val sessionState by SessionCoordinator.state.collectAsState()
+            val currentUser = (sessionState as? SessionState.Authenticated)?.localUser
             val branchId = currentUser?.branchId ?: 0
             val vm: BranchManagerViewModel = viewModel(
                 factory = BranchManagerViewModelFactory(
@@ -579,11 +565,11 @@ fun AppNavigation(
                 viewModel = vm,
                 onEmployeeMode = {
                     KioskModeManager.activate()
-                    UserSessionManager.logout()
+                    SessionCoordinator.logout()
                     navController.navigate(Route.EMPLOYEE_PUNCH) { popUpTo(0); launchSingleTop = true }
                 },
                 onLogout = {
-                    UserSessionManager.logout()
+                    SessionCoordinator.logout()
                     navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
                 }
             )
@@ -666,7 +652,7 @@ fun AppNavigation(
                     null
                 },
                 onKioskExit = {
-                    UserSessionManager.logout()
+                    SessionCoordinator.logout()
                     navController.navigate(Route.ADMIN_LOGIN) {
                         popUpTo(0)
                         launchSingleTop = true
@@ -1228,7 +1214,8 @@ fun AppNavigation(
         composable(Route.EMPLOYEE_PERMISSION_REQUESTS) {
             val context = LocalContext.current
             val db = DatabaseProvider.getDatabase(context)
-            val currentUser by UserSessionManager.currentUser.collectAsState()
+            val sessionState by SessionCoordinator.state.collectAsState()
+            val currentUser = (sessionState as? SessionState.Authenticated)?.localUser
             val employeeVm: EmployeeViewModel = viewModel(
                 factory = EmployeeViewModelFactory(EmployeeRepository(db.employeeDao()))
             )
@@ -1463,50 +1450,67 @@ private fun SessionBootstrapRoute(navController: NavHostController) {
     val context = LocalContext.current
     val db = remember(context) { DatabaseProvider.getDatabase(context) }
     val authRepository = remember(db) { AndroidAuthRepositoryFactory.create(db.appUserDao()) }
-    var bootstrapError by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val sessionState by SessionCoordinator.state.collectAsState()
+    var retryNonce by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        when (val result = UserSessionManager.restoreFromSupabase(authRepository)) {
-            is com.example.controlhorario.session.SessionRestoreResult.Success -> {
-                navController.navigate("home") {
-                    popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-            is com.example.controlhorario.session.SessionRestoreResult.NoStoredSession -> {
-                navController.navigate(Route.ADMIN_LOGIN) {
-                    popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-            is com.example.controlhorario.session.SessionRestoreResult.ValidationError ->
-                bootstrapError = result.message
-            is com.example.controlhorario.session.SessionRestoreResult.NetworkError ->
-                bootstrapError = result.message
-        }
-    }
-
-    if (bootstrapError != null) {
-        ModuleScreen(
-            title = "No fue posible validar tu sesión",
-            detail = bootstrapError!!,
-        ) {
-            UserSessionManager.logout()
-            navController.navigate(Route.ADMIN_LOGIN) {
+    LaunchedEffect(retryNonce) {
+        when (SessionCoordinator.bootstrap(authRepository)) {
+            is SessionState.Authenticated -> navController.navigate("home") {
                 popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
                 launchSingleTop = true
             }
+            SessionState.Unauthenticated -> navController.navigate(Route.ADMIN_LOGIN) {
+                popUpTo(Route.SESSION_BOOTSTRAP) { inclusive = true }
+                launchSingleTop = true
+            }
+            else -> Unit
         }
-        return
     }
 
-    OSINETScreen {
-        OSINETHeader(
-            title = "Iniciando sesión",
-            subtitle = "Validando acceso almacenado..."
-        )
-        Spacer(Modifier.height(16.dp))
-        Text("Validando sesión", color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary)
+    when (val state = sessionState) {
+        SessionState.Loading -> OSINETScreen {
+            OSINETHeader(
+                title = "Iniciando sesion",
+                subtitle = "Validando autorizacion remota...",
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Validando sesion",
+                color = com.example.controlhorario.ui.components.OSINETColors.TextSecondary,
+            )
+        }
+        is SessionState.NetworkUnavailable -> OSINETScreen {
+            OSINETHeader(
+                title = "Sin conexion",
+                subtitle = state.message,
+            )
+            Spacer(Modifier.height(18.dp))
+            OSINETButton(text = "Reintentar", onClick = { retryNonce += 1 })
+            Spacer(Modifier.height(10.dp))
+            OSINETSecondaryButton(text = "Cerrar sesion", onClick = {
+                SessionCoordinator.logout()
+                navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
+            })
+        }
+        is SessionState.AccessDenied -> ModuleScreen(
+            title = if (state.accountDisabled) "Cuenta desactivada" else "Acceso denegado",
+            detail = state.message,
+        ) {
+            SessionCoordinator.logout()
+            navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
+        }
+        is SessionState.Error -> OSINETScreen {
+            OSINETHeader(title = "No fue posible validar tu sesion", subtitle = state.message)
+            Spacer(Modifier.height(18.dp))
+            OSINETButton(text = "Reintentar", onClick = { retryNonce += 1 })
+            Spacer(Modifier.height(10.dp))
+            OSINETSecondaryButton(text = "Cerrar sesion", onClick = {
+                SessionCoordinator.logout()
+                navController.navigate(Route.ADMIN_LOGIN) { popUpTo(0) }
+            })
+        }
+        is SessionState.Authenticated,
+        SessionState.Unauthenticated -> Unit
     }
 }
 
@@ -1568,6 +1572,7 @@ private fun EmployeeKioskScreen(
 
 @Composable
 private fun AdminHomeScreen(
+    principal: AuthenticatedPrincipal,
     onDashboard: () -> Unit,
     onEmployees: () -> Unit,
     onUsers: () -> Unit,
@@ -1590,16 +1595,14 @@ private fun AdminHomeScreen(
     onKioskDeviceSettings: () -> Unit,
     onLogout: () -> Unit,
 ) {
-    val sessionUser by UserSessionManager.currentUser.collectAsState()
-    val permissionCsv = sessionUser?.permissionsCsv.orEmpty()
-    fun can(permission: String): Boolean =
-        permissionCsv.isBlank() || permissionCsv.hasPermission(permission)
+    fun can(capability: AppCapability): Boolean =
+        AuthorizationPolicy.can(principal, capability)
 
     OSINETScreen {
         OSINETLogo(subtitle = "Panel Administrador")
         Spacer(Modifier.height(16.dp))
 
-        if (can(PermissionCatalog.DASHBOARD)) {
+        if (can(AppCapability.DASHBOARD)) {
             OSINETActionCard(
                 title = "Dashboard",
                 subtitle = "MÃ©tricas operativas y jornadas recientes",
@@ -1609,7 +1612,7 @@ private fun AdminHomeScreen(
         }
 
         MenuSectionHeader("PERSONAL")
-        if (can(PermissionCatalog.EMPLOYEES)) {
+        if (can(AppCapability.EMPLOYEES)) {
             OSINETActionCard(
                 title = "Empleados",
                 subtitle = "Perfiles, datos laborales y filtro Solo mi equipo",
@@ -1623,7 +1626,7 @@ private fun AdminHomeScreen(
             )
             Spacer(Modifier.height(10.dp))
         }
-        if (can(PermissionCatalog.USER_PERMISSIONS) || can(PermissionCatalog.SETTINGS)) {
+        if (can(AppCapability.USERS) || can(AppCapability.SETTINGS)) {
             OSINETActionCard(
                 title = "Usuarios",
                 subtitle = "Cuentas, roles y estado de acceso",
@@ -1633,7 +1636,7 @@ private fun AdminHomeScreen(
         }
 
         MenuSectionHeader("OPERACIONES")
-        if (can(PermissionCatalog.ATTENDANCE)) {
+        if (can(AppCapability.ATTENDANCE)) {
             OSINETActionCard(
                 title = "Asistencia",
                 subtitle = "Registros y control diario",
@@ -1647,7 +1650,7 @@ private fun AdminHomeScreen(
             )
             Spacer(Modifier.height(10.dp))
         }
-        if (can(PermissionCatalog.INCIDENTS)) {
+        if (can(AppCapability.INCIDENTS)) {
             OSINETActionCard(
                 title = "Incidencias",
                 subtitle = "Todas, pendientes o asignadas a mÃ­",
@@ -1655,7 +1658,7 @@ private fun AdminHomeScreen(
             )
             Spacer(Modifier.height(10.dp))
         }
-        if (can(PermissionCatalog.EMPLOYEE_PERMISSION_REQUESTS) || can(PermissionCatalog.ATTENDANCE)) {
+        if (can(AppCapability.EMPLOYEE_REQUESTS) || can(AppCapability.ATTENDANCE)) {
             OSINETActionCard(
                 title = "Pendientes",
                 subtitle = "Solicitudes de empleados y vacaciones por revisar",
@@ -1665,7 +1668,7 @@ private fun AdminHomeScreen(
         }
 
         MenuSectionHeader("NÃ“MINA")
-        if (can(PermissionCatalog.PAYROLL)) {
+        if (can(AppCapability.PAYROLL)) {
             OSINETActionCard(
                 title = "Procesamiento",
                 subtitle = "GeneraciÃ³n y exportaciÃ³n de nÃ³mina",
@@ -1687,7 +1690,7 @@ private fun AdminHomeScreen(
         }
 
         MenuSectionHeader("ORGANIZACIÃ“N")
-        if (can(PermissionCatalog.SETTINGS)) {
+        if (can(AppCapability.SETTINGS)) {
             OSINETActionCard(
                 title = "Empresas",
                 subtitle = "Datos corporativos",
@@ -1715,7 +1718,7 @@ private fun AdminHomeScreen(
         }
 
         MenuSectionHeader("SEGURIDAD")
-        if (can(PermissionCatalog.USER_PERMISSIONS) || can(PermissionCatalog.SETTINGS)) {
+        if (can(AppCapability.USERS) || can(AppCapability.SETTINGS)) {
             OSINETActionCard(
                 title = "Roles y permisos",
                 subtitle = "Roles asignados y permisos de acceso",
@@ -1723,7 +1726,7 @@ private fun AdminHomeScreen(
             )
             Spacer(Modifier.height(10.dp))
         }
-        if (can(PermissionCatalog.SETTINGS)) {
+        if (can(AppCapability.SETTINGS)) {
             OSINETActionCard(
                 title = "Dispositivos Android",
                 subtitle = "Dispositivos registrados y sincronizaciÃ³n",
@@ -1739,7 +1742,7 @@ private fun AdminHomeScreen(
         }
 
         MenuSectionHeader("CONFIGURACIÃ“N")
-        if (can(PermissionCatalog.SETTINGS)) {
+        if (can(AppCapability.SETTINGS)) {
             OSINETActionCard(
                 title = "Horarios",
                 subtitle = "Plantillas y filtro Solo mi equipo",
@@ -1781,8 +1784,8 @@ private fun SystemAdministrationDetailRoute(
     section: AdministrationSection,
     onBack: () -> Unit,
 ) {
-    val principal by AuthSessionStore.principal.collectAsState()
-    val current = principal
+    val sessionState by SessionCoordinator.state.collectAsState()
+    val current = (sessionState as? SessionState.Authenticated)?.principal
     if (current == null) {
         SystemAdministrationDetailScreen(
             section = section,
@@ -1801,8 +1804,8 @@ private fun SystemAdministrationDetailRoute(
 
 @Composable
 private fun AccessManagementRoute(onBack: () -> Unit) {
-    val principal by AuthSessionStore.principal.collectAsState()
-    val current = principal
+    val sessionState by SessionCoordinator.state.collectAsState()
+    val current = (sessionState as? SessionState.Authenticated)?.principal
     if (current == null) {
         ModuleScreen(
             title = "Accesos no disponibles",
@@ -2143,8 +2146,6 @@ private object Route {
     const val PENDING_OPERATIONS = "pending_operations"
     const val GENERAL_PAYROLL = "general_payroll"
     const val PAYROLL_DISCOUNTS = "payroll_discounts"
-    const val SUPERVISOR_LOGIN = "supervisor_login"
-    const val SUPERVISOR_HOME = "supervisor_home"
     const val SUPERVISOR_JORNADAS = "supervisor_jornadas"
     const val SUPERVISOR_EVENTOS = "supervisor_eventos"
     const val SUPERVISOR_PERMISOS = "supervisor_permisos"

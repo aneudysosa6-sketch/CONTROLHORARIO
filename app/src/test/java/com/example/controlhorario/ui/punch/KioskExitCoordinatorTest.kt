@@ -5,7 +5,6 @@ import com.example.controlhorario.auth.AuthenticatedLogin
 import com.example.controlhorario.auth.AuthenticatedPrincipal
 import com.example.controlhorario.auth.LoginMode
 import com.example.controlhorario.database.AppUserEntity
-import com.example.controlhorario.ui.login.PermissionCatalog
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,7 +26,7 @@ class KioskExitCoordinatorTest {
 
         assertEquals(KioskExitResult.Success(userId = 17, roleCode = "admin"), result)
         assertEquals(
-            listOf("setPrincipal", "loginRemote", "deactivateAndPersist", "isKioskActive"),
+            listOf("startSession", "deactivateAndPersist", "isKioskActive"),
             runtime.events,
         )
         assertFalse(runtime.kioskActive)
@@ -46,19 +45,19 @@ class KioskExitCoordinatorTest {
     }
 
     @Test
-    fun `supervisor autorizado puede usar permiso local equivalente actual`() = runBlocking {
+    fun `local metadata cannot replace the required remote permission`() = runBlocking {
         val runtime = FakeRuntime()
         val result = coordinator(
             login = login(
-                roleCode = "supervisor",
+                roleCode = "SUPERVISOR",
                 remotePermissions = setOf("portal.acceder", "supervisor.dashboard"),
-                localPermissions = PermissionCatalog.EMPLOYEE_MODE,
             ),
             runtime = runtime,
         ).exit("supervisor", "secret")
 
-        assertEquals(KioskExitResult.Success(userId = 17, roleCode = "supervisor"), result)
-        assertFalse(runtime.kioskActive)
+        assertEquals(KioskExitFailureCode.PERMISSION_DENIED, (result as KioskExitResult.Failure).code)
+        assertTrue(runtime.kioskActive)
+        assertTrue(runtime.events.isEmpty())
     }
 
     @Test
@@ -132,7 +131,7 @@ class KioskExitCoordinatorTest {
 
         assertEquals(KioskExitFailureCode.KIOSK_PERSISTENCE_FAILED, (result as KioskExitResult.Failure).code)
         assertEquals(
-            listOf("setPrincipal", "loginRemote", "deactivateAndPersist", "clearSession"),
+            listOf("startSession", "deactivateAndPersist", "clearSession"),
             runtime.events,
         )
         assertTrue(runtime.kioskActive)
@@ -150,8 +149,7 @@ class KioskExitCoordinatorTest {
         assertEquals(KioskExitFailureCode.KIOSK_PERSISTENCE_FAILED, (result as KioskExitResult.Failure).code)
         assertEquals(
             listOf(
-                "setPrincipal",
-                "loginRemote",
+                "startSession",
                 "deactivateAndPersist",
                 "isKioskActive",
                 "clearSession",
@@ -173,7 +171,6 @@ class KioskExitCoordinatorTest {
     private fun login(
         roleCode: String,
         remotePermissions: Set<String>,
-        localPermissions: String = "",
         active: Boolean = true,
     ): AuthenticatedLogin {
         val user = AppUserEntity(
@@ -181,21 +178,30 @@ class KioskExitCoordinatorTest {
             fullName = "Usuario autorizado",
             username = "local-user",
             email = "user@example.com",
-            password = "",
             role = roleCode.uppercase(),
-            permissionsCsv = localPermissions,
             isActive = active,
             createdAt = "",
         )
         val principal = AuthenticatedPrincipal(
             authUid = "auth-uid",
+            profileId = "profile-id",
+            employeeId = null,
             email = "user@example.com",
             companyId = "company-id",
             roleId = "role-id",
+            roleCodeOriginal = roleCode.lowercase(),
             roleCode = roleCode,
+            roleName = roleCode,
             fullName = user.fullName,
+            active = active,
             permissionCodes = remotePermissions,
+            primaryDepartmentId = null,
+            additionalDepartmentIds = emptySet(),
+            branchIds = emptySet(),
+            authorizationVersion = "v1",
             accessToken = "access-token",
+            refreshToken = "refresh-token",
+            accessTokenExpiresAt = Long.MAX_VALUE,
         )
         return AuthenticatedLogin(user, principal, LoginMode.EMAIL)
     }
@@ -207,12 +213,8 @@ class KioskExitCoordinatorTest {
         val events = mutableListOf<String>()
         var kioskActive = true
 
-        override fun setPrincipal(principal: AuthenticatedPrincipal) {
-            events += "setPrincipal"
-        }
-
-        override fun loginRemote(user: AppUserEntity) {
-            events += "loginRemote"
+        override fun startSession(login: AuthenticatedLogin) {
+            events += "startSession"
         }
 
         override suspend fun deactivateAndPersist(): Boolean {

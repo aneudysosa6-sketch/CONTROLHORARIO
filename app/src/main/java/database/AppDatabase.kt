@@ -45,7 +45,7 @@ import com.example.controlhorario.model.WorkScheduleTemplate
         EmployeeFaceBiometricEntity::class,
         KioskSettingsEntity::class
     ],
-    version = 38,
+    version = 39,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

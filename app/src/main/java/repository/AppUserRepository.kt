@@ -19,16 +19,6 @@ class AppUserRepository(
         return dao.getUserById(userId)
     }
 
-    suspend fun login(
-        username: String,
-        password: String
-    ): AppUserEntity? {
-        return dao.login(
-            username = username.trim(),
-            password = password.trim()
-        )
-    }
-
     suspend fun saveUser(user: AppUserEntity) {
         dao.saveUser(user)
     }

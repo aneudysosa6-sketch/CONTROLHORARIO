@@ -16,9 +16,6 @@ interface SupervisorDao {
     @Query("SELECT * FROM supervisors WHERE id = :supervisorId LIMIT 1")
     suspend fun getSupervisorById(supervisorId: Int): SupervisorEntity?
 
-    @Query("SELECT * FROM supervisors WHERE username = :username AND password = :password AND isActive = 1 LIMIT 1")
-    suspend fun login(username: String, password: String): SupervisorEntity?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(supervisor: SupervisorEntity): Long
 

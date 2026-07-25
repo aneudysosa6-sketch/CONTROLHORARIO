@@ -19,7 +19,8 @@ import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.AttendanceEntity
 import com.example.controlhorario.database.PendingAttendanceReviewEntity
 import com.example.controlhorario.engine.AttendanceAction
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
+import com.example.controlhorario.session.SessionState
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETCard
 import com.example.controlhorario.ui.components.OSINETColors
@@ -43,7 +44,8 @@ fun PendingAttendanceReviewScreen(
     val message by viewModel.message.collectAsState()
     val dashboardDate by viewModel.dashboardDate.collectAsState()
     val attendanceRecords by viewModel.attendanceRecords.collectAsState()
-    val currentUser by UserSessionManager.currentUser.collectAsState()
+    val sessionState by SessionCoordinator.state.collectAsState()
+    val currentUser = (sessionState as? SessionState.Authenticated)?.localUser
     var historyFilter by remember { mutableStateOf("") }
     var incidentFilter by remember { mutableStateOf(IncidentFilter.ALL) }
     val dayRecords = attendanceRecords.filter { it.date == dashboardDate }

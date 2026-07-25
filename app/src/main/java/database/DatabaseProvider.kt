@@ -18,7 +18,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "osinet_time_database"
-            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34,MIGRATION_34_35,MIGRATION_35_36,MIGRATION_36_37,MIGRATION_37_38).build()
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34,MIGRATION_34_35,MIGRATION_35_36,MIGRATION_36_37,MIGRATION_37_38,MIGRATION_38_39).build()
 
             INSTANCE = instance
 
@@ -151,4 +151,16 @@ val MIGRATION_36_37=object:Migration(36,37){override fun migrate(db:SupportSQLit
  */
 val MIGRATION_37_38=object:Migration(37,38){override fun migrate(db:SupportSQLiteDatabase){
  db.execSQL("UPDATE employees SET pin='' WHERE pin<>''")
+}}
+
+val MIGRATION_38_39=object:Migration(38,39){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("CREATE TABLE app_users_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, fullName TEXT NOT NULL, username TEXT NOT NULL, email TEXT NOT NULL, role TEXT NOT NULL, employeeId INTEGER NOT NULL, branchId INTEGER NOT NULL, departmentId INTEGER NOT NULL, isActive INTEGER NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, lastLoginAt TEXT NOT NULL)")
+ db.execSQL("INSERT INTO app_users_new(id,fullName,username,email,role,employeeId,branchId,departmentId,isActive,createdAt,updatedAt,lastLoginAt) SELECT id,fullName,username,email,role,employeeId,branchId,departmentId,isActive,createdAt,updatedAt,lastLoginAt FROM app_users")
+ db.execSQL("DROP TABLE app_users")
+ db.execSQL("ALTER TABLE app_users_new RENAME TO app_users")
+ db.execSQL("CREATE TABLE supervisors_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, fullName TEXT NOT NULL, username TEXT NOT NULL, isActive INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)")
+ db.execSQL("INSERT INTO supervisors_new(id,fullName,username,isActive,createdAt,updatedAt) SELECT id,fullName,username,isActive,createdAt,updatedAt FROM supervisors")
+ db.execSQL("DROP TABLE supervisors")
+ db.execSQL("ALTER TABLE supervisors_new RENAME TO supervisors")
+ db.execSQL("CREATE UNIQUE INDEX index_supervisors_username ON supervisors(username)")
 }}

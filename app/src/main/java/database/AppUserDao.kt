@@ -48,19 +48,6 @@ interface AppUserDao {
         userId: Int
     ): AppUserEntity?
 
-    @Query("""
-        SELECT *
-        FROM app_users
-        WHERE username = :username
-        AND password = :password
-        AND isActive = 1
-        LIMIT 1
-    """)
-    suspend fun login(
-        username: String,
-        password: String
-    ): AppUserEntity?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveUser(
         user: AppUserEntity

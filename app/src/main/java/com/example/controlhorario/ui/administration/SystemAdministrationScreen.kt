@@ -49,6 +49,11 @@ enum class AdministrationSection(val wireName: String, val title: String, val de
     SECURITY("seguridad", "Seguridad", "Sesión, auditoría y accesos"),
 }
 
+object AdministrationVisibilityPolicy {
+    fun visibleSections(allowedByServer: Set<String>): List<AdministrationSection> =
+        AdministrationSection.entries.filter { it.wireName in allowedByServer }
+}
+
 data class AdministrationOverview(
     val companyName: String,
     val timezone: String,

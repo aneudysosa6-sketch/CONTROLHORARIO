@@ -329,7 +329,7 @@ async function updateAccess(admin: AdminClient, body: JsonRecord, companyId: str
 
   let profile: unknown;
   try {
-    profile = await internalRpc(admin, 'actualizar_acceso_internal', {
+    profile = await internalRpc(admin, 'actualizar_acceso_autorizacion_internal', {
       actor_user_id: actorId,
       company_id: companyId,
       profile_id: profileId,

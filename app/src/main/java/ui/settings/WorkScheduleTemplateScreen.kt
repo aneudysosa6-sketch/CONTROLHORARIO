@@ -13,7 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.database.SupervisorWorkScheduleEntity
 import com.example.controlhorario.model.Employee
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
+import com.example.controlhorario.session.SessionState
 import com.example.controlhorario.model.WorkScheduleTemplate
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETTextField
@@ -26,7 +27,8 @@ fun WorkScheduleTemplateScreen(
     onBack: () -> Unit
 ) {
     val templates by viewModel.templates.collectAsState()
-    val currentUser by UserSessionManager.currentUser.collectAsState()
+    val sessionState by SessionCoordinator.state.collectAsState()
+    val currentUser = (sessionState as? SessionState.Authenticated)?.localUser
 
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }

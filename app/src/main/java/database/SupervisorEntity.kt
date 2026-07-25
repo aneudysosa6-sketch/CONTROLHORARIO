@@ -13,7 +13,6 @@ data class SupervisorEntity(
     val id: Int = 0,
     val fullName: String,
     val username: String,
-    val password: String,
     val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

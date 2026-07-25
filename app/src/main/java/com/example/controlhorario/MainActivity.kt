@@ -7,7 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
 import com.example.controlhorario.session.KioskModeManager
 import com.example.controlhorario.device.DeviceSyncScheduler
 import com.example.controlhorario.device.EmployeeUploadScheduler
@@ -25,7 +25,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        UserSessionManager.init(this)
+        SessionCoordinator.init(this)
         KioskModeManager.init(this)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {

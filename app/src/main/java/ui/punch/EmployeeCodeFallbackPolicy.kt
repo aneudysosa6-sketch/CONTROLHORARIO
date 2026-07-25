@@ -1,11 +1,11 @@
 package com.example.controlhorario.ui.punch
 
 import com.example.controlhorario.repository.KioskFaceAuthSettings
-import com.example.controlhorario.ui.login.PermissionCatalog
-
 object EmployeeCodeFallbackPolicy {
+    private const val MANAGE_PERMISSION = "kiosk.pin_fallback_manage"
+
     fun canManage(permissionCodes: Set<String>): Boolean =
-        PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE in permissionCodes
+        MANAGE_PERMISSION in permissionCodes
 
     fun requireCanManage(permissionCodes: Set<String>) {
         if (!canManage(permissionCodes)) {

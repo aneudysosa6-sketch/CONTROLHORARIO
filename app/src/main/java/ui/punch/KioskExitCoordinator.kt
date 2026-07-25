@@ -6,8 +6,6 @@ import com.example.controlhorario.auth.AuthRepository
 import com.example.controlhorario.auth.AuthenticatedLogin
 import com.example.controlhorario.auth.AuthenticatedPrincipal
 import com.example.controlhorario.database.AppUserEntity
-import com.example.controlhorario.ui.login.PermissionCatalog
-import com.example.controlhorario.ui.login.hasPermission
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 
@@ -23,8 +21,7 @@ class AuthRepositoryKioskExitAuthenticator(
 }
 
 interface KioskExitRuntime {
-    fun setPrincipal(principal: AuthenticatedPrincipal)
-    fun loginRemote(user: AppUserEntity)
+    fun startSession(login: AuthenticatedLogin)
     suspend fun deactivateAndPersist(): Boolean
     fun isKioskActive(): Boolean
     fun clearSession()
@@ -66,8 +63,7 @@ object KioskExitPermissionPolicy {
     const val PIN_MODE_EXIT = "kiosk.pin_mode_exit"
 
     fun canExit(login: AuthenticatedLogin): Boolean =
-        PIN_MODE_EXIT in login.principal.permissionCodes ||
-            login.user.permissionsCsv.hasPermission(PermissionCatalog.EMPLOYEE_MODE)
+        PIN_MODE_EXIT in login.principal.permissionCodes
 }
 
 enum class KioskExitFailureCode {
@@ -135,10 +131,8 @@ class KioskExitCoordinator(
         var sessionStarted = false
         return try {
             sessionStarted = true
-            runtime.setPrincipal(login.principal)
+            runtime.startSession(login)
             safeLog(KioskExitStages.PRINCIPAL_LOADED, userId, roleCode)
-
-            runtime.loginRemote(login.user)
             val persisted = runtime.deactivateAndPersist()
             if (!persisted || runtime.isKioskActive()) {
                 clearPartialSession()

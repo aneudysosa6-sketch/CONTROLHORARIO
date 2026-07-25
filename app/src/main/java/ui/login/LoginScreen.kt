@@ -20,7 +20,8 @@ import androidx.navigation.NavController
 import com.example.controlhorario.database.DatabaseProvider
 import com.example.controlhorario.auth.AndroidAuthRepositoryFactory
 import com.example.controlhorario.repository.AppUserRepository
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
+import com.example.controlhorario.session.SessionState
 import com.example.controlhorario.ui.components.OSINETButton
 import com.example.controlhorario.ui.components.OSINETColors
 import com.example.controlhorario.ui.components.OSINETLogo
@@ -41,15 +42,15 @@ fun LoginScreen(
         )
     )
 
-    val currentUser by UserSessionManager.currentUser.collectAsState()
+    val sessionState by SessionCoordinator.state.collectAsState()
     val loginError by appUserViewModel.loginError.collectAsState()
     val loginLoading by appUserViewModel.loginLoading.collectAsState()
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    LaunchedEffect(currentUser) {
-        if (currentUser != null) {
+    LaunchedEffect(sessionState) {
+        if (sessionState is SessionState.Authenticated) {
             navController.navigate("home") {
                 popUpTo("admin_login") {
                     inclusive = true

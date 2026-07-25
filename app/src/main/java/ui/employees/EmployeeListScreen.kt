@@ -27,7 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.controlhorario.model.Employee
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
+import com.example.controlhorario.session.SessionState
 import com.example.controlhorario.ui.components.OSINETTextField
 import java.text.NumberFormat
 import java.util.Locale
@@ -46,7 +47,8 @@ fun EmployeeListScreen(
 ) {
     val activeEmployees by viewModel.employees.collectAsState()
     val terminatedEmployees by viewModel.terminatedEmployees.collectAsState()
-    val currentUser by UserSessionManager.currentUser.collectAsState()
+    val sessionState by SessionCoordinator.state.collectAsState()
+    val currentUser = (sessionState as? SessionState.Authenticated)?.localUser
     var searchText by remember { mutableStateOf("") }
     var teamOnly by remember(directoryScope) { mutableStateOf(false) }
 

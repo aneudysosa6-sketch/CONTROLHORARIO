@@ -25,7 +25,7 @@ class AccessManagementPolicyTest {
         val decision = AccessManagementPolicy.validateCreate(validRequest(), catalog)
 
         assertFalse(decision.allowed)
-        assertTrue(decision.message.orEmpty().contains("ya tiene un acceso"))
+        assertTrue(decision.message.orEmpty().contains("ya tiene un usuario"))
     }
 
     @Test
@@ -85,6 +85,7 @@ class AccessManagementPolicyTest {
                 employeeCode = "000001",
                 companyId = "company-1",
                 profileId = employeeProfileId,
+                isActive = true,
             )
         ),
         roles = listOf(AccessRole("role-1", "Empleado", "employee", "company-1")),

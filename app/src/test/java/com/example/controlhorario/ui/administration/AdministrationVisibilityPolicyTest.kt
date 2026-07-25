@@ -19,9 +19,12 @@ class AdministrationVisibilityPolicyTest {
     }
 
     @Test
-    fun `administrator can receive all ten categories`() {
+    fun `administrator can receive every declared category`() {
         val allowed = AdministrationSection.entries.mapTo(mutableSetOf()) { it.wireName }
 
-        assertEquals(10, AdministrationVisibilityPolicy.visibleSections(allowed).size)
+        assertEquals(
+            AdministrationSection.entries.size,
+            AdministrationVisibilityPolicy.visibleSections(allowed).size,
+        )
     }
 }

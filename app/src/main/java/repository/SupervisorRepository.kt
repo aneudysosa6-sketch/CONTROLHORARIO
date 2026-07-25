@@ -15,8 +15,6 @@ class SupervisorRepository(
 
     suspend fun getDepartmentIdsNow(supervisorId: Int): List<Int> = dao.getDepartmentIdsNow(supervisorId)
 
-    suspend fun login(username: String, password: String): SupervisorEntity? = dao.login(username, password)
-
     suspend fun saveSupervisor(supervisor: SupervisorEntity, departmentIds: List<Int>) {
         val id = dao.save(supervisor).toInt().takeIf { it > 0 } ?: supervisor.id
         dao.clearDepartments(id)

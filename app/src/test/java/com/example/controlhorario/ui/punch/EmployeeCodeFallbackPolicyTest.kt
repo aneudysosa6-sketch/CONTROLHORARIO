@@ -3,7 +3,6 @@ package com.example.controlhorario.ui.punch
 import com.example.controlhorario.face.FaceEmbeddingEngine
 import com.example.controlhorario.repository.KioskFaceAuthSettings
 import com.example.controlhorario.repository.KioskSettingsRepository
-import com.example.controlhorario.ui.login.PermissionCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -30,7 +29,7 @@ class EmployeeCodeFallbackPolicyTest {
 
     @Test fun `only exact management permission authorizes changes`() {
         assertFalse(EmployeeCodeFallbackPolicy.canManage(setOf("configuracion.administrar")))
-        assertTrue(EmployeeCodeFallbackPolicy.canManage(setOf(PermissionCatalog.KIOSK_EMPLOYEE_CODE_FALLBACK_MANAGE)))
+        assertTrue(EmployeeCodeFallbackPolicy.canManage(setOf("kiosk.pin_fallback_manage")))
         assertThrows(SecurityException::class.java) {
             EmployeeCodeFallbackPolicy.requireCanManage(emptySet())
         }

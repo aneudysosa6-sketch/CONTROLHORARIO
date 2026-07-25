@@ -7,11 +7,10 @@ import com.example.controlhorario.database.EmployeeFaceBiometricEntity
 import com.example.controlhorario.database.KioskSettingsEntity
 import com.example.controlhorario.face.FaceEmbeddingCipher
 import com.example.controlhorario.face.FaceTemplateInvalidationBus
-import com.example.controlhorario.auth.AuthSessionStore
 import com.example.controlhorario.model.Employee
 import com.example.controlhorario.model.EmployeeCodePolicy
 import com.example.controlhorario.session.EmployeeAccessRevocationBus
-import com.example.controlhorario.session.UserSessionManager
+import com.example.controlhorario.session.SessionCoordinator
 import com.example.controlhorario.ui.punch.JourneyBiometricGate
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -49,13 +48,13 @@ object ProcessEmployeeTerminationSessionInvalidator:EmployeeTerminationSessionIn
   if(EmployeeTerminationSessionPolicy.shouldInvalidate(
     status=status,
     remoteProfileId=remoteProfileId,
-    principalAuthUid=AuthSessionStore.principal.value?.authUid,
-    currentUserEmployeeId=UserSessionManager.getCurrentUser()?.employeeId,
+    principalAuthUid=SessionCoordinator.principalOrNull()?.authUid,
+    currentUserEmployeeId=SessionCoordinator.localUserOrNull()?.employeeId,
     localEmployeeId=localEmployeeId
    )){
    Log.i("EMPLOYEE_TERMINATION","activeSessionInvalidated=true localEmployeeId=${localEmployeeId?:-1}")
    JourneyBiometricGate.clear()
-   UserSessionManager.logout()
+   SessionCoordinator.invalidateForDisabledAccount()
    EmployeeAccessRevocationBus.notifyRevoked()
   }
  }
