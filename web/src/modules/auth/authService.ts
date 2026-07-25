@@ -72,6 +72,7 @@ export async function hydrateSession(authSession: SupabaseSession): Promise<Sess
     name: authorization.nombre,
     role: authorization.role_name,
     roleCode: clientRoleCode,
+    roleCodeOriginal: authorization.role_code_original,
     roleCodeCanonical: canonicalRole,
     roleId: authorization.role_id,
     companyId: authorization.company_id,

@@ -8,6 +8,7 @@ export interface Session {
   name: string;
   role: string;
   roleCode: string;
+  roleCodeOriginal?: string;
   roleCodeCanonical?: string;
   roleId: string;
   companyId: string;

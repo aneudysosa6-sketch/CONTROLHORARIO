@@ -42,6 +42,57 @@ import { SupervisorDashboardPage } from './pages/SupervisorDashboardPage';
 import { SystemAdministrationPage } from './pages/SystemAdministrationPage';
 import { TerminatedEmployeesPage } from './pages/TerminatedEmployeesPage';
 import { UsersAdministrationPage } from './pages/UsersAdministrationPage';
+import { canonicalRole } from './infrastructure/permissions/permissionAdapter';
+
+type DashboardRole = 'ADMIN' | 'SUPERVISOR' | 'EMPLEADO' | 'RRHH' | 'NOMINA' | 'AUDITOR' | 'UNKNOWN';
+
+function normalizeDashboardRole(session: { roleCode?: string; roleCodeCanonical?: string } | null): DashboardRole {
+  const canonical = canonicalRole(session?.roleCodeCanonical ?? session?.roleCode ?? '');
+  switch (canonical) {
+    case 'ADMIN':
+    case 'ADMINISTRADOR':
+    case 'ADMINISTRATOR':
+      return 'ADMIN';
+    case 'SUP':
+    case 'SUPERVISOR':
+      return 'SUPERVISOR';
+    case 'EMPLEADO':
+    case 'EMPLOYEE':
+    case 'EMPLEADOS':
+      return 'EMPLEADO';
+    case 'RRHH':
+    case 'RR_HH':
+      return 'RRHH';
+    case 'NOMINA':
+    case 'PAYROLL':
+    case 'NÓMINA':
+      return 'NOMINA';
+    case 'AUDITOR':
+    case 'AUDIT':
+      return 'AUDITOR';
+    default:
+      return 'UNKNOWN';
+  }
+}
+
+function resolveDashboardComponent(role: DashboardRole) {
+  switch (role) {
+    case 'ADMIN':
+      return { name: 'ExecutiveDashboardPage', element: <ExecutiveDashboardPage /> };
+    case 'SUPERVISOR':
+      return { name: 'SupervisorDashboardPage', element: <SupervisorDashboardPage /> };
+    case 'EMPLEADO':
+      return { name: 'EmployeePortalPage', element: <EmployeePortalPage /> };
+    case 'RRHH':
+      return { name: 'EmployeePortalPage', element: <EmployeePortalPage /> };
+    case 'NOMINA':
+      return { name: 'EmployeePortalPage', element: <EmployeePortalPage /> };
+    case 'AUDITOR':
+      return { name: 'EmployeePortalPage', element: <EmployeePortalPage /> };
+    default:
+      return { name: 'AccessDeniedPage', element: <AccessDeniedPage /> };
+  }
+}
 
 function Protected() {
   const { session, loading } = useAuth();
@@ -106,12 +157,19 @@ function RequireEmployee({ children }: { children: ReactNode }) {
 
 function DashboardByRole() {
   const { session } = useAuth();
-  if (['employee', 'empleado'].includes(session?.roleCode ?? '')) {
-    return <Navigate to="/mi-portal" replace />;
+  const resolvedRole = normalizeDashboardRole(session);
+  const selected = resolveDashboardComponent(resolvedRole);
+
+  if (import.meta.env.DEV) {
+    console.debug('[dashboard] WebDashboardResolver', {
+      role_code_original: session?.roleCodeOriginal ?? session?.roleCode ?? null,
+      role_code_canonical: session?.roleCodeCanonical ?? null,
+      dashboard_component_selected: selected.name,
+      permission_codes_count: Array.isArray(session?.permissions) ? session.permissions.length : 0,
+    });
   }
-  return session?.roleCode === 'supervisor'
-    ? <SupervisorDashboardPage />
-    : <ExecutiveDashboardPage />;
+
+  return selected.element;
 }
 
 export default function App() {
