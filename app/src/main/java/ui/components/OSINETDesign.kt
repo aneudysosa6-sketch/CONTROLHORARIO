@@ -234,7 +234,7 @@ fun OSINETLogo(
 }
 
 @Composable
-private fun ControlHorarioBrandMark(modifier: Modifier = Modifier) {
+fun ControlHorarioBrandMark(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val unit = minOf(size.width, size.height) / 96f
         val offsetX = (size.width - 96f * unit) / 2f
