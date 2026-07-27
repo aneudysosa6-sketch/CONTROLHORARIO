@@ -117,7 +117,8 @@ object DashboardResolver {
         when (canonicalRoleCode?.trim()?.uppercase()) {
             "ADMIN" -> DashboardDestination.ADMIN
             "SUPERVISOR" -> DashboardDestination.SUPERVISOR
-            "EMPLEADO" -> DashboardDestination.EMPLOYEE
+            "EMPLEADO", "EMPLEADOS", "EMPLOYEE", "EMPLOYEES" ->
+                DashboardDestination.EMPLOYEE
             "RRHH" -> DashboardDestination.RRHH
             "NOMINA" -> DashboardDestination.NOMINA
             "AUDITOR" -> DashboardDestination.AUDITOR

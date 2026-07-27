@@ -19,6 +19,14 @@ class DashboardRoutePolicyTest {
     }
 
     @Test
+    fun `resolver maps employee aliases to employee dashboard`() {
+        assertEquals(DashboardDestination.EMPLOYEE, DashboardResolver.resolve("EMPLEADO"))
+        assertEquals(DashboardDestination.EMPLOYEE, DashboardResolver.resolve("EMPLEADOS"))
+        assertEquals(DashboardDestination.EMPLOYEE, DashboardResolver.resolve("employee"))
+        assertEquals(DashboardDestination.EMPLOYEE, DashboardResolver.resolve("employees"))
+    }
+
+    @Test
     fun `unknown or noncanonical role never receives a fallback dashboard`() {
         assertEquals(DashboardDestination.UNKNOWN, DashboardResolver.resolve(""))
         assertEquals(DashboardDestination.UNKNOWN, DashboardResolver.resolve("sup"))
@@ -27,8 +35,8 @@ class DashboardRoutePolicyTest {
 
     @Test
     fun `permissions authorize after destination resolution`() {
-        val supervisor = principal("SUPERVISOR", setOf("supervisor.dashboard"))
-        val deniedSupervisor = principal("SUPERVISOR", setOf("portal.ver_dashboard"))
+        val supervisor = principal("SUPERVISOR", permissions = setOf("supervisor.dashboard"))
+        val deniedSupervisor = principal("SUPERVISOR", permissions = setOf("portal.ver_dashboard"))
 
         assertTrue(
             AuthorizationPolicy.canOpenDashboard(
@@ -46,7 +54,7 @@ class DashboardRoutePolicyTest {
 
     @Test
     fun `empty permissions always deny a valid role`() {
-        val admin = principal("ADMIN", emptySet())
+        val admin = principal("ADMIN", permissions = emptySet())
         assertFalse(
             AuthorizationPolicy.canOpenDashboard(
                 admin,
