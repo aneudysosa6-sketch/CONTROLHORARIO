@@ -24,7 +24,7 @@ export function BootstrapGate() {
   return <div className="auth-page">
     <div className="auth-card bootstrap-gate" role="status" aria-live="polite">
       <span className="brand-mark">O</span>
-      <h1>Preparando OSINET</h1>
+      <h1>Preparando Control Horario</h1>
       {!error ? <p>Verificando la configuración inicial…</p> : <><div className="error" role="alert">{error}</div><button className="primary full" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></>}
     </div>
   </div>;

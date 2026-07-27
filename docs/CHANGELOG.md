@@ -3,6 +3,31 @@
 Este archivo registra hitos arquitectonicos y funcionales. No reemplaza el
 historial Git ni enumera cada correccion menor.
 
+## 2026-07-27 - Identidad visual Control Horario
+
+### Agregado
+
+- Marca vectorial rostro-reloj.
+- Logo horizontal y variante monocromatica Web.
+- Favicon oficial.
+- Launcher adaptativo y redondo Android.
+- Capa monocromatica para iconos tematicos.
+- Splash nativo Android.
+
+### Actualizado
+
+- Encabezados administrativos y del portal.
+- Login y bootstrap Web.
+- Login Android.
+- Metadatos del documento Web.
+
+### Sin cambios
+
+- Autenticacion.
+- Navegacion.
+- Permisos.
+- Supabase.
+
 ## 2026-07-27 - Documentacion oficial consolidada
 
 ### Agregado

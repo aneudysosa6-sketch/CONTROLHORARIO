@@ -1,6 +1,7 @@
 package com.example.controlhorario.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -37,7 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -195,37 +203,111 @@ fun OSINETSecondaryButton(
 @Composable
 fun OSINETLogo(
     modifier: Modifier = Modifier,
-    subtitle: String = "SISTEMA EMPRESARIAL"
+    subtitle: String = "FACE TIME ERP ENTERPRISE"
 ) {
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(68.dp)
-                .border(3.dp, OSINETColors.Green, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .border(2.dp, OSINETColors.GreenSoft, CircleShape)
+        ControlHorarioBrandMark(Modifier.size(92.dp))
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "CONTROL",
+                color = OSINETColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "HORARIO",
+                color = OSINETColors.GreenSoft,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = "OSINET ERP",
-            color = OSINETColors.TextPrimary,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
         Text(
             text = subtitle,
-            color = OSINETColors.GreenSoft,
-            style = MaterialTheme.typography.labelLarge,
+            color = OSINETColors.TextSecondary,
+            style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun ControlHorarioBrandMark(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val unit = minOf(size.width, size.height) / 96f
+        val offsetX = (size.width - 96f * unit) / 2f
+        val offsetY = (size.height - 96f * unit) / 2f
+        val cyan = Color(0xFF55D8FF)
+        val blue = Color(0xFF1689FF)
+        val white = Color(0xFFF4FAFF)
+
+        withTransform({
+            translate(offsetX, offsetY)
+            scale(unit, unit, Offset.Zero)
+        }) {
+            drawRoundRect(
+                color = Color(0xFF061326),
+                topLeft = Offset(2f, 2f),
+                size = Size(92f, 92f),
+                cornerRadius = CornerRadius(24f, 24f)
+            )
+            drawRoundRect(
+                color = blue.copy(alpha = 0.32f),
+                topLeft = Offset(2f, 2f),
+                size = Size(92f, 92f),
+                cornerRadius = CornerRadius(24f, 24f),
+                style = Stroke(width = 1.2f)
+            )
+
+            val brackets = Path().apply {
+                moveTo(17f, 32f); lineTo(17f, 21f); quadraticBezierTo(17f, 17f, 21f, 17f); lineTo(33f, 17f)
+                moveTo(63f, 17f); lineTo(75f, 17f); quadraticBezierTo(79f, 17f, 79f, 21f); lineTo(79f, 32f)
+                moveTo(17f, 64f); lineTo(17f, 75f); quadraticBezierTo(17f, 79f, 21f, 79f); lineTo(33f, 79f)
+                moveTo(63f, 79f); lineTo(75f, 79f); quadraticBezierTo(79f, 79f, 79f, 75f); lineTo(79f, 64f)
+            }
+            drawPath(brackets, cyan, style = Stroke(width = 4.5f, cap = StrokeCap.Round))
+
+            val face = Path().apply {
+                moveTo(48f, 19f)
+                cubicTo(35.4f, 19f, 29f, 27.6f, 29.6f, 41.5f)
+                cubicTo(30.2f, 55.7f, 36.6f, 67f, 48f, 71.9f)
+                cubicTo(59.4f, 67f, 65.8f, 55.7f, 66.4f, 41.5f)
+                cubicTo(67f, 27.6f, 60.6f, 19f, 48f, 19f)
+                close()
+            }
+            drawPath(face, Color(0xFF9BE4FF), style = Stroke(width = 1.8f))
+
+            val mesh = Path().apply {
+                moveTo(48f, 22f); lineTo(48f, 69f)
+                moveTo(35.5f, 29f); lineTo(60f, 60f)
+                moveTo(60.5f, 29f); lineTo(36f, 60f)
+                moveTo(30f, 42f); lineTo(66f, 42f)
+                moveTo(33f, 53f); lineTo(63f, 53f)
+                moveTo(38f, 24f); lineTo(35f, 42f); lineTo(42f, 63f)
+                moveTo(58f, 24f); lineTo(61f, 42f); lineTo(54f, 63f)
+                moveTo(35f, 29f); lineTo(48f, 42f); lineTo(61f, 29f)
+                moveTo(35f, 53f); lineTo(48f, 42f); lineTo(61f, 53f)
+                moveTo(42f, 63f); lineTo(48f, 53f); lineTo(54f, 63f)
+            }
+            drawPath(mesh, blue.copy(alpha = 0.72f), style = Stroke(width = 1f, cap = StrokeCap.Round))
+
+            listOf(
+                Offset(48f, 22f), Offset(35.5f, 29f), Offset(60.5f, 29f),
+                Offset(30f, 42f), Offset(48f, 42f), Offset(66f, 42f),
+                Offset(35f, 53f), Offset(48f, 53f), Offset(61f, 53f),
+                Offset(42f, 63f), Offset(54f, 63f), Offset(48f, 70f)
+            ).forEach { point -> drawCircle(cyan, radius = 1.7f, center = point) }
+
+            drawCircle(Color(0xFF06111F), radius = 20.5f, center = Offset(69f, 69f))
+            drawCircle(Color(0xFF071426), radius = 17f, center = Offset(69f, 69f))
+            drawCircle(blue, radius = 17f, center = Offset(69f, 69f), style = Stroke(width = 3.6f))
+            drawLine(white, Offset(69f, 69f), Offset(69f, 60f), strokeWidth = 3.2f, cap = StrokeCap.Round)
+            drawLine(white, Offset(69f, 69f), Offset(76f, 73f), strokeWidth = 3.2f, cap = StrokeCap.Round)
+            drawLine(Color(0xFF7CE746), Offset(69f, 53.5f), Offset(69f, 57f), strokeWidth = 3f, cap = StrokeCap.Round)
+            drawCircle(white, radius = 2.2f, center = Offset(69f, 69f))
+        }
     }
 }
 

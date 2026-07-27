@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSupabaseClient } from '../infrastructure/supabase/client';
 import { userProvisioningService } from '../modules/userProvisioning/userProvisioningService';
-import { BrandMark } from '../components/BrandMark';
+import { BrandCopy, BrandMark } from '../components/BrandMark';
 
 const timezone = 'America/Santo_Domingo' as const;
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'No fue posible completar el bootstrap.';
@@ -121,7 +121,7 @@ export function BootstrapPage() {
   }
 
   return <div className="bootstrap-page">
-    <header className="bootstrap-brand"><BrandMark/><div><b>OSINET</b><small>BOOTSTRAP SEGURO</small></div></header>
+    <header className="bootstrap-brand"><BrandMark size={48}/><BrandCopy tagline="BOOTSTRAP SEGURO"/></header>
     <main className="bootstrap-shell">
       <section className="bootstrap-intro"><span className="eyebrow">CONTROLHORARIO-PROD</span><h1>Activa el primer<br /><em>administrador.</em></h1><p>Este proceso crea la empresa, la sucursal principal y el profile administrativo mediante la Edge Function protegida.</p><div className="bootstrap-security"><ShieldCheck /><span><b>Sin credenciales privilegiadas en el navegador</b><small>El secreto temporal vive solo en este formulario y se descarta después del intento.</small></span></div></section>
       {authenticated ? <form className="bootstrap-card" onSubmit={submit}>

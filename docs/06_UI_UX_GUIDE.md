@@ -20,6 +20,35 @@ que Android y Web usen el mismo framework, pero si la misma semantica.
 7. El color refuerza texto e icono; nunca es la unica senal.
 8. Datos sensibles se ocultan por defecto.
 
+## 2.1 Identidad visual oficial
+
+La marca oficial combina:
+
+- marco de escaneo facial;
+- malla biometrica;
+- reloj de control horario;
+- fondo azul marino;
+- acento azul electrico;
+- indicador verde de verificacion.
+
+Wordmark:
+
+- nombre: `CONTROL HORARIO`;
+- `CONTROL` en blanco;
+- `HORARIO` en azul;
+- descriptor: `FACE TIME ERP ENTERPRISE`.
+
+Recursos oficiales:
+
+- Android: launcher adaptativo, launcher redondo, capa monocromatica y splash;
+- Web: `control-horario-mark.svg`;
+- Web horizontal: `control-horario-logo.svg`;
+- Web monocromatico: `control-horario-mark-monochrome.svg`.
+
+No se debe volver a usar el isotipo circular anterior ni mostrar `OSINET` como
+nombre principal visible. Los nombres internos de componentes pueden
+conservarse temporalmente para evitar refactorizaciones sin valor funcional.
+
 ## 3. Paleta vigente
 
 ### Web

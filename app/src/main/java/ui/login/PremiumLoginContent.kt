@@ -94,7 +94,7 @@ fun PremiumLoginContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                OSINETLogo(subtitle = "CONTROLHORARIO")
+                OSINETLogo()
                 Spacer(Modifier.height(24.dp))
                 Text("Bienvenido", color = OSINETColors.TextPrimary, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 Text("Acceso seguro al panel administrativo", color = OSINETColors.TextSecondary, textAlign = TextAlign.Center)
@@ -133,7 +133,7 @@ fun PremiumLoginContent(
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = OSINETColors.GreenSoft, strokeWidth = 2.dp)
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("SESIÓN PROTEGIDA · OSINET", color = OSINETColors.GreenSoft.copy(alpha = .72f), style = MaterialTheme.typography.labelSmall)
+                Text("SESION PROTEGIDA · CONTROL HORARIO", color = OSINETColors.GreenSoft.copy(alpha = .72f), style = MaterialTheme.typography.labelSmall)
             }
         }
     }

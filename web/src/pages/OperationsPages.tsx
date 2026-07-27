@@ -15,7 +15,7 @@ export function ReportsPage() {
   const [message, setMessage] = useState("");
   const [range, setRange] = useState("Semanal");
   function exportFile(type: string) {
-    const text = `Reporte ${range} OSINET\nHoras totales: 632\nHoras extras: 18\nTardanzas: 7\nAusencias: 3`;
+    const text = `Reporte ${range} CONTROL HORARIO\nHoras totales: 632\nHoras extras: 18\nTardanzas: 7\nAusencias: 3`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
     a.download = `reporte-${range.toLowerCase()}.${type === "Excel" ? "csv" : "txt"}`;
@@ -150,7 +150,7 @@ export function KioskPage() {
       </button>
       <div className="kiosk-brand">
         <span className="brand-mark">O</span>
-        <b>OSINET</b>
+        <b>CONTROL HORARIO</b>
         <small>CONTROL DE ASISTENCIA</small>
       </div>
       {mode === "face" && (

@@ -4,7 +4,7 @@ import { Bell, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-rea
 import { navigationItems, navigationSections } from '../app/navigation';
 import { useAuth } from '../context/AuthContext';
 import { createPermissionReader, isAdministratorRole, visibleNavigationItems } from '../infrastructure/permissions/permissionAdapter';
-import { BrandMark } from '../components/BrandMark';
+import { BrandCopy, BrandMark } from '../components/BrandMark';
 
 const dashboardShortcuts = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -84,8 +84,8 @@ export function AdminLayout() {
   return <div className={`shell${compactMode ? ' shell-compact' : ''}`}>
     <aside id="admin-sidebar" className={mobileOpen ? 'sidebar open' : 'sidebar'} aria-label="Navegación principal">
       <div className="brand">
-        <BrandMark />
-        <div className="brand-copy"><b>OSINET</b><small>TIME ERP ENTERPRISE</small></div>
+        <BrandMark size={46} />
+        <BrandCopy className="brand-copy" />
         {isExecutiveDashboard && <button type="button" className="icon sidebar-toggle desktop-sidebar-toggle" aria-label={compactMode ? 'Expandir navegación' : 'Compactar navegación'} aria-expanded={!compactMode} aria-controls="admin-navigation" onClick={() => setCompact((value) => !value)}>{compactMode ? <PanelLeftOpen /> : <PanelLeftClose />}</button>}
         <button ref={mobileCloseRef} type="button" className="icon mobile" onClick={closeMobileNavigation} aria-label="Cerrar menú"><X /></button>
       </div>
@@ -101,7 +101,7 @@ export function AdminLayout() {
     <div className="workspace" aria-hidden={mobileOpen || undefined}>
       <header className="topbar">
         <button ref={mobileTriggerRef} type="button" className="icon mobile" onClick={() => setMobileOpen(true)} aria-label="Abrir menú" aria-expanded={mobileOpen} aria-controls="admin-sidebar"><Menu /></button>
-        <div className="company"><span className="live-dot" />OSINET · sesión protegida</div>
+        <div className="company"><span className="live-dot" />CONTROL HORARIO · sesión protegida</div>
         <div className="user">
           <button type="button" className="icon" aria-label="Notificaciones" onClick={() => navigate('/dashboard')}><Bell /></button>
           <span className="avatar">{session?.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
