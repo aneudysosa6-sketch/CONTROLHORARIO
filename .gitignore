@@ -15,14 +15,20 @@
 local.properties
 # PNPM
 .pnpm-store/
+.npm-cache/
+.tmp/
 
 # Dependencias
 node_modules/
+**/build/
 
 # Build web
 web/node_modules/
 web/dist/
 dist/
+
+# Entorno local
+supabase/.temp/
 
 # TypeScript
 *.tsbuildinfo
