@@ -10,4 +10,48 @@ export function CompaniesPage() { const [company, setCompany] = useState<Adminis
 
 export function BranchesPage() { const [organization, setOrganization] = useState(emptyOrganization); const [form, setForm] = useState({ id: '', code: '', name: '', address: '', phone: '', status: 'active' }); const [error, setError] = useState(''); const load = () => administrationService.organization().then(setOrganization).catch((reason) => setError(reason instanceof Error ? reason.message : 'No fue posible cargar sucursales.')); useEffect(() => { void load(); }, []); const save = async (event: FormEvent) => { event.preventDefault(); try { await administrationService.saveBranch(form.id || null, { code: form.code, name: form.name, address: form.address || null, phone: form.phone || null, status: form.status }, reasonMessage); setForm({ id: '', code: '', name: '', address: '', phone: '', status: 'active' }); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'No fue posible guardar la sucursal.'); } }; const edit = (branch: Branch) => setForm({ id: branch.id, code: branch.code, name: branch.name, address: branch.address ?? '', phone: branch.phone ?? '', status: branch.status }); return <><PageHeader eyebrow="ORGANIZACIÓN" title="Sucursales" description="Sedes visibles y administradas por empresa." action={<Exports />} />{error && <div className="error">{error}</div>}<section className="dashboard-grid"><form className="panel admin-form single" onSubmit={save}><h2>{form.id ? 'Editar sucursal' : 'Nueva sucursal'}</h2><label>Código<input value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} required /></label><label>Empresa<input value="Empresa autorizada" readOnly /></label><label>Nombre<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label><label>Dirección<input value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></label><label>Ciudad / Provincia<input placeholder="No disponible en el servicio actual" readOnly /></label><label>Teléfono<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label><label>Estado<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}><option value="active">Activo</option><option value="inactive">Inactivo</option></select></label><button className="primary">Guardar</button></form><section className="table-wrap"><table><thead><tr><th>Código</th><th>Empresa</th><th>Nombre</th><th>Dirección</th><th>Teléfono</th><th>Estado</th><th /></tr></thead><tbody>{organization.branches.map((branch) => <tr key={branch.id}><td>{branch.code}</td><td>Empresa autorizada</td><td>{branch.name}</td><td>{branch.address ?? '—'}</td><td>{branch.phone ?? '—'}</td><td><Badge tone={branch.status === 'active' ? 'green' : 'gray'}>{branch.status}</Badge></td><td><button className="secondary" onClick={() => edit(branch)}>Editar</button></td></tr>)}</tbody></table></section></section></>; }
 
-export function DepartmentsPage() { const [organization, setOrganization] = useState(emptyOrganization); const [form, setForm] = useState({ id: '', code: '', name: '', branch_id: '', supervisor: '', active: true }); const [error, setError] = useState(''); const load = () => administrationService.organization().then(setOrganization).catch((reason) => setError(reason instanceof Error ? reason.message : 'No fue posible cargar departamentos.')); useEffect(() => { void load(); }, []); const save = async (event: FormEvent) => { event.preventDefault(); try { await administrationService.saveDepartment(form.id || null, { code: form.code, name: form.name, branch_id: form.branch_id || null, is_active: form.active }, form.supervisor || null, reasonMessage); setForm({ id: '', code: '', name: '', branch_id: '', supervisor: '', active: true }); await load(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'No fue posible guardar el departamento.'); } }; const edit = (department: Department) => setForm({ id: department.id, code: department.code, name: department.name, branch_id: department.branch_id ?? '', supervisor: organization.departmentAssignments.find((item) => item.departamento_id === department.id)?.perfil_id ?? '', active: department.is_active }); return <><PageHeader eyebrow="ORGANIZACIÓN" title="Departamentos" description="Estructura organizacional y supervisión asignada." action={<Exports />} />{error && <div className="error">{error}</div>}<section className="dashboard-grid"><form className="panel admin-form single" onSubmit={save}><h2>{form.id ? 'Editar departamento' : 'Nuevo departamento'}</h2><label>Código<input value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} required /></label><label>Empresa<input value="Empresa autorizada" readOnly /></label><label>Sucursal<select value={form.branch_id} onChange={(event) => setForm({ ...form, branch_id: event.target.value })}><option value="">Corporativo</option>{organization.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Nombre<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label><label>Supervisor<select value={form.supervisor} onChange={(event) => setForm({ ...form, supervisor: event.target.value })}><option value="">Sin asignar</option>{organization.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.full_name}</option>)}</select></label><label><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Activo</label><button className="primary">Guardar</button></form><section className="table-wrap"><table><thead><tr><th>Código</th><th>Empresa</th><th>Sucursal</th><th>Nombre</th><th>Supervisor</th><th>Estado</th><th /></tr></thead><tbody>{organization.departments.map((department) => { const assignment = organization.departmentAssignments.find((item) => item.departamento_id === department.id); return <tr key={department.id}><td>{department.code}</td><td>Empresa autorizada</td><td>{organization.branches.find((branch) => branch.id === department.branch_id)?.name ?? 'Corporativo'}</td><td>{department.name}</td><td>{organization.profiles.find((profile) => profile.id === assignment?.perfil_id)?.full_name ?? 'Sin asignar'}</td><td><Badge tone={department.is_active ? 'green' : 'gray'}>{department.is_active ? 'Activo' : 'Inactivo'}</Badge></td><td><button className="secondary" onClick={() => edit(department)}>Editar</button></td></tr>; })}</tbody></table></section></section></>; }
+export function DepartmentsPage() {
+  const [organization, setOrganization] = useState(emptyOrganization);
+  const [form, setForm] = useState({ id: '', code: '', name: '', branch_id: '', active: true });
+  const [error, setError] = useState('');
+  const load = () => administrationService.organization().then(setOrganization).catch((reason) => setError(reason instanceof Error ? reason.message : 'No fue posible cargar departamentos.'));
+  useEffect(() => { void load(); }, []);
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    try {
+      await administrationService.saveDepartment(form.id || null, {
+        code: form.code,
+        name: form.name,
+        branch_id: form.branch_id || null,
+        is_active: form.active,
+      }, reasonMessage);
+      setForm({ id: '', code: '', name: '', branch_id: '', active: true });
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No fue posible guardar el departamento.');
+    }
+  };
+  const edit = (department: Department) => setForm({
+    id: department.id,
+    code: department.code,
+    name: department.name,
+    branch_id: department.branch_id ?? '',
+    active: department.is_active,
+  });
+  return <>
+    <PageHeader eyebrow="ORGANIZACIÓN" title="Departamentos" description="La supervisión se administra desde Crear usuario o Editar acceso." action={<Exports />} />
+    {error && <div className="error">{error}</div>}
+    <section className="dashboard-grid">
+      <form className="panel admin-form single" onSubmit={save}>
+        <h2>{form.id ? 'Editar departamento' : 'Nuevo departamento'}</h2>
+        <label>Código<input value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} required /></label>
+        <label>Empresa<input value="Empresa autorizada" readOnly /></label>
+        <label>Sucursal<select value={form.branch_id} onChange={(event) => setForm({ ...form, branch_id: event.target.value })}><option value="">Corporativo</option>{organization.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+        <label>Nombre<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+        <label><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Activo</label>
+        <button className="primary">Guardar</button>
+      </form>
+      <section className="table-wrap"><table><thead><tr><th>Código</th><th>Empresa</th><th>Sucursal</th><th>Nombre</th><th>Estado</th><th /></tr></thead><tbody>{organization.departments.map((department) => <tr key={department.id}><td>{department.code}</td><td>Empresa autorizada</td><td>{organization.branches.find((branch) => branch.id === department.branch_id)?.name ?? 'Corporativo'}</td><td>{department.name}</td><td><Badge tone={department.is_active ? 'green' : 'gray'}>{department.is_active ? 'Activo' : 'Inactivo'}</Badge></td><td><button className="secondary" onClick={() => edit(department)}>Editar</button></td></tr>)}</tbody></table></section>
+    </section>
+  </>;
+}

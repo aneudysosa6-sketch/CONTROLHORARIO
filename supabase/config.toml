@@ -23,6 +23,9 @@ vector_port = 55428
 [db.pooler]
 port = 55429
 
+[functions.user-provisioning]
+verify_jwt = false
+
 # exchange es público; el handler valida JWT para administración y credenciales
 # de dispositivo para employee-sync.
 [functions.device-enrollment]
