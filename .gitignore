@@ -32,3 +32,16 @@ supabase/.temp/
 
 # TypeScript
 *.tsbuildinfo
+
+# Outputs locales de production-readiness
+/artifacts/production-readiness/android-build.txt
+/artifacts/production-readiness/android-manual-validation.txt
+/artifacts/production-readiness/android-remediation.txt
+/artifacts/production-readiness/android-unit-test-summary.txt
+/artifacts/production-readiness/android-unit-tests-manual.txt
+/artifacts/production-readiness/precheck.txt
+/artifacts/production-readiness/staging-0030-dry-run.txt
+/artifacts/production-readiness/supabase-manual-validation.txt
+/artifacts/production-readiness/supabase-status.txt
+/artifacts/production-readiness/web-brand-scan.txt
+/artifacts/production-readiness/web-build.txt
