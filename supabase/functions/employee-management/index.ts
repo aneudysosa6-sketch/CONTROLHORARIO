@@ -155,7 +155,7 @@ const normalizeError = (error: unknown): SafeErrorDiagnostic => {
   };
 };
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type SupabaseClient = ReturnType<typeof createClient<any>>;
 type LifecycleResult = {
   id?: unknown;
   perfil_id?: unknown;
