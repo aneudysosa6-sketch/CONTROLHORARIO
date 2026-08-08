@@ -218,9 +218,15 @@ Deno.serve(async (req) => {
     const admin = createAdminClient(url, serviceKey);
 
     if (action === 'bootstrap-status') {
-      const { count, error } = await admin.from('profiles').select('id', { count: 'exact', head: true });
-      if (error) throw error;
-      return json({ bootstrap_required: count === 0 });
+      const { data, error, status } = await admin.from('profiles').select('id').limit(1);
+      if (error) {
+        console.error('BOOTSTRAP_STATUS_ERROR:', {
+          requestId,
+          ...normalizeError(error, status),
+        });
+        return json({ error: 'BOOTSTRAP_STATUS_FAILED', requestId }, 500);
+      }
+      return json({ bootstrap_required: (data ?? []).length === 0 });
     }
 
     const jwt = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
@@ -309,6 +315,19 @@ Deno.serve(async (req) => {
         throw new HttpError(400, 'Acción no soportada');
     }
   } catch (error) {
+    const operationContext = error instanceof ProvisioningOperationError
+      ? {
+        stage: error.stage,
+        recovery_status: error.recoveryStatus,
+        root_cause: normalizeError(error.rootCause),
+        recovery_cause: error.recoveryCause ? normalizeError(error.recoveryCause) : undefined,
+      }
+      : {};
+    console.error('USER_PROVISIONING_ERROR:', {
+      requestId,
+      ...normalizeError(error),
+      ...operationContext,
+    });
     const publicContext = error instanceof ProvisioningOperationError
       ? { stage: error.stage, recovery_status: error.recoveryStatus }
       : {};
