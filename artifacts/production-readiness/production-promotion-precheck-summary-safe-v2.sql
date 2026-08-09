@@ -1,4 +1,4 @@
--- CONTROLHORARIO - resumen del precheck previo a 0030-0036.
+-- CONTROLHORARIO - resumen del precheck previo a 0030-0037.
 -- Una sola consulta, sin invocar funciones de negocio ni exponer identificadores.
 -- Las tablas base fueron demostradas por el precheck detallado ya ejecutado. Los
 -- objetos futuros y el historial se inspeccionan de forma tolerante por catalogo.
@@ -420,7 +420,7 @@ required_function_contracts(
     ('public.validar_alcance_supervisor()', 'trigger', false, true),
     ('public.proteger_sucursal_asignada_supervisor()', 'trigger', false, true),
     ('public.validar_cambio_sucursal_supervisor()', 'trigger', false, true),
-    ('public.obtener_departamentos_supervisor_actual()', 'record', true, true),
+    ('public.obtener_departamentos_supervisor_actual()', 'uuid', true, true),
     ('public.supervisor_puede_ver_empleado(uuid)', 'boolean', false, true),
     ('public.obtener_mi_autorizacion()', 'jsonb', false, true),
     ('public.guardar_departamento_administracion(uuid,jsonb,uuid,text)',
@@ -523,6 +523,9 @@ execute_state as (
   select
     e.signature,
     e.role_name,
+    p.oid is not null as function_exists,
+    r.oid is not null as expected_role_exists,
+    anon_role.oid is not null as anon_role_exists,
     p.oid is not null
       and r.oid is not null
       and pg_catalog.has_function_privilege(
@@ -554,7 +557,15 @@ execute_state as (
       anon_role.oid,
       p.oid,
       (chr(69)||chr(88)||chr(69)||chr(67)||chr(85)||chr(84)||chr(69))
-    ) as anon_execute
+    ) as anon_execute,
+    p.oid is not null
+      and anon_role.oid is not null
+      and exists (
+        select 1
+        from pg_catalog.aclexplode(p.proacl) acl
+        where acl.grantee = anon_role.oid
+          and pg_catalog.upper(acl.privilege_type) = (chr(69)||chr(88)||chr(69)||chr(67)||chr(85)||chr(84)||chr(69))
+      ) as anon_direct_grant
   from required_execute e
   left join pg_catalog.pg_proc p
     on p.oid = pg_catalog.to_regprocedure(e.signature)
@@ -681,7 +692,8 @@ expected_installed_history(version) as (
 expected_pending_history(version) as (
   values
     ('0030'::text), ('0031'::text), ('0032'::text),
-    ('0033'::text), ('0034'::text), ('0035'::text), ('0036'::text)
+    ('0033'::text), ('0034'::text), ('0035'::text), ('0036'::text),
+    ('0037'::text)
 ),
 history_metrics as (
   select
@@ -697,8 +709,65 @@ history_metrics as (
         select 1 from migration_history h where h.version = e.version
       ))::bigint as pending_already_installed,
     (select count(*) from migration_history h
-      where h.version !~ '^(000[1-9]|00[12][0-9]|003[0-6])$'
+      where h.version !~ '^(000[1-9]|00[12][0-9]|003[0-7])$'
     )::bigint as unexpected_versions
+),
+pending_remediation_state as (
+  select
+    not exists (
+      select 1 from migration_history h where h.version = '0036'
+    ) as migration_0036_pending,
+    not exists (
+      select 1 from migration_history h where h.version = '0037'
+    ) as migration_0037_pending
+),
+rpc_execute_summary as (
+  select
+    count(*) filter (
+      where not executable
+         or not direct_grant
+         or public_execute
+         or anon_execute
+    )::bigint as invalid_acl,
+    count(*) filter (
+      where (
+        not executable
+        or not direct_grant
+        or public_execute
+        or anon_execute
+      )
+      and signature = 'public.tiene_permiso(text)'
+      and role_name = 'authenticated'
+      and function_exists
+      and expected_role_exists
+      and anon_role_exists
+      and not (
+        anon_execute
+        and not anon_direct_grant
+        and not public_execute
+      )
+    )::bigint as remediable_0037_acl,
+    count(*) filter (
+      where (
+        not executable
+        or not direct_grant
+        or public_execute
+        or anon_execute
+      )
+      and not (
+        signature = 'public.tiene_permiso(text)'
+        and role_name = 'authenticated'
+        and function_exists
+        and expected_role_exists
+        and anon_role_exists
+        and not (
+          anon_execute
+          and not anon_direct_grant
+          and not public_execute
+        )
+      )
+    )::bigint as nonremediable_acl
+  from execute_state
 ),
 session_visibility as (
   select
@@ -1428,13 +1497,16 @@ service_tables(relation_name, expected_select, expected_insert, expected_update,
     ('perfil_departamentos'::text, false, false, false, false)
 ),
 service_role_state as (
-  select r.oid as role_oid
+  select r.oid as role_oid, r.rolsuper
   from (values (1)) as one(dummy)
   left join pg_catalog.pg_roles r on r.rolname = 'service_role'
 ),
 service_privilege_state as (
   select
     st.relation_name,
+    rs.relation_oid,
+    coalesce(sr.rolsuper, false) as service_role_superuser,
+    rs.relowner = sr.role_oid as service_role_is_owner,
     st.expected_select,
     st.expected_insert,
     st.expected_update,
@@ -1474,7 +1546,26 @@ service_privilege_state as (
         where acl.grantee = sr.role_oid
           and pg_catalog.upper(acl.privilege_type) = ap.privilege_name
       )
-    end as direct
+    end as direct,
+    case
+      when sr.role_oid is null or rs.relation_oid is null then null::boolean
+      else exists (
+        select 1
+        from pg_catalog.aclexplode(rs.relacl) acl
+        where acl.grantee = 0
+          and pg_catalog.upper(acl.privilege_type) = ap.privilege_name
+      )
+    end as public_source,
+    case
+      when sr.role_oid is null or rs.relation_oid is null then null::boolean
+      else exists (
+        select 1
+        from pg_catalog.aclexplode(rs.relacl) acl
+        where acl.grantee not in (0, sr.role_oid)
+          and pg_catalog.upper(acl.privilege_type) = ap.privilege_name
+          and pg_catalog.pg_has_role(sr.role_oid, acl.grantee, 'USAGE')
+      )
+    end as inherited_source
   from service_tables st
   cross join all_table_privileges ap
   cross join service_role_state sr
@@ -1498,11 +1589,15 @@ service_table_state as (
       '/direct=' || coalesce(direct::text, 'NULL'),
       '; ' order by privilege_order
     ) as current_privileges,
+    pg_catalog.bool_and(s.relation_oid is not null) as relation_exists,
     count(*) filter (where effective)::bigint as effective_count,
     count(*) filter (where direct)::bigint as direct_count,
     count(*) filter (
       where expected_effective_after_0036 is not null
-        and effective is distinct from expected_effective_after_0036
+        and (
+          effective is distinct from expected_effective_after_0036
+          or direct is distinct from expected_effective_after_0036
+        )
     )::bigint as expected_mismatches,
   count(*) filter (
       where effective = true
@@ -1524,7 +1619,18 @@ service_table_state as (
             and direct is distinct from true
           )
         )
-    )::bigint as dangerous_excess
+    )::bigint as dangerous_excess,
+    count(*) filter (
+      where effective = true
+        and expected_effective_after_0036 = false
+        and (
+          service_role_superuser
+          or service_role_is_owner
+          or public_source
+          or inherited_source
+          or direct is distinct from true
+        )
+    )::bigint as nonremediable_excess
   from service_privilege_state s
   join service_tables st
     on st.relation_name = s.relation_name
@@ -1704,7 +1810,7 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
     'installed_expected=' || installed_expected_count::text || '/29',
     '0001 through 0029 installed',
     'CRITICAL',
-    'Resolver cualquier hueco de historial antes de considerar 0030-0036.'
+    'Resolver cualquier hueco de historial antes de considerar 0030-0037.'
   from history_metrics
   union all
   select
@@ -1717,10 +1823,10 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
   from history_metrics
   union all
   select
-    'MIGRATIONS_0030_0036_PENDING',
+    'MIGRATIONS_0030_0037_PENDING',
     case when pending_already_installed = 0 then 'PASS' else 'BLOCKED' end,
-    'already_installed=' || pending_already_installed::text || '/7',
-    'already_installed=0/7',
+    'already_installed=' || pending_already_installed::text || '/8',
+    'already_installed=0/8',
     'CRITICAL',
     'El resumen modela el estado previo; cualquier migracion adelantada requiere conciliacion.'
   from history_metrics
@@ -1731,7 +1837,7 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
     'unexpected_versions=' || unexpected_versions::text,
     'unexpected_versions=0',
     'CRITICAL',
-    'Investigar toda version fuera del conjunto local 0001-0036.'
+    'Investigar toda version fuera del conjunto local 0001-0037.'
   from history_metrics
   union all
   select
@@ -1841,37 +1947,31 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
   union all
   select
     'RPC_EXECUTE_PREREQUISITES',
-    case when count(*) filter (
-      where not executable
-         or not direct_grant
-         or public_execute
-         or anon_execute
-    ) = 0
-      then 'PASS' else 'BLOCKED' end,
-    'invalid_acl=' || count(*) filter (
-      where not executable
-         or not direct_grant
-         or public_execute
-         or anon_execute
-    )::text ||
-      coalesce(
-        '; contracts=' || pg_catalog.string_agg(
-          signature || '@' || role_name, ',' order by role_name, signature
-        ) filter (
-          where not executable
-             or not direct_grant
-             or public_execute
-             or anon_execute
-        ),
-        ''
-      ),
+    case
+      when nonremediable_acl > 0 then 'BLOCKED'
+      when remediable_0037_acl > 0 and migration_0037_pending
+        then 'WARNING'
+      when remediable_0037_acl > 0 then 'BLOCKED'
+      else 'PASS'
+    end,
+    'invalid_acl=' || invalid_acl::text ||
+      '; remediated_by_0037=' || remediable_0037_acl::text ||
+      '; nonremediable=' || nonremediable_acl::text,
     'invalid_acl=0; expected role direct ' ||
       (chr(69)||chr(88)||chr(69)||chr(67)||chr(85)||chr(84)||chr(69)) ||
       '; PUBLIC/anon false',
     'CRITICAL',
-    'Estos ' || (chr(69)||chr(88)||chr(69)||chr(67)||chr(85)||chr(84)||chr(69)) ||
-      ' ya deben existir; las nuevas RPC de 0033 se concederan despues.'
-  from execute_state
+    case
+      when nonremediable_acl > 0
+        then 'Existe drift de RPC que 0037 no puede normalizar; detener.'
+      when remediable_0037_acl > 0 and migration_0037_pending
+        then 'REMEDIATED_BY_0037: normalizara tiene_permiso(text) para authenticated, anon y PUBLIC.'
+      when remediable_0037_acl > 0
+        then 'La ACL de tiene_permiso(text) difiere despues de 0037; detener.'
+      else 'Todas las ACL de RPC requeridas coinciden.'
+    end
+  from rpc_execute_summary
+  cross join pending_remediation_state
   union all
   select
     'FUNCTION_PRESTATE_FINGERPRINT',
@@ -2019,13 +2119,19 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
   from role_metrics
   union all
   select
-    'ACTIVE_EXACT_SUPERVISOR_ROLE',
-    case when active_exact_supervisor > 0 then 'PASS' else 'BLOCKED' end,
-    active_exact_supervisor::text,
-    'at least 1 active role with upper(code)=SUPERVISOR',
+    'ACTIVE_CANONICAL_SUPERVISOR_ROLE',
+    case when active_canonical_supervisor > 0 then 'PASS' else 'BLOCKED' end,
+    active_canonical_supervisor::text,
+    'at least 1 active role with private.normalizar_codigo_rol(code)=SUPERVISOR',
     'CRITICAL',
     '0032 no crea el rol SUPERVISOR y el smoke test requiere uno viable.'
-  from role_metrics
+  from (
+    select count(*) filter (
+      where private.normalizar_codigo_rol(r.j ->> 'code') = 'SUPERVISOR'
+        and r.j ->> 'is_active' = 'true'
+    )::bigint as active_canonical_supervisor
+    from role_rows r
+  ) canonical_supervisor_metrics
   union all
   select
     'ACTIVE_COMPANY_ROLE_COVERAGE',
@@ -2043,12 +2149,66 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
   union all
   select
     'ROLE_CANONICAL_ALIASES_NOT_TARGETED',
-    case when active_aliases_not_targeted = 0 then 'PASS' else 'BLOCKED' end,
-    active_aliases_not_targeted::text,
-    '0',
+    case
+      when canonical_supervisor_roles = 0 or blocked_permission_pairs > 0
+        then 'BLOCKED'
+      when scope_mismatches > 0 then 'WARNING'
+      else 'PASS'
+    end,
+    'canonical_roles=' || canonical_supervisor_roles::text ||
+      '; required_pairs=' || required_permission_pairs::text ||
+      '; blocked_pairs=' || blocked_permission_pairs::text ||
+      '; scope_mismatches=' || scope_mismatches::text,
+    'every active canonical SUPERVISOR has 4 active/allowed permissions; versioned scopes match',
     'HIGH',
-    '0031 y 0032 usan upper(code) exacto; los aliases canonicos quedarian fuera.'
-  from role_metrics
+    'Falta, inactividad o permitido=false bloquean; una diferencia solo de alcance genera WARNING.'
+  from (
+    select
+      count(distinct permission_state.role_id)::bigint
+        as canonical_supervisor_roles,
+      count(*)::bigint as required_permission_pairs,
+      count(*) filter (where not permission_state.permission_functional)::bigint
+        as blocked_permission_pairs,
+      count(*) filter (
+        where permission_state.permission_functional
+          and not permission_state.scope_matches
+      )::bigint as scope_mismatches
+    from (
+      select
+        r.j ->> 'id' as role_id,
+        required.code,
+        required.expected_scope,
+        coalesce(
+          pg_catalog.bool_or(
+            p.j ->> 'activo' = 'true'
+            and rp.j ->> 'permitido' = 'true'
+          ),
+          false
+        ) as permission_functional,
+        coalesce(
+          pg_catalog.bool_or(
+            p.j ->> 'activo' = 'true'
+            and rp.j ->> 'permitido' = 'true'
+            and rp.j ->> 'alcance' = required.expected_scope
+          ),
+          false
+        ) as scope_matches
+      from role_rows r
+      cross join (values
+        ('portal.ver_dashboard'::text, 'empresa'::text),
+        ('supervisor.dashboard'::text, 'departamento'::text),
+        ('empleados.ver_asignados'::text, 'departamento'::text),
+        ('jornadas.ver_asignadas'::text, 'departamento'::text)
+      ) required(code, expected_scope)
+      left join permission_rows p on p.j ->> 'codigo' = required.code
+      left join role_permission_rows rp
+        on rp.j ->> 'permiso_id' = p.j ->> 'id'
+       and rp.j ->> 'rol_id' = r.j ->> 'id'
+      where private.normalizar_codigo_rol(r.j ->> 'code') = 'SUPERVISOR'
+        and r.j ->> 'is_active' = 'true'
+      group by r.j ->> 'id', required.code, required.expected_scope
+    ) permission_state
+  ) canonical_supervisor_permission_metrics
   union all
   select
     '0030_EMPLOYEE_ALIAS_IMPACT',
@@ -2130,9 +2290,11 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
     case
       when (select not service_role_exists from service_auxiliary_state)
         then 'BLOCKED'
-      when dangerous_excess > 0 or direct_count = 7 or effective_count = 7
+      when not relation_exists or nonremediable_excess > 0
         then 'BLOCKED'
-      when expected_mismatches > 0 then 'WARNING'
+      when expected_mismatches > 0 and migration_0036_pending
+        then 'WARNING'
+      when expected_mismatches > 0 then 'BLOCKED'
       else 'PASS'
     end,
     'CURRENT ' || current_privileges,
@@ -2143,25 +2305,54 @@ checks(check_name, status, actual_value, expected_value, severity, instruction) 
       else 'HIGH'
     end,
     case
-      when dangerous_excess > 0 or direct_count = 7 or effective_count = 7
-      then 'Privilegio efectivo peligroso: detener y resolver tambien herencia o PUBLIC; 0036 debe cerrar la matriz final.'
+      when not relation_exists
+        then 'La tabla requerida no existe; 0036 no puede normalizarla.'
+      when nonremediable_excess > 0
+        then 'Origen efectivo por ownership, PUBLIC o herencia: 0036 no lo modifica.'
+      when expected_mismatches > 0 and migration_0036_pending
+        then 'REMEDIATED_BY_0036: la migracion pendiente revoca la ACL directa y valida la matriz final.'
       when expected_mismatches > 0
-        then 'La diferencia no bloquea por si sola: 0035-0036 deben llevarla al estado minimo esperado.'
+        then 'La matriz difiere despues de 0036; detener por drift posterior.'
       else 'Estado actual compatible con el contrato final de 0036.'
     end
   from service_table_state
+  cross join pending_remediation_state
   union all
   select
     'SERVICE_ROLE_UNEXPECTED_FULL_PRIVILEGE_SET',
-    case when count(*) filter (
-      where direct_count = 7 or effective_count = 7
-    ) = 0 then 'PASS' else 'BLOCKED' end,
+    case
+      when (select not service_role_exists from service_auxiliary_state)
+        then 'BLOCKED'
+      when count(*) filter (
+        where direct_count = 7 or effective_count = 7
+      ) = 0 then 'PASS'
+      when count(*) filter (
+        where (direct_count = 7 or effective_count = 7)
+          and nonremediable_excess > 0
+      ) > 0 then 'BLOCKED'
+      when (select migration_0036_pending from pending_remediation_state)
+        then 'WARNING'
+      else 'BLOCKED'
+    end,
     count(*) filter (
       where direct_count = 7 or effective_count = 7
     )::text,
     '0 tables with all seven table privileges',
     'CRITICAL',
-    'PostgreSQL expande concesiones por conjunto; se detecta por el conjunto completo, no por texto ACL.'
+    case
+      when (select not service_role_exists from service_auxiliary_state)
+        then 'service_role no existe; 0036 no puede normalizarlo.'
+      when count(*) filter (
+        where direct_count = 7 or effective_count = 7
+      ) = 0 then 'No existe ningun conjunto completo inesperado.'
+      when count(*) filter (
+        where (direct_count = 7 or effective_count = 7)
+          and nonremediable_excess > 0
+      ) > 0 then 'El conjunto incluye ownership, PUBLIC o herencia que 0036 no puede retirar.'
+      when (select migration_0036_pending from pending_remediation_state)
+        then 'REMEDIATED_BY_0036: el conjunto directo se revoca y se valida de forma fail-closed.'
+      else 'El conjunto completo persiste despues de 0036; detener por drift posterior.'
+    end
   from service_table_state
   union all
   select
