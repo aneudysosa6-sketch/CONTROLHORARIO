@@ -1,7 +1,10 @@
 begin;
 
+set local search_path = extensions, public, pg_catalog;
+set local role postgres;
+
 create extension if not exists pgtap;
-select no_plan();
+select * from no_plan();
 
 -- Contrato estructural y de seguridad de 0038.
 select has_table(
@@ -527,6 +530,7 @@ select is(
   'A: el resumen no inventa saldo sin jornadas'
 );
 reset role;
+set local role postgres;
 
 -- B. Una jornada finalizada genera exactamente un pendiente.
 insert into public.jornadas(
@@ -589,6 +593,7 @@ select is(
   'B: el resumen cuenta un empleado pendiente'
 );
 reset role;
+set local role postgres;
 
 -- H. La vista de pago reutiliza sin divergencias el motor V3 vigente.
 select ok(
@@ -1088,6 +1093,7 @@ select lives_ok(
   'ledger: historial es SELECT-only'
 );
 reset role;
+set local role postgres;
 
 select is(
   (
@@ -1225,6 +1231,7 @@ select is(
   'C: el resumen informa 111.25 en la fecha real del pago'
 );
 reset role;
+set local role postgres;
 
 select is(
   (select count(*)::integer from public.nomina_pagos_tiempo_real),
@@ -1327,6 +1334,7 @@ select throws_ok(
   'D: la misma key con payload distinto se rechaza'
 );
 reset role;
+set local role postgres;
 
 select is(
   (select count(*)::integer from public.nomina_pagos_tiempo_real),
@@ -1375,6 +1383,7 @@ select throws_ok(
   'nomina.ver sin nomina.pagar no confirma pagos'
 );
 reset role;
+set local role postgres;
 
 -- E. Una jornada posterior al pago vuelve a generar saldo pendiente.
 insert into public.jornadas(
@@ -1509,6 +1518,7 @@ select ok(
   'G: historial conserva identidad, motivo y formula del pago'
 );
 reset role;
+set local role postgres;
 
 set local role authenticated;
 select set_config(
@@ -1536,6 +1546,7 @@ select is(
   'F: B no ve el historial de A'
 );
 reset role;
+set local role postgres;
 select set_config('request.jwt.claim.sub', '', true);
 
 -- Casos adversariales del ledger por evento. Usan empleados y meses aislados
@@ -1636,6 +1647,7 @@ values (
   ) -> 0
 );
 reset role;
+set local role postgres;
 
 insert into public.jornadas(
   id, empresa_id, empleado_id, fecha_laboral, estado,
@@ -1675,6 +1687,7 @@ select throws_ok(
   'fingerprint: pago rechaza fuentes cambiadas despues de listar'
 );
 reset role;
+set local role postgres;
 
 -- Una cuota inicialmente limitada por net-floor debe completar el target al
 -- llegar un segundo devengo, sin volver a solicitar la cuota completa.
@@ -1753,6 +1766,7 @@ select is(
   'ledger net-floor: 40 brutos menos fijo 5 y cuota 30 dejan neto 5'
 );
 reset role;
+set local role postgres;
 
 -- Reabrir una jornada o agregar un conflicto pendiente debe cerrar el saldo
 -- inmediatamente, aunque el historial de movimientos siga siendo append-only.
@@ -1780,6 +1794,7 @@ select is(
   'ledger fail-closed: jornada valida aparece antes de reabrir'
 );
 reset role;
+set local role postgres;
 
 select throws_ok(
   $$update public.jornadas
@@ -1801,6 +1816,7 @@ select is(
   'ledger fail-closed: la mutacion rechazada conserva el devengo original'
 );
 reset role;
+set local role postgres;
 
 insert into public.jornadas(
   id, empresa_id, empleado_id, fecha_laboral, estado,
@@ -1834,6 +1850,7 @@ select is(
   'ledger fail-closed: conflicto pendiente bloquea el movimiento devengado'
 );
 reset role;
+set local role postgres;
 
 -- Cierre fuera de orden, identidad estable de jornada y reconciliacion de
 -- centavos sobre varias fuentes inmutables.
@@ -1931,6 +1948,7 @@ select is(
   'ledger fuera de orden: el ciclo mensual suma ambas fuentes una vez'
 );
 reset role;
+set local role postgres;
 select is(
   (
     select count(*)::integer
@@ -1990,6 +2008,7 @@ values (
   ) -> 0
 );
 reset role;
+set local role postgres;
 
 select is(
   (select (payload ->> 'gross')::numeric
@@ -2941,8 +2960,10 @@ select lives_ok(
 );
 reset role;
 set local role postgres;
+set local role postgres;
 revoke update on public.jornadas from authenticated;
 reset role;
+set local role postgres;
 
 insert into test_0038_results(result_name, payload)
 values (
@@ -3036,6 +3057,7 @@ values (
   ) -> 0
 );
 reset role;
+set local role postgres;
 select is(
   (select (payload ->> 'gross')::numeric
    from test_0038_results where result_name = 'cent_parity_pending'),
@@ -3106,6 +3128,7 @@ values (
   public.listar_pagos_pendientes(date '2039-01-03', date '2039-01-03') -> 0
 );
 reset role;
+set local role postgres;
 insert into public.jornadas(
   id, empresa_id, empleado_id, fecha_laboral, estado,
   iniciado_en, finalizado_en, minutos_trabajados, minutos_pausa,
@@ -3128,6 +3151,7 @@ values (
   public.listar_pagos_pendientes(date '2039-01-01', date '2039-01-15') -> 0
 );
 reset role;
+set local role postgres;
 select isnt(
   (select payload ->> 'source_fingerprint'
    from test_0038_results where result_name = 'once_cycle_day3'),
@@ -3241,6 +3265,7 @@ values (
   )
 );
 reset role;
+set local role postgres;
 insert into public.jornadas(
   id, empresa_id, empleado_id, fecha_laboral, estado,
   iniciado_en, finalizado_en, minutos_trabajados, minutos_pausa,
@@ -3263,6 +3288,7 @@ values (
   public.listar_pagos_pendientes(date '2039-02-01', date '2039-02-15') -> 0
 );
 reset role;
+set local role postgres;
 select is(
   (select (payload ->> 'journeys')::integer
    from test_0038_results where result_name = 'intra_cycle_after_payment'),
@@ -3374,6 +3400,7 @@ values (
   public.listar_pagos_pendientes(date '2039-03-01', date '2039-03-15') -> 0
 );
 reset role;
+set local role postgres;
 select is(
   (select (payload ->> 'gross')::numeric
    from test_0038_results where result_name = 'cycle_after_first_conflict'),
@@ -3444,6 +3471,7 @@ values (
   public.listar_pagos_pendientes(date '2039-03-01', date '2039-03-15') -> 0
 );
 reset role;
+set local role postgres;
 select is(
   (select (payload ->> 'gross')::numeric
    from test_0038_results where result_name = 'cycle_after_conflict'),
@@ -3546,6 +3574,7 @@ values (
   public.listar_pagos_pendientes(date '2039-06-01', date '2039-06-15') -> 0
 );
 reset role;
+set local role postgres;
 insert into public.nomina_ajustes(
   id, empresa_id, periodo_id, empleado_id, tipo, monto, motivo,
   origen, activo, creado_por
@@ -3592,6 +3621,7 @@ select throws_ok(
   'ledger ajuste: fingerprint anterior no puede confirmar el nuevo saldo'
 );
 reset role;
+set local role postgres;
 select is(
   (
     select count(*)::integer
@@ -3735,6 +3765,7 @@ select throws_ok(
   'guard legacy: nomina periodica no reutiliza una jornada pagada live'
 );
 reset role;
+set local role postgres;
 select is(
   (
     select count(*)::integer
@@ -3863,6 +3894,7 @@ values (
   )
 );
 reset role;
+set local role postgres;
 select is(
   (select payload ->> 'id' from test_0038_results
    where result_name = 'carry_payment_replay'),
@@ -4032,6 +4064,7 @@ values (
   ) -> 0
 );
 reset role;
+set local role postgres;
 select is(
   (
     select count(*)::integer
@@ -4220,6 +4253,7 @@ select throws_ok(
   'guard legacy inverso: transicion periodica posterior falla cerrado'
 );
 reset role;
+set local role postgres;
 select is(
   (
     select period.estado
@@ -4299,6 +4333,7 @@ select is(
 -- Ajustes tardios sobre una fuente ya revisada. Los importes se eligieron para
 -- que el motor V3 produzca exactamente 1500 por 120 minutos, sin deducciones.
 reset role;
+set local role postgres;
 select set_config(
   'request.jwt.claim.sub', '38000000-0000-0000-0000-000000000001', true
 );
@@ -4417,6 +4452,7 @@ insert into test_0038_results(result_name, payload) values
      from test_0038_results where result_name = 'topup_base_c')
   ));
 reset role;
+set local role postgres;
 
 create temporary table test_0038_topup_paid_snapshot as
 select pg_catalog.jsonb_agg(to_jsonb(payment) order by payment.id)::text rows
@@ -4484,6 +4520,7 @@ select is(
   'topup G: saldo no positivo permanece oculto'
 );
 reset role;
+set local role postgres;
 
 -- B: 1500 pagado, correccion -200 y ajuste tardio +300 dejan 100 pendiente.
 update public.jornadas
@@ -4544,6 +4581,7 @@ select is(
   'topup G: al superar cero reaparece solo el neto 100'
 );
 reset role;
+set local role postgres;
 
 -- C: tres revisiones sucesivas convergen al importe canonico final de V3.
 update public.jornadas
@@ -4831,6 +4869,7 @@ values (
   )
 );
 reset role;
+set local role postgres;
 
 -- La revision pagada a cero origina exactamente 100 de credito empresarial.
 update public.jornadas
@@ -4901,6 +4940,7 @@ select is(
   'topup mismo evento: credito inicial oculta el saldo cero'
 );
 reset role;
+set local role postgres;
 
 -- El ajuste se materializa reutilizando la misma jornada y el mismo event_key.
 insert into public.nomina_ajustes(
@@ -4955,6 +4995,7 @@ select is(
   'topup mismo evento: neto final cero permanece oculto'
 );
 reset role;
+set local role postgres;
 
 create temporary table test_0038_same_event_replay_snapshot as
 select
