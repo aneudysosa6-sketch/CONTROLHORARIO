@@ -3,6 +3,33 @@
 Este archivo registra hitos arquitectonicos y funcionales. No reemplaza el
 historial Git ni enumera cada correccion menor.
 
+## 2026-08-02 - Dependencias reproducibles de Edge Functions
+
+### Corregido
+
+- Las seis Edge Functions dejaron de resolver `@supabase/supabase-js@2`.
+- Todas usan el alias por funcion fijado en `2.110.2`.
+- Cada funcion conserva un `deno.lock` v5 con transitivos e integridades.
+- Se eliminaron los imports remotos directos de `user-provisioning` y
+  `employee-upsert`.
+
+### Agregado
+
+- Control `test:edge-dependencies` contra imports flotantes o directos.
+- Type-check congelado por funcion como preflight de deploy.
+- Planes de prueba y rollback exclusivos para staging.
+
+### Validado
+
+- `deno cache --frozen` y `deno check --frozen`: seis funciones en PASS.
+- Build Web, pruebas de supervisor/empleado y guard de dependencias: PASS.
+- Staging: `0036_HISTORY`, `0036_POSTFLIGHT` y `0036_SMOKE` en PASS; esto no
+  acredita un redeploy de las Edge Functions con el pin nuevo.
+- Produccion: migraciones `0030`-`0036` y Edge Functions fijadas pendientes;
+  el estado sigue **NO-GO**.
+- Durante esta validacion no se ejecuto deploy, SQL, `db push` ni push;
+  produccion no se toco.
+
 ## 2026-07-27 - Identidad visual Control Horario
 
 ### Agregado

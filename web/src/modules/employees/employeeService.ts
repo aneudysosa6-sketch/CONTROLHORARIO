@@ -181,11 +181,10 @@ const map = (row: EmployeeRow): EmployeeRecord => ({
 });
 
 const invoke = async <T>(body: Record<string, unknown>) => {
-  const { data, error } = await getSupabaseClient().functions.invoke('employee-management', { body });
+  const { data, error, response } = await getSupabaseClient().functions.invoke('employee-management', { body });
   if (data?.error) throw new Error(data.error);
   if (error) {
-    const response = (error as { context?: Response }).context;
-    const payload = await response?.clone().json().catch(() => null) as { error?: unknown } | null;
+    const payload = await response?.json().catch(() => null) as { error?: unknown } | null;
     const message = typeof payload?.error === 'string' ? payload.error.trim() : '';
     if (message) throw new Error(message);
     throw error;

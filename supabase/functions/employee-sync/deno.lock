@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@supabase/supabase-js@2": "2.110.2"
+    "npm:@supabase/supabase-js@2.110.2": "2.110.2"
   },
   "npm": {
     "@supabase/auth-js@2.110.2": {
@@ -58,7 +58,7 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@supabase/supabase-js@2"
+      "npm:@supabase/supabase-js@2.110.2"
     ]
   }
 }

@@ -25,7 +25,137 @@ const normalizeEmployeeCode = (value: unknown): string | null => {
     : null;
 };
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type EmployeeManagementStage =
+  | "HANDLER_INITIALIZATION"
+  | "AUTH_VALIDATION"
+  | "PROFILE_LOOKUP"
+  | "BODY_VALIDATION"
+  | "ACTION_ROUTING"
+  | "PERMISSION_CHECK"
+  | "PAYLOAD_VALIDATION"
+  | "EMPLOYEE_LOOKUP"
+  | "EMPLOYEE_DUPLICATE_CHECK"
+  | "EMPLOYEE_CODE_PREVIEW"
+  | "EMPLOYEE_CODE_ALLOCATION"
+  | "EMPLOYEE_SAVE"
+  | "AUTH_USER_CREATION"
+  | "LIFECYCLE_SAVE"
+  | "LIFECYCLE_AUTH_SYNC";
+
+type SafeErrorDiagnostic = {
+  name: string;
+  message: string;
+  code: string | number | null;
+  details: string | number | null;
+  hint: string | number | null;
+  status: string | number | null;
+};
+
+const redactDiagnosticText = (value: string) =>
+  value
+    .replace(/\bBearer\s+\S+/gi, "Bearer [REDACTED]")
+    .replace(
+      /\b(?:sb_(?:secret|publishable)_[A-Za-z0-9_-]{8,}|sbp_[A-Za-z0-9_-]{8,})\b/gi,
+      "[REDACTED_KEY]",
+    )
+    .replace(
+      /\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+      "[REDACTED_TOKEN]",
+    )
+    .replace(
+      /\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b/gi,
+      "[REDACTED_ID]",
+    )
+    .replace(
+      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+      "[REDACTED_EMAIL]",
+    )
+    .replace(/\b\d{3}[- ]?\d{7}[- ]?\d\b/g, "[REDACTED_ID]")
+    .replace(/\b\d{8,}\b/g, "[REDACTED_NUMBER]")
+    .replace(
+      /(["']?)(authorization|api[-_ ]?key|(?:supabase[_ -]?)?service[_ -]?role(?:[_ -]?key)?|password|secret|token)\1\s*[:=]\s*(["'])[^"'\r\n]*\3/gi,
+      "$2=[REDACTED]",
+    )
+    .replace(
+      /\b(authorization|api[-_ ]?key|(?:supabase[_ -]?)?service[_ -]?role(?:[_ -]?key)?|password|secret|token)\b\s*[:=]\s*[^\s,;}]+/gi,
+      "$1=[REDACTED]",
+    )
+    .slice(0, 500);
+
+const safeDiagnosticValue = (value: unknown): string | number | null => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "bigint") return redactDiagnosticText(String(value));
+  if (typeof value !== "string") return null;
+  const sanitized = redactDiagnosticText(value.trim());
+  return sanitized || null;
+};
+
+const safeDiagnosticString = (value: unknown): string | null => {
+  const normalized = safeDiagnosticValue(value);
+  return normalized === null ? null : String(normalized);
+};
+
+const normalizeError = (error: unknown): SafeErrorDiagnostic => {
+  const record = error !== null && typeof error === "object"
+    ? error as Record<string, unknown>
+    : null;
+  const field = (key: string): unknown => {
+    if (!record) return undefined;
+    try {
+      return record[key];
+    } catch {
+      return undefined;
+    }
+  };
+  const context = field("context");
+  const contextRecord = context !== null && typeof context === "object"
+    ? context as Record<string, unknown>
+    : null;
+  let contextStatus: unknown;
+  if (contextRecord) {
+    try {
+      contextStatus = contextRecord.status;
+    } catch {
+      contextStatus = undefined;
+    }
+  }
+  const postgrestLike = ["code", "details", "hint"].some((key) =>
+    field(key) !== undefined
+  );
+  const fallbackName = error === null
+    ? "NullThrown"
+    : error === undefined
+    ? "UndefinedThrown"
+    : typeof error === "string"
+    ? "StringThrown"
+    : postgrestLike
+    ? "PostgrestError"
+    : "ObjectThrown";
+  const fallbackMessage = error === null
+    ? "A null value was thrown"
+    : error === undefined
+    ? "An undefined value was thrown"
+    : "A non-Error value was thrown";
+
+  return {
+    name: safeDiagnosticString(error instanceof Error ? error.name : field("name")) ??
+      fallbackName,
+    message: safeDiagnosticString(
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+        ? error
+        : field("message"),
+    ) ?? fallbackMessage,
+    code: safeDiagnosticValue(field("code")),
+    details: safeDiagnosticValue(field("details")),
+    hint: safeDiagnosticValue(field("hint")),
+    status: safeDiagnosticValue(field("status")) ??
+      safeDiagnosticValue(contextStatus),
+  };
+};
+
+type SupabaseClient = ReturnType<typeof createClient<any>>;
 type LifecycleResult = {
   id?: unknown;
   perfil_id?: unknown;
@@ -304,10 +434,14 @@ const syncReactivationAuth = async (
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const requestId = crypto.randomUUID();
+  let stage: EmployeeManagementStage = "HANDLER_INITIALIZATION";
+  let action = "";
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    stage = "AUTH_VALIDATION";
     const jwt = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (!jwt) return json({ error: "Sesión requerida" }, 401);
 
@@ -318,6 +452,7 @@ Deno.serve(async (request) => {
     });
     const { data: { user }, error: userError } = await admin.auth.getUser(jwt);
     if (userError || !user) return json({ error: "Sesión inválida" }, 401);
+    stage = "PROFILE_LOOKUP";
     const { data: profile } = await admin.from("profiles")
       .select("company_id")
       .eq("id", user.id)
@@ -326,16 +461,20 @@ Deno.serve(async (request) => {
       .single();
     if (!profile) return json({ error: "Profile activo requerido" }, 403);
 
+    stage = "BODY_VALIDATION";
     const body = await request.json();
-    const action = text(body.action);
+    action = text(body.action);
+    stage = "ACTION_ROUTING";
 
     if (action === "reconcile-lifecycle-auth") {
+      stage = "PERMISSION_CHECK";
       const { data: allowed } = await caller.rpc("tiene_permiso", {
         codigo_permiso: "empleados.desactivar",
       });
       if (allowed !== true) {
         return json({ error: "Permiso empleados.desactivar requerido" }, 403);
       }
+      stage = "LIFECYCLE_SAVE";
       const { data: pending, error } = await admin
         .from("empleado_ciclo_laboral_auditoria")
         .select("id,empleado_id,perfil_id,evento,evento_relacionado_id,auth_sync_status")
@@ -349,6 +488,7 @@ Deno.serve(async (request) => {
         .limit(100);
       if (error) throw error;
       const statuses: Record<string, number> = {};
+      stage = "LIFECYCLE_AUTH_SYNC";
       for (const event of pending ?? []) {
         const lifecycle = {
           id: event.empleado_id,
@@ -366,17 +506,20 @@ Deno.serve(async (request) => {
     }
 
     if (["terminate", "reactivate", "toggle"].includes(action)) {
+      stage = "PAYLOAD_VALIDATION";
       const id = text(body.id) || text(body.employee_id);
       if (!uuid.test(id)) return json({ error: "Empleado invÃ¡lido" }, 400);
       const reactivating = action === "reactivate" ||
         (action === "toggle" && body.active === true);
       if (reactivating) {
+        stage = "LIFECYCLE_SAVE";
         const { data, error } = await caller.rpc("reactivar_empleado", {
           p_empleado: id,
           p_motivo: text(body.reason) || text(body.motivo) || null,
         });
         if (error) throw error;
         const employee = (data ?? {}) as LifecycleResult;
+        stage = "LIFECYCLE_AUTH_SYNC";
         const authSessionSync = await syncReactivationAuth(
           admin, profile.company_id, employee,
         );
@@ -392,6 +535,7 @@ Deno.serve(async (request) => {
       if (reason.length < 3) {
         return json({ error: "Motivo de desvinculaciÃ³n requerido" }, 400);
       }
+      stage = "LIFECYCLE_SAVE";
       const { data, error } = await caller.rpc("desvincular_empleado", {
         p_empleado: id,
         p_fecha: effectiveDate,
@@ -400,6 +544,7 @@ Deno.serve(async (request) => {
       });
       if (error) throw error;
       const employee = (data ?? {}) as LifecycleResult;
+      stage = "LIFECYCLE_AUTH_SYNC";
       const authSessionSync = await syncTerminationAuth(
         admin, profile.company_id, employee,
       );
@@ -407,12 +552,14 @@ Deno.serve(async (request) => {
     }
 
     if (action === "next-code") {
+      stage = "PERMISSION_CHECK";
       const { data: allowed } = await caller.rpc("tiene_permiso", {
         codigo_permiso: "empleados.crear",
       });
       if (allowed !== true) {
         return json({ error: "Permiso empleados.crear requerido" }, 403);
       }
+      stage = "EMPLOYEE_CODE_PREVIEW";
       const { data: code, error } = await admin.rpc(
         "preview_next_employee_code_internal",
         { p_company_id: profile.company_id },
@@ -424,16 +571,19 @@ Deno.serve(async (request) => {
     }
 
     if (action === "save") {
+      stage = "PAYLOAD_VALIDATION";
       const input = body.employee ?? {};
       const id = text(input.id);
       const creating = !id;
       const permission = creating ? "empleados.crear" : "empleados.editar";
+      stage = "PERMISSION_CHECK";
       const { data: allowed } = await caller.rpc("tiene_permiso", {
         codigo_permiso: permission,
       });
       if (allowed !== true) {
         return json({ error: `Permiso ${permission} requerido` }, 403);
       }
+      stage = "PAYLOAD_VALIDATION";
       if (!creating && !uuid.test(id)) {
         return json({ error: "Empleado inválido" }, 400);
       }
@@ -444,6 +594,7 @@ Deno.serve(async (request) => {
         activo: boolean;
       } | null = null;
       if (!creating) {
+        stage = "EMPLOYEE_LOOKUP";
         const existingResult = await admin.from("empleados")
           .select("codigo_empleado,estado_laboral,activo")
           .eq("empresa_id", profile.company_id)
@@ -454,6 +605,7 @@ Deno.serve(async (request) => {
         existing = existingResult.data;
       }
 
+      stage = "PAYLOAD_VALIDATION";
       const desiredStatus = text(input.status) || existing?.estado_laboral || "activo";
       const desiredActive = typeof input.active === "boolean"
         ? input.active
@@ -476,6 +628,7 @@ Deno.serve(async (request) => {
       }
 
       if (email) {
+        stage = "EMPLOYEE_DUPLICATE_CHECK";
         const emailQuery = admin.from("empleados").select("id")
           .eq("empresa_id", profile.company_id)
           .eq("correo", email);
@@ -489,6 +642,7 @@ Deno.serve(async (request) => {
       const employeeId = creating ? crypto.randomUUID() : id;
       let code: string;
       if (creating) {
+        stage = "EMPLOYEE_CODE_ALLOCATION";
         // La vista previa nunca decide el codigo. Esta reserva monotónica es la
         // autoridad final y queda consumida aunque la escritura posterior falle.
         const { data: allocated, error } = await admin.rpc(
@@ -500,12 +654,14 @@ Deno.serve(async (request) => {
         if (!normalized) throw new Error("EMPLOYEE_CODE_ALLOCATION_INVALID");
         code = normalized;
       } else {
+        stage = "PAYLOAD_VALIDATION";
         const normalized = normalizeEmployeeCode(input.code) ??
           normalizeEmployeeCode(existing?.codigo_empleado);
         if (!normalized) {
           return json({ error: "El código debe contener exactamente 6 dígitos." }, 400);
         }
         code = normalized;
+        stage = "EMPLOYEE_DUPLICATE_CHECK";
         const duplicate = admin.from("empleados").select("id")
           .eq("empresa_id", profile.company_id)
           .eq("codigo_empleado", code)
@@ -516,6 +672,7 @@ Deno.serve(async (request) => {
         }
       }
 
+      stage = "PAYLOAD_VALIDATION";
       const payload = {
         empresa_id: profile.company_id,
         codigo_empleado: code,
@@ -535,6 +692,7 @@ Deno.serve(async (request) => {
         departamento_id: text(input.departmentId) || null,
         puesto_id: text(input.positionId) || null,
       };
+      stage = "EMPLOYEE_SAVE";
       const result = creating
         ? await admin.from("empleados").insert({ id: employeeId, ...payload })
           .select("id,codigo_empleado").single()
@@ -553,8 +711,16 @@ Deno.serve(async (request) => {
 
     return json({ error: "Acción no soportada" }, 400);
   } catch (error) {
+    console.error("employee-management request failed", {
+      requestId,
+      stage,
+      ...normalizeError(error),
+    });
     return json({
-      error: error instanceof Error ? error.message : "Error inesperado",
+      error: action === "save"
+        ? "EMPLOYEE_SAVE_FAILED"
+        : "EMPLOYEE_MANAGEMENT_FAILED",
+      requestId,
     }, 400);
   }
 });

@@ -271,6 +271,40 @@ Despues:
 
 ## 15. Despliegue de funcion
 
+### Dependencias reproducibles
+
+Cada Edge Function mantiene su propio `deno.json` y `deno.lock`. El SDK comun
+se importa mediante el alias `@supabase/supabase-js`, resuelto exactamente como
+`npm:@supabase/supabase-js@2.110.2`; no se admiten `@2`, `latest` ni rangos.
+
+Antes de desplegar:
+
+```powershell
+Set-Location web
+pnpm.cmd run test:edge-dependencies
+Set-Location ..
+deno check --config supabase/functions/<function-name>/deno.json --lock supabase/functions/<function-name>/deno.lock --frozen supabase/functions/<function-name>/index.ts
+```
+
+El despliegue debe usar project-ref explicito y bundling Docker para consumir
+el lock de la funcion:
+
+```powershell
+supabase functions deploy <function-name> --project-ref <PROJECT_REF_APROBADO> --no-verify-jwt --use-docker
+```
+
+No usar `--use-api` para este flujo. Verificar Docker antes del comando y
+abortar si no esta disponible; no permitir fallback a bundling server-side.
+
+Estado de promocion:
+
+- Staging: `0036_HISTORY`, `0036_POSTFLIGHT` y `0036_SMOKE` estan validados en
+  PASS. Esto no acredita un redeploy de las Edge Functions con el pin nuevo.
+- Produccion: las migraciones `0030`-`0036` y el despliegue de las Edge
+  Functions fijadas siguen pendientes. Produccion permanece **NO-GO**.
+- Esta actualizacion documental no ejecuto deploy, SQL, `db push` ni cambios
+  remotos.
+
 ```powershell
 supabase functions deploy <function-name>
 supabase functions list

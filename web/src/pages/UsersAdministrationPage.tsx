@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import { ArrowLeft, Edit3, KeyRound, Plus, Power, Search, Trash2, X } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Badge, Empty, PageHeader, Toast } from '../components/UI';
@@ -6,11 +6,22 @@ import { useAuth } from '../context/AuthContext';
 import { administrationService, type AuditEvent } from '../modules/administration/administrationService';
 import {
   type AccessRecord,
+  type AccessMutationResult,
   type AccessStatus,
   type AccessesState,
   type ManagedAccessStatus,
+  type SupervisorScopeState,
+  UserProvisioningError,
   userProvisioningService,
 } from '../modules/userProvisioning/userProvisioningService';
+import {
+  activeDepartmentsForBranch,
+  buildSupervisorScopeRequest,
+  changeSupervisorBranch,
+  isSupervisorCanonicalRole,
+  selectAllActiveDepartmentIds,
+  toggleDepartmentSelection,
+} from '../modules/userProvisioning/supervisorScopePolicy';
 
 const empty: AccessesState = { accesses: [], employees: [], roles: [] };
 const statusLabel: Record<AccessStatus, string> = {
@@ -40,6 +51,112 @@ function lastAccess(value: string | null) {
 
 const employeeName = (access: AccessRecord) => access.employee_name?.trim() || 'Sin empleado vinculado';
 const employeeCode = (access: AccessRecord) => access.employee_code?.trim() || '—';
+
+function provisioningFailureMessage(failure: unknown, fallback: string) {
+  if (!(failure instanceof UserProvisioningError)) {
+    return failure instanceof Error ? failure.message : fallback;
+  }
+  const recovery = failure.recoveryStatus === 'auth_cleanup_pending'
+    ? ' La identidad Auth requiere limpieza; no reintentes con otro correo.'
+    : failure.recoveryStatus === 'auth_compensated'
+      ? ' La identidad Auth creada fue compensada; puedes corregir y reintentar.'
+      : failure.recoveryStatus === 'auth_restored'
+        ? ' Los datos de Auth anteriores fueron restaurados; puedes corregir y reintentar.'
+      : failure.recoveryStatus === 'auth_restore_pending'
+        ? ' La restauración de Auth quedó pendiente; solicita revisión antes de reintentar.'
+        : '';
+  const request = failure.requestId ? ` Solicitud: ${failure.requestId}.` : '';
+  return `${failure.message}.${recovery}${request}`.replace('..', '.');
+}
+
+function accessMutationMessage(result: AccessMutationResult, success: string) {
+  const request = result.requestId ? ` Solicitud: ${result.requestId}.` : '';
+  const pending = [
+    result.auth_status_sync === 'pending'
+      ? 'La base de datos quedó actualizada, pero la sincronización de Auth está pendiente.'
+      : '',
+    result.audit_sync === 'pending'
+      ? 'El registro complementario de auditoría quedó pendiente.'
+      : '',
+  ].filter(Boolean).join(' ');
+  return pending ? `${success} ${pending}${request}` : success;
+}
+
+function scopeValidationMessage(code: string) {
+  if (code === 'ROLE_CANONICAL_REQUIRED') return 'No se recibió la clasificación canónica del rol.';
+  if (code === 'SUPERVISOR_BRANCH_REQUIRED') return 'Selecciona una sucursal supervisada.';
+  if (code === 'SIN_DEPARTAMENTOS') return 'SIN_DEPARTAMENTOS: selecciona al menos un departamento.';
+  return 'La selección contiene departamentos inactivos o de otra sucursal.';
+}
+
+function SupervisorScopeFields({
+  data,
+  loading,
+  loadError,
+  needsReconciliation,
+  branchId,
+  departmentIds,
+  disabled,
+  onBranchChange,
+  onToggleDepartment,
+  onSelectAll,
+  onClear,
+  onRetry,
+}: {
+  data: SupervisorScopeState | null;
+  loading: boolean;
+  loadError: string;
+  needsReconciliation: boolean;
+  branchId: string;
+  departmentIds: string[];
+  disabled: boolean;
+  onBranchChange: (branchId: string) => void;
+  onToggleDepartment: (departmentId: string, selected: boolean) => void;
+  onSelectAll: () => void;
+  onClear: () => void;
+  onRetry: () => void;
+}) {
+  const departments = activeDepartmentsForBranch(data?.departments ?? [], branchId);
+  const visibleSelectedCount = departmentIds.filter((id) => departments.some((item) => item.id === id)).length;
+  return <fieldset className="access-scope" disabled={disabled && !loadError}>
+    <legend>Alcance del supervisor</legend>
+    <p className="access-scope-help">El acceso queda limitado exclusivamente a los departamentos seleccionados.</p>
+    {loading && <div className="access-scope-state" role="status">Cargando sucursales y departamentos…</div>}
+    {loadError && <div className="error access-scope-state" role="alert">{loadError}<button type="button" className="secondary" onClick={onRetry}>Reintentar</button></div>}
+    {needsReconciliation && <div className="error access-scope-state" role="alert">Las asignaciones existentes abarcan varias sucursales o incluyen datos inactivos. Selecciona conscientemente una sucursal y su nuevo conjunto de departamentos.</div>}
+    {!loading && !loadError && <>
+      <label>Sucursal supervisada
+        <select value={branchId} onChange={(event) => onBranchChange(event.target.value)} required>
+          <option value="">Seleccionar sucursal</option>
+          {(data?.branches ?? []).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+        </select>
+      </label>
+      {!data?.branches.length && <div className="access-empty-note">No hay sucursales activas disponibles.</div>}
+      <fieldset className="access-departments" disabled={!branchId}>
+        <legend>Departamentos supervisados</legend>
+        <div className="access-scope-toolbar">
+          <span aria-live="polite">{visibleSelectedCount} {visibleSelectedCount === 1 ? 'departamento seleccionado' : 'departamentos seleccionados'}</span>
+          <div className="button-row">
+            <button type="button" className="secondary" disabled={!departments.length} onClick={onSelectAll}>Seleccionar todos</button>
+            <button type="button" className="secondary" disabled={!departmentIds.length} onClick={onClear}>Limpiar</button>
+          </div>
+        </div>
+        {!branchId && <div className="access-scope-state">Selecciona una sucursal para ver sus departamentos.</div>}
+        {branchId && !departments.length && <div className="access-empty-note">Esta sucursal no tiene departamentos activos.</div>}
+        {!!departments.length && <div className="access-department-list">
+          {departments.map((department) => <label className="access-department-option" key={department.id}>
+            <input
+              type="checkbox"
+              checked={departmentIds.includes(department.id)}
+              onChange={(event) => onToggleDepartment(department.id, event.target.checked)}
+            />
+            <span>{department.name}</span>
+          </label>)}
+        </div>}
+      </fieldset>
+    </>}
+  </fieldset>;
+}
 
 export function UsersAdministrationPage({
   mode = 'list',
@@ -73,6 +190,16 @@ export function UsersAdministrationPage({
   const [newRoleId, setNewRoleId] = useState('');
   const [newStatus, setNewStatus] = useState<ManagedAccessStatus>('active');
   const [createError, setCreateError] = useState('');
+  const [createIdempotencyKey, setCreateIdempotencyKey] = useState('');
+  const createDialogRef = useRef<HTMLFormElement>(null);
+  const createReturnFocusRef = useRef<HTMLElement | null>(null);
+  const [supervisorScope, setSupervisorScope] = useState<SupervisorScopeState | null>(null);
+  const [scopeLoading, setScopeLoading] = useState(false);
+  const [scopeLoadError, setScopeLoadError] = useState('');
+  const [scopeNeedsReconciliation, setScopeNeedsReconciliation] = useState(false);
+  const [supervisorBranchId, setSupervisorBranchId] = useState('');
+  const [supervisorDepartmentIds, setSupervisorDepartmentIds] = useState<string[]>([]);
+  const scopeRequestVersionRef = useRef(0);
 
   async function load() {
     setLoading(true);
@@ -94,6 +221,35 @@ export function UsersAdministrationPage({
   useEffect(() => { void load(); }, [id, mode]);
 
   const access = catalog.accesses.find((item) => item.id === id);
+  const roleCodeFor = (selectedRoleId: string) => catalog.roles.find((role) => role.id === selectedRoleId)?.role_code_canonical;
+  const editRoleCodeCanonical = roleCodeFor(roleId);
+  const createRoleCodeCanonical = roleCodeFor(newRoleId);
+  const editIsSupervisor = isSupervisorCanonicalRole(editRoleCodeCanonical);
+  const createIsSupervisor = isSupervisorCanonicalRole(createRoleCodeCanonical);
+
+  async function loadSupervisorScope(profileId?: string) {
+    const requestVersion = ++scopeRequestVersionRef.current;
+    setScopeLoading(true);
+    setScopeLoadError('');
+    try {
+      const data = await userProvisioningService.getSupervisorScope(profileId);
+      if (requestVersion !== scopeRequestVersionRef.current) return;
+      const selectedBranch = data.scope.branch_id ?? '';
+      const allowed = new Set(
+        activeDepartmentsForBranch(data.departments, selectedBranch).map((department) => department.id),
+      );
+      setSupervisorScope(data);
+      setSupervisorBranchId(selectedBranch);
+      setSupervisorDepartmentIds(data.scope.department_ids.filter((departmentId) => allowed.has(departmentId)));
+      setScopeNeedsReconciliation(data.scope.requires_reconciliation);
+    } catch (failure) {
+      if (requestVersion !== scopeRequestVersionRef.current) return;
+      setScopeLoadError(provisioningFailureMessage(failure, 'No fue posible cargar el alcance del supervisor.'));
+    } finally {
+      if (requestVersion === scopeRequestVersionRef.current) setScopeLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!access) return;
     setEmployeeId(access.employee_id ?? '');
@@ -101,6 +257,54 @@ export function UsersAdministrationPage({
     setRoleId(access.role_id);
     setStatus(access.status === 'invited' ? 'active' : access.status);
   }, [access?.id]);
+
+  useEffect(() => {
+    if (mode !== 'edit' || !access || !editIsSupervisor) return;
+    if (supervisorScope?.scope.profile_id === access.id) return;
+    void loadSupervisorScope(access.id);
+  }, [mode, access?.id, editIsSupervisor]);
+
+  useEffect(() => {
+    if (!creating || !createIsSupervisor || supervisorScope || scopeLoading) return;
+    void loadSupervisorScope();
+  }, [creating, createIsSupervisor]);
+
+  useEffect(() => {
+    const scopeIsRelevant = (mode === 'edit' && editIsSupervisor) || (creating && createIsSupervisor);
+    if (scopeIsRelevant) return;
+    scopeRequestVersionRef.current += 1;
+    setScopeLoading(false);
+    setSupervisorScope(null);
+    setScopeLoadError('');
+    setScopeNeedsReconciliation(false);
+    setSupervisorBranchId('');
+    setSupervisorDepartmentIds([]);
+  }, [mode, creating, editIsSupervisor, createIsSupervisor]);
+
+  function changeScopeBranch(nextBranchId: string) {
+    const next = changeSupervisorBranch(
+      { branchId: supervisorBranchId, departmentIds: supervisorDepartmentIds },
+      nextBranchId,
+    );
+    setSupervisorBranchId(next.branchId);
+    setSupervisorDepartmentIds([...next.departmentIds]);
+    setScopeNeedsReconciliation(false);
+  }
+
+  function toggleScopeDepartment(departmentId: string, selected: boolean) {
+    setSupervisorDepartmentIds((current) => toggleDepartmentSelection(current, departmentId, selected));
+    setScopeNeedsReconciliation(false);
+  }
+
+  function selectAllScopeDepartments() {
+    setSupervisorDepartmentIds(selectAllActiveDepartmentIds(supervisorScope?.departments ?? [], supervisorBranchId));
+    setScopeNeedsReconciliation(false);
+  }
+
+  function clearScopeDepartments() {
+    setSupervisorDepartmentIds([]);
+    setScopeNeedsReconciliation(false);
+  }
 
   const rows = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -120,17 +324,17 @@ export function UsersAdministrationPage({
   const canEdit = hasPermission('usuarios.edit') || hasPermission('usuarios.administrar');
   const canManage = hasPermission('usuarios.administrar');
 
-  async function run(action: () => Promise<unknown>, success: string) {
+  async function run<T>(action: () => Promise<T>, success: string | ((result: T) => string)) {
     setBusy(true);
     setError('');
     try {
-      await action();
-      setMessage(success);
+      const result = await action();
+      setMessage(typeof success === 'function' ? success(result) : success);
       await load();
-      return true;
+      return result;
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'No fue posible completar la operación.');
-      return false;
+      setError(provisioningFailureMessage(failure, 'No fue posible completar la operación.'));
+      return null;
     } finally {
       setBusy(false);
     }
@@ -142,7 +346,7 @@ export function UsersAdministrationPage({
     if (!window.confirm(`¿Confirmas ${verb} el acceso de ${employeeName(item)}?`)) return;
     await run(
       () => userProvisioningService.setAccessStatus(item.id, next),
-      next === 'active' ? 'Acceso activado.' : 'Acceso desactivado.',
+      (result) => accessMutationMessage(result, next === 'active' ? 'Acceso activado.' : 'Acceso desactivado.'),
     );
   }
 
@@ -172,8 +376,10 @@ export function UsersAdministrationPage({
     }
     setBusy(true);
     try {
-      await userProvisioningService.updateAccessPassword(passwordTarget.id, password);
-      setMessage('Contraseña actualizada.');
+      const result = await userProvisioningService.updateAccessPassword(passwordTarget.id, password);
+      setMessage(result.audit_sync === 'pending'
+        ? `Contraseña actualizada, pero su auditoría quedó pendiente.${result.requestId ? ` Solicitud: ${result.requestId}.` : ''}`
+        : 'Contraseña actualizada.');
       setPassword('');
       closePasswordDialog();
       await load();
@@ -198,14 +404,19 @@ export function UsersAdministrationPage({
     window.requestAnimationFrame(() => passwordReturnFocusRef.current?.focus());
   }
 
-  function trapDialogFocus(event: ReactKeyboardEvent<HTMLFormElement>) {
+  function trapDialogFocus(
+    event: ReactKeyboardEvent<HTMLFormElement>,
+    dialogRef: RefObject<HTMLFormElement | null>,
+    close: () => void,
+  ) {
     if (event.key === 'Escape') {
       event.preventDefault();
-      closePasswordDialog();
+      close();
       return;
     }
     if (event.key !== 'Tab') return;
-    const focusable = [...(passwordDialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])') ?? [])];
+    const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])') ?? [])]
+      .filter((element) => !element.closest('fieldset:disabled'));
     const first = focusable[0];
     const last = focusable.at(-1);
     if (!first || !last) return;
@@ -230,6 +441,32 @@ export function UsersAdministrationPage({
       setError('El usuario debe ser un correo válido para Supabase Auth.');
       return;
     }
+    if (!access.role_code_canonical || !editRoleCodeCanonical) {
+      setError('No se recibió la clasificación canónica del rol. Actualiza el backend antes de editar este acceso.');
+      return;
+    }
+    if (isSupervisorCanonicalRole(access.role_code_canonical) && !editIsSupervisor) {
+      const confirmed = window.confirm('Al cambiar este acceso a otro rol se eliminarán sus asignaciones de supervisor. ¿Deseas continuar?');
+      if (!confirmed) return;
+    }
+    if (editIsSupervisor && status !== 'active') {
+      setError('El alcance solo puede guardarse para un perfil supervisor activo. Usa el control de estado para desactivar el acceso.');
+      return;
+    }
+
+    const scopeResult = buildSupervisorScopeRequest(
+      editRoleCodeCanonical,
+      { branchId: supervisorBranchId, departmentIds: supervisorDepartmentIds },
+      supervisorScope?.departments ?? [],
+    );
+    if (editIsSupervisor && (scopeLoading || scopeLoadError || scopeNeedsReconciliation || !supervisorScope)) {
+      setError(scopeLoadError || 'Completa o reconcilia el alcance del supervisor antes de guardar.');
+      return;
+    }
+    if (!scopeResult.ok) {
+      setError(scopeValidationMessage(scopeResult.error));
+      return;
+    }
     const saved = await run(
       () => userProvisioningService.updateAccess({
         profile_id: access.id,
@@ -237,26 +474,45 @@ export function UsersAdministrationPage({
         username: normalizedUsername,
         role_id: roleId,
         status,
+        ...(scopeResult.scope ?? {}),
       }),
-      'Acceso actualizado.',
+      (result) => accessMutationMessage(result, 'Acceso actualizado.'),
     );
-    if (saved) navigate('/accesos');
+    if (saved) {
+      navigate('/accesos', { state: { message: accessMutationMessage(saved, 'Acceso actualizado.') } });
+    }
   }
 
-  function openCreateDialog() {
+  function openCreateDialog(trigger: HTMLElement) {
+    scopeRequestVersionRef.current += 1;
+    createReturnFocusRef.current = trigger;
     setNewEmployeeId('');
     setNewUsername('');
     setNewPassword('');
     setNewRoleId('');
     setNewStatus('active');
     setCreateError('');
+    setCreateIdempotencyKey(crypto.randomUUID());
+    setSupervisorScope(null);
+    setScopeLoadError('');
+    setScopeNeedsReconciliation(false);
+    setSupervisorBranchId('');
+    setSupervisorDepartmentIds([]);
     setCreating(true);
   }
 
   function closeCreateDialog() {
     if (busy) return;
+    scopeRequestVersionRef.current += 1;
     setCreating(false);
     setCreateError('');
+    setCreateIdempotencyKey('');
+    setSupervisorScope(null);
+    setScopeLoadError('');
+    setScopeNeedsReconciliation(false);
+    setSupervisorBranchId('');
+    setSupervisorDepartmentIds([]);
+    window.requestAnimationFrame(() => createReturnFocusRef.current?.focus());
   }
 
   async function createAccess(event: FormEvent) {
@@ -274,21 +530,49 @@ export function UsersAdministrationPage({
       setCreateError('La contraseña debe contener al menos 8 caracteres.');
       return;
     }
+    if (!createRoleCodeCanonical) {
+      setCreateError('No se recibió la clasificación canónica del rol. Actualiza el backend antes de crear accesos.');
+      return;
+    }
+    if (createIsSupervisor && newStatus !== 'active') {
+      setCreateError('Un acceso supervisor debe crearse activo para poder guardar su alcance.');
+      return;
+    }
+    const scopeResult = buildSupervisorScopeRequest(
+      createRoleCodeCanonical,
+      { branchId: supervisorBranchId, departmentIds: supervisorDepartmentIds },
+      supervisorScope?.departments ?? [],
+    );
+    if (createIsSupervisor && (scopeLoading || scopeLoadError || scopeNeedsReconciliation || !supervisorScope)) {
+      setCreateError(scopeLoadError || 'Completa el alcance del supervisor antes de crear el usuario.');
+      return;
+    }
+    if (!scopeResult.ok) {
+      setCreateError(scopeValidationMessage(scopeResult.error));
+      return;
+    }
+    const idempotencyKey = createIdempotencyKey || crypto.randomUUID();
+    if (!createIdempotencyKey) setCreateIdempotencyKey(idempotencyKey);
     setBusy(true);
     setCreateError('');
     try {
-      await userProvisioningService.createAccess({
+      const result = await userProvisioningService.createAccess({
         employee_id: newEmployeeId,
         username: normalizedUsername,
         password: newPassword,
         role_id: newRoleId,
         status: newStatus,
+        idempotency_key: idempotencyKey,
+        ...(scopeResult.scope ?? {}),
       });
       setCreating(false);
-      setMessage('Usuario creado correctamente.');
+      setCreateIdempotencyKey('');
+      setSupervisorScope(null);
+      setMessage(accessMutationMessage(result, 'Usuario creado correctamente.'));
+      window.requestAnimationFrame(() => createReturnFocusRef.current?.focus());
       await load();
     } catch (failure) {
-      setCreateError(failure instanceof Error ? failure.message : 'No fue posible crear el usuario.');
+      setCreateError(provisioningFailureMessage(failure, 'No fue posible crear el usuario.'));
     } finally {
       setBusy(false);
     }
@@ -311,6 +595,14 @@ export function UsersAdministrationPage({
     if (!access) return <Empty text="Acceso no encontrado o fuera del alcance autorizado." />;
     const availableEmployees = catalog.employees.filter((employee) => !employee.perfil_id || employee.id === access.employee_id);
     const currentEmployeeMissing = Boolean(access.employee_id) && !availableEmployees.some((employee) => employee.id === access.employee_id);
+    const editScopeValid = buildSupervisorScopeRequest(
+      editRoleCodeCanonical,
+      { branchId: supervisorBranchId, departmentIds: supervisorDepartmentIds },
+      supervisorScope?.departments ?? [],
+    ).ok;
+    const editScopeBlocked = editIsSupervisor && (
+      status !== 'active' || scopeLoading || Boolean(scopeLoadError) || scopeNeedsReconciliation || !supervisorScope || !editScopeValid
+    );
     return <>
       <PageHeader eyebrow="CONTROL DE ACCESOS" title="Editar acceso" description="Los datos personales continúan vinculados al expediente del empleado." action={<Link className="secondary" to="/accesos"><ArrowLeft />Volver</Link>} />
       {error && <div className="error" role="alert">{error}</div>}
@@ -338,8 +630,23 @@ export function UsersAdministrationPage({
               <option value="suspended">Suspendido</option>
             </select>
           </label>
+          {editIsSupervisor && status !== 'active' && <div className="error" role="alert">El alcance solo puede guardarse para un supervisor activo. Para desactivarlo sin editar el alcance, usa el control de estado del listado.</div>}
+          {editIsSupervisor && <SupervisorScopeFields
+            data={supervisorScope}
+            loading={scopeLoading}
+            loadError={scopeLoadError}
+            needsReconciliation={scopeNeedsReconciliation}
+            branchId={supervisorBranchId}
+            departmentIds={supervisorDepartmentIds}
+            disabled={busy || scopeLoading}
+            onBranchChange={changeScopeBranch}
+            onToggleDepartment={toggleScopeDepartment}
+            onSelectAll={selectAllScopeDepartments}
+            onClear={clearScopeDepartments}
+            onRetry={() => void loadSupervisorScope(access.id)}
+          />}
         </div>
-        <div className="form-actions"><button className="primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cambios'}</button></div>
+        <div className="form-actions"><button className="primary" disabled={busy || editScopeBlocked}>{busy ? 'Guardando…' : 'Guardar cambios'}</button></div>
       </form>
     </>;
   }
@@ -349,7 +656,7 @@ export function UsersAdministrationPage({
       eyebrow="IDENTIDAD Y SEGURIDAD"
       title="Accesos"
       description="Credenciales vinculadas a empleados, roles y estados de Supabase Auth."
-      action={canCreate ? <button type="button" className="primary" onClick={openCreateDialog}><Plus />Crear usuario</button> : undefined}
+      action={canCreate ? <button type="button" className="primary" onClick={(event) => openCreateDialog(event.currentTarget)}><Plus />Crear usuario</button> : undefined}
     />
     {error && <div className="error" role="alert">{error}</div>}
     <div className="toolbar access-toolbar">
@@ -381,7 +688,7 @@ export function UsersAdministrationPage({
     </section>
 
     {passwordTarget && <div className="access-dialog-backdrop" role="presentation">
-      <form ref={passwordDialogRef} className="panel access-dialog" role="dialog" aria-modal="true" aria-labelledby="access-password-title" aria-describedby="access-password-description" onKeyDown={trapDialogFocus} onSubmit={changePassword}>
+      <form ref={passwordDialogRef} className="panel access-dialog" role="dialog" aria-modal="true" aria-labelledby="access-password-title" aria-describedby="access-password-description" onKeyDown={(event) => trapDialogFocus(event, passwordDialogRef, closePasswordDialog)} onSubmit={changePassword}>
         <div className="panel-title"><div><span className="eyebrow">SEGURIDAD</span><h2 id="access-password-title">Cambiar contraseña</h2><p id="access-password-description">{passwordTarget.username} · {employeeName(passwordTarget)}</p></div><button type="button" className="icon" aria-label="Cerrar diálogo" onClick={closePasswordDialog}><X /></button></div>
         {passwordError && <div className="error" role="alert">{passwordError}</div>}
         <label>Nueva contraseña<input autoFocus type="password" autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
@@ -389,7 +696,7 @@ export function UsersAdministrationPage({
       </form>
     </div>}
     {creating && <div className="access-dialog-backdrop" role="presentation">
-      <form className="panel access-dialog" role="dialog" aria-modal="true" aria-labelledby="create-user-title" onSubmit={createAccess}>
+      <form ref={createDialogRef} className="panel access-dialog access-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="create-user-title" onKeyDown={(event) => trapDialogFocus(event, createDialogRef, closeCreateDialog)} onSubmit={createAccess}>
         <div className="panel-title"><div><span className="eyebrow">USUARIOS</span><h2 id="create-user-title">Crear usuario</h2><p>Vincula un empleado, un rol y sus credenciales desde este módulo.</p></div><button type="button" className="icon" aria-label="Cerrar diálogo" disabled={busy} onClick={closeCreateDialog}><X /></button></div>
         {createError && <div className="error" role="alert">{createError}</div>}
         <div className="form-grid access-form-grid">
@@ -416,9 +723,24 @@ export function UsersAdministrationPage({
               <option value="active">Activo</option><option value="inactive">Inactivo</option><option value="suspended">Suspendido</option>
             </select>
           </label>
+          {createIsSupervisor && newStatus !== 'active' && <div className="error" role="alert">Un acceso supervisor debe crearse activo para guardar su alcance.</div>}
+          {createIsSupervisor && <SupervisorScopeFields
+            data={supervisorScope}
+            loading={scopeLoading}
+            loadError={scopeLoadError}
+            needsReconciliation={scopeNeedsReconciliation}
+            branchId={supervisorBranchId}
+            departmentIds={supervisorDepartmentIds}
+            disabled={busy || scopeLoading}
+            onBranchChange={changeScopeBranch}
+            onToggleDepartment={toggleScopeDepartment}
+            onSelectAll={selectAllScopeDepartments}
+            onClear={clearScopeDepartments}
+            onRetry={() => void loadSupervisorScope()}
+          />}
         </div>
         {!catalog.employees.some((employee) => !employee.perfil_id) && <div className="access-empty-note">No hay empleados activos sin usuario. Crea o libera un empleado antes de continuar.</div>}
-        <div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={closeCreateDialog}>Cancelar</button><button className="primary" disabled={busy || !catalog.employees.some((employee) => !employee.perfil_id)}>{busy ? 'Creando…' : 'Crear usuario'}</button></div>
+        <div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={closeCreateDialog}>Cancelar</button><button className="primary" disabled={busy || !catalog.employees.some((employee) => !employee.perfil_id) || (createIsSupervisor && (newStatus !== 'active' || scopeLoading || Boolean(scopeLoadError) || scopeNeedsReconciliation || !supervisorScope || !buildSupervisorScopeRequest(createRoleCodeCanonical, { branchId: supervisorBranchId, departmentIds: supervisorDepartmentIds }, supervisorScope?.departments ?? []).ok))}>{busy ? 'Creando…' : 'Crear usuario'}</button></div>
       </form>
     </div>}
     <Toast message={message} />

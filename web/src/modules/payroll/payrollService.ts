@@ -14,6 +14,10 @@ export type PayrollDashboardBlocker={employee_id?:string;employee_code:string;em
 export type PayrollDashboardWarning=PayrollDashboardBlocker&{journeys?:number;amount?:number};
 export type PayrollDashboardEmployee={employee_id:string;employee_code:string;employee_name:string;pay_type:string;salary:number;journeys:number|null;normal_hours:number;overtime_hours:number;gross:number;afp:number;sfs:number;loans:number;discounts:number;net:number};
 export type PayrollDashboardTotal={source:'CLOSED'|'REAL_TIME'|'UNAVAILABLE';as_of_date:string;period_id:string|null;period_start:string;period_end:string;period_type:'QUINCENAL'|'MENSUAL';payroll_state:PayrollState|'PREVIEW';total:number|null;employees_included:number;journeys_used:number;total_hours:number;employees:PayrollDashboardEmployee[];blockers:PayrollDashboardBlocker[];warnings:PayrollDashboardWarning[];reason:string|null};
+export type PayrollPaymentSummary={desde:string;hasta:string;pendiente_a_pagar:number;ya_pagado:number;empleados_pendientes:number};
+export type PayrollPaymentDeductionItem={type?:string;requested?:number;applied?:number;pending?:number;amount?:number;[key:string]:unknown};
+export type PayrollPendingPayment={employee_id:string;employee_code:string;employee_name:string;journeys:number;journey_from:string|null;journey_to:string|null;gross:number;overtime_pay:number;afp:number;sfs:number;loan_discount:number;credit_discount:number;other_discounts:number;total_pending:number;formula:string|null;deduction_items:PayrollPaymentDeductionItem[];source_fingerprint:string};
+export type PayrollPayment=PayrollPendingPayment&{id:string;paid_at:string;motive:string};
 
 export class PayrollApiError extends Error{constructor(message:string,readonly code?:string,readonly details?:string,readonly hint?:string){super(message);this.name='PayrollApiError'}}
 function fail(error:{message:string;code?:string;details?:string;hint?:string}|null):never{throw new PayrollApiError(error?.message??'Error desconocido de nómina',error?.code,error?.details,error?.hint)}
@@ -42,6 +46,10 @@ export const payrollService={
    throw error;
   }
  },
+ paymentSummary:(from:string,to:string)=>rpc<PayrollPaymentSummary>('obtener_resumen_pagos_tiempo_real',{p_desde:from,p_hasta:to}),
+ listPendingPayments:(from:string,to:string)=>rpc<PayrollPendingPayment[]>('listar_pagos_pendientes',{p_desde:from,p_hasta:to}),
+ registerEmployeePayment:(employeeId:string,from:string,to:string,reason:string,idempotencyKey:string,sourceFingerprint:string)=>rpc<PayrollPayment>('registrar_pago_empleado',{p_empleado:employeeId,p_desde:from,p_hasta:to,p_motivo:reason,p_idempotency_key:idempotencyKey,p_source_fingerprint:sourceFingerprint}),
+ listPaymentHistory:(from:string,to:string)=>rpc<PayrollPayment[]>('listar_historial_pagos',{p_desde:from,p_hasta:to}),
  createPeriod:(from:string,to:string,type:'QUINCENAL'|'MENSUAL')=>rpc<string>('crear_periodo_nomina',{p_inicio:from,p_fin:to,p_tipo:type}),
  async calculate(periodId:string){const result=await rpc<{periodo_id:string;nomina_id:string;version:number;resumen:PayrollSummary}>('calcular_nomina',{p_periodo:periodId});const{publishNotification}=await import('../notifications/notificationIntegration');publishNotification('payroll_generated','Nómina generada',{periodId,result},`payroll-generated:${periodId}:${result.version}`);return result},
  changeState:(periodId:string,state:PayrollState,reason:string)=>rpc<void>('cambiar_estado_nomina',{p_periodo:periodId,p_estado:state,p_motivo:reason}),
