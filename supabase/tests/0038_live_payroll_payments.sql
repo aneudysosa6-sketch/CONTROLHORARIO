@@ -1234,14 +1234,31 @@ reset role;
 set local role postgres;
 
 select is(
-  (select count(*)::integer from public.nomina_pagos_tiempo_real),
+  (
+    select count(*)::integer
+    from public.nomina_pagos_tiempo_real payment
+    where payment.empresa_id = '38000000-0000-0000-0000-000000000010'
+      and payment.id = (
+        select (payload ->> 'id')::uuid
+        from test_0038_results where result_name = 'first_payment'
+      )
+  ),
   1,
-  'C: existe una sola fila de pago'
+  'C: existe una sola fila de pago del fixture'
 );
 select is(
-  (select count(*)::integer from public.nomina_pago_jornadas),
+  (
+    select count(*)::integer
+    from public.nomina_pago_jornadas paid
+    where paid.empresa_id = '38000000-0000-0000-0000-000000000010'
+      and paid.pago_id = (
+        select (payload ->> 'id')::uuid
+        from test_0038_results where result_name = 'first_payment'
+      )
+      and paid.jornada_id = '38000000-0000-0000-0000-000000000031'
+  ),
   1,
-  'C: el pago enlaza exactamente la jornada liquidada'
+  'C: el pago enlaza exactamente la jornada liquidada del fixture'
 );
 select is(
   (
@@ -1337,14 +1354,31 @@ reset role;
 set local role postgres;
 
 select is(
-  (select count(*)::integer from public.nomina_pagos_tiempo_real),
+  (
+    select count(*)::integer
+    from public.nomina_pagos_tiempo_real payment
+    where payment.empresa_id = '38000000-0000-0000-0000-000000000010'
+      and payment.id = (
+        select (payload ->> 'id')::uuid
+        from test_0038_results where result_name = 'first_payment'
+      )
+  ),
   1,
-  'D: replay no duplica el ledger'
+  'D: replay no duplica el pago del fixture'
 );
 select is(
-  (select count(*)::integer from public.nomina_pago_jornadas),
+  (
+    select count(*)::integer
+    from public.nomina_pago_jornadas paid
+    where paid.empresa_id = '38000000-0000-0000-0000-000000000010'
+      and paid.pago_id = (
+        select (payload ->> 'id')::uuid
+        from test_0038_results where result_name = 'first_payment'
+      )
+      and paid.jornada_id = '38000000-0000-0000-0000-000000000031'
+  ),
   1,
-  'D: replay no consume dos veces la jornada'
+  'D: replay no consume dos veces la jornada del fixture'
 );
 select is(
   (
