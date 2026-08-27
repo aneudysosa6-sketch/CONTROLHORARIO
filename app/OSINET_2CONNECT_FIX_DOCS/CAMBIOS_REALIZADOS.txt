@@ -1,0 +1,30 @@
+OSINET - Corrección módulo lector USB 2Connect
+
+Archivos modificados:
+1. app/src/main/java/com/example/controlhorario/fingerprint/external/TwoConnectFingerprintManager.kt
+   - Se corrigió el PendingIntent USB para Android 14/15/16: FLAG_IMMUTABLE + Intent con package explícito.
+   - Se eliminaron rutas que podían provocar cierre de app por excepción no controlada.
+   - Se centralizó el estado del lector en el hilo principal para Compose.
+   - Se reforzó manejo de permiso USB, conexión/desconexión, apertura del lector, captura, registro y verificación.
+   - Se agregaron mensajes seguros en vez de crashear la aplicación.
+
+2. app/src/main/java/ui/biometrics/FingerprintRegistrationScreen.kt
+   - Se agregó soporte para recibir un código de empleado inicial.
+   - Si la pantalla se abre desde perfil de empleado, busca automáticamente ese empleado.
+   - Mantiene el flujo manual desde Administrador > Registro de Huellas.
+
+3. app/src/main/java/ui/employees/EmployeeProfileScreen.kt
+   - El botón "Registrar huella" ya no queda vacío.
+   - Ahora llama a una acción real para abrir el registro de huella del empleado.
+
+4. app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+   - Se conectó el botón de huella del perfil del empleado con la pantalla real de registro 2Connect.
+   - Se agregó ruta con employeeCode: fingerprints/{employeeCode}.
+   - Se corrigió una duplicación accidental en DepartmentViewModelFactory que podía impedir compilación.
+
+Problema corregido:
+- Android 14+ no permite PendingIntent mutable con Intent implícito para el permiso USB.
+- Ahora el permiso USB usa PendingIntent inmutable y un Intent limitado al paquete de la app.
+
+Nota:
+- No se ejecutó Gradle, respetando las reglas del proyecto.

@@ -1,0 +1,15 @@
+app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+app/src/main/java/model/Employee.kt
+app/src/main/java/database/AppDatabase.kt
+app/src/main/java/database/EmployeePayrollSettingsEntity.kt
+app/src/main/java/database/EmployeePayrollSettingsDao.kt
+app/src/main/java/repository/EmployeePayrollSettingsRepository.kt
+app/src/main/java/ui/employees/AddEmployeeScreen.kt
+app/src/main/java/ui/employees/EmployeePayrollSettingsScreen.kt
+app/src/main/java/model/GeneralPayrollModels.kt
+app/src/main/java/engine/GeneralPayrollEngine.kt
+app/src/main/java/engine/GeneralPayrollExportEngine.kt
+app/src/main/java/ui/payroll/GeneralPayrollUiState.kt
+app/src/main/java/ui/payroll/GeneralPayrollViewModel.kt
+app/src/main/java/ui/payroll/GeneralPayrollViewModelFactory.kt
+app/src/main/java/ui/payroll/GeneralPayrollScreen.kt

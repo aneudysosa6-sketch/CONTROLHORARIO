@@ -1,0 +1,7 @@
+MODO KIOSKO EMPLEADO - OSINET
+
+Copiar la carpeta app sobre la carpeta app actual del proyecto.
+Ruta base recomendada:
+<LOCAL_PROJECT_PATH>/
+
+Este paquete modifica solo el flujo de empleado. Administrador y Supervisor quedan con navegación normal.

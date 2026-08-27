@@ -1,0 +1,10 @@
+begin;
+set local search_path = extensions, public, pg_catalog;
+set local role postgres;
+select plan(4);
+select ok(pg_catalog.strpos(pg_catalog.pg_get_functiondef('public.registrar_evento_jornada_dispositivo(jsonb)'::regprocedure),'when v_accion=''PAUSAR'' then null when v_accion=''REANUDAR''') > 0,'a second pause opens a new chronology interval');
+select ok(pg_catalog.strpos(pg_catalog.pg_get_functiondef('public.registrar_evento_jornada_dispositivo(jsonb)'::regprocedure),'pausa_finalizada_en=case when v_accion=''REANUDAR''') = 0,'the stale pause assignment is absent');
+select ok(pg_catalog.strpos((select pg_catalog.pg_get_functiondef(p.oid) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='devengar_movimientos_nomina_jornada' limit 1),'BLOCKED_CONFIGURATION') > 0,'missing payroll configuration is a blocked accrual result');
+select ok(pg_catalog.strpos((select pg_catalog.pg_get_functiondef(p.oid) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname='devengar_movimientos_nomina_jornada' limit 1),'raise exception ''PAYROLL_EMPLOYEE_CONFIGURATION_INVALID:%''') = 0,'missing payroll configuration does not roll back attendance');
+select * from finish();
+rollback;

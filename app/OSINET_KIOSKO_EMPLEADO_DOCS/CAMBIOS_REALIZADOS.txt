@@ -1,0 +1,8 @@
+CAMBIOS REALIZADOS
+
+1. El botón EMPLEADO lleva a la pantalla de código/PIN.
+2. PIN correcto abre verificación de huella 2Connect.
+3. Huella válida abre pantalla de registrar jornada.
+4. Al tocar cualquier acción de jornada, se guarda la asistencia y vuelve automáticamente a la pantalla de código.
+5. Se limpia el back stack para evitar regresar a la jornada anterior.
+6. Administrador y Supervisor no fueron cambiados en su flujo de trabajo.

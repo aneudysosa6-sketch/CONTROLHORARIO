@@ -1,0 +1,36 @@
+{
+  "name": "osinet-time-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test:employee-code": "node scripts/test-employee-code-policy.mjs",
+    "test:supervisor-scope": "node scripts/test-supervisor-scope-policy.mjs",
+    "test:edge-dependencies": "node scripts/test-edge-dependency-pinning.mjs",
+    "test:device-enrollment-security": "node scripts/test-device-enrollment-security.mjs",
+    "test:spreadsheet-export-security": "node scripts/test-spreadsheet-export-security.mjs",
+    "test:p0-contracts": "node scripts/test-p0-contracts.mjs",
+    "preview": "vite preview",
+    "test:terminal-contract": "node scripts/terminal-only-contract.mjs",
+    "test:face-enrollment-contract": "node scripts/terminal-face-enrollment-contract.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "latest",
+    "@vitejs/plugin-react": "latest",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "typescript": "5.9.3",
+    "vite": "latest",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  }
+}

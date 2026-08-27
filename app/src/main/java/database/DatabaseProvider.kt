@@ -1,0 +1,177 @@
+package com.example.controlhorario.database
+
+import android.content.Context
+import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+object DatabaseProvider {
+
+    @Volatile
+    private var INSTANCE: AppDatabase? = null
+
+    fun getDatabase(context: Context): AppDatabase {
+
+        return INSTANCE ?: synchronized(this) {
+
+            val instance = Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                "osinet_time_database"
+            ).addMigrations(MIGRATION_26_27,MIGRATION_27_28,MIGRATION_28_29,MIGRATION_29_30,MIGRATION_30_31,MIGRATION_31_32,MIGRATION_32_33,MIGRATION_33_34,MIGRATION_34_35,MIGRATION_35_36,MIGRATION_36_37,MIGRATION_37_38,MIGRATION_38_39,MIGRATION_39_40,MIGRATION_40_41).build()
+
+            INSTANCE = instance
+
+            instance
+        }
+    }
+}
+
+private val MIGRATION_26_27=object:Migration(26,27){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteId TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteBranchId TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteUpdatedAt TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN lastSyncedAt INTEGER")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_employees_remoteId ON employees(remoteId)")
+ db.execSQL("CREATE TABLE IF NOT EXISTS device_enrollment (deviceId TEXT NOT NULL PRIMARY KEY, installationId TEXT NOT NULL, credentialExpiresAt TEXT NOT NULL, enrolledAt INTEGER NOT NULL, lastEmployeeSyncAt INTEGER)")
+}}
+
+private val MIGRATION_27_28=object:Migration(27,28){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteBranchName TEXT NOT NULL DEFAULT ''")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteDepartmentId TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteDepartmentName TEXT NOT NULL DEFAULT ''")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remotePositionId TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remotePositionName TEXT NOT NULL DEFAULT ''")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteSupervisorId TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteSupervisorName TEXT NOT NULL DEFAULT ''")
+ db.execSQL("ALTER TABLE employees ADD COLUMN employmentStatus TEXT NOT NULL DEFAULT 'activo'")
+ db.execSQL("ALTER TABLE employees ADD COLUMN startDate TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN payType TEXT")
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN employeeSyncCursorUpdatedAt TEXT")
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN employeeSyncCursorId TEXT")
+}}
+
+val MIGRATION_28_29=object:Migration(28,29){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN jornadaEnabled INTEGER NOT NULL DEFAULT 1")
+ db.execSQL("CREATE TABLE IF NOT EXISTS journeys (localId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, remoteId TEXT, employeeLocalId INTEGER NOT NULL, employeeRemoteId TEXT NOT NULL, deviceId TEXT NOT NULL, workDate TEXT NOT NULL, status TEXT NOT NULL, startedAt TEXT, pauseStartedAt TEXT, pauseEndedAt TEXT, finishedAt TEXT, workedMinutes INTEGER NOT NULL, breakMinutes INTEGER NOT NULL, syncStatus TEXT NOT NULL, syncVersion INTEGER NOT NULL, lastSyncedAt INTEGER, createdOffline INTEGER NOT NULL, updatedAt INTEGER NOT NULL, pendingReview INTEGER NOT NULL, severity TEXT NOT NULL, jornadaEnabledSnapshot INTEGER NOT NULL)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journeys_employeeLocalId_workDate ON journeys(employeeLocalId,workDate)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journeys_remoteId ON journeys(remoteId)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journeys_syncStatus ON journeys(syncStatus)")
+ db.execSQL("CREATE TABLE IF NOT EXISTS journey_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, journeyLocalId INTEGER NOT NULL, operation TEXT NOT NULL, idempotencyKey TEXT NOT NULL, payload TEXT NOT NULL, attempts INTEGER NOT NULL, nextRetryAt INTEGER NOT NULL, lastError TEXT NOT NULL, state TEXT NOT NULL, createdAt INTEGER NOT NULL, sentAt INTEGER)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_outbox_journeyLocalId ON journey_outbox(journeyLocalId)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_journey_outbox_idempotencyKey ON journey_outbox(idempotencyKey)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_outbox_state_nextRetryAt ON journey_outbox(state,nextRetryAt)")
+ db.execSQL("CREATE TABLE IF NOT EXISTS journey_conflicts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, journeyLocalId INTEGER NOT NULL, idempotencyKey TEXT NOT NULL, localSnapshot TEXT NOT NULL, remoteSnapshot TEXT NOT NULL, reason TEXT NOT NULL, resolutionState TEXT NOT NULL, createdAt INTEGER NOT NULL, resolvedAt INTEGER)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_conflicts_journeyLocalId ON journey_conflicts(journeyLocalId)")
+ db.execSQL("CREATE INDEX IF NOT EXISTS index_journey_conflicts_resolutionState ON journey_conflicts(resolutionState)")
+}}
+
+val MIGRATION_29_30=object:Migration(29,30){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteScheduleStart TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteScheduleEnd TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteLunchStart TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteLunchDurationMinutes INTEGER")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteWorkDays TEXT")
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteToleranceMinutes INTEGER")
+}}
+
+val MIGRATION_30_31=object:Migration(30,31){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE app_users ADD COLUMN email TEXT NOT NULL DEFAULT ''")
+ db.execSQL("UPDATE app_users SET email=lower(trim(username)) WHERE instr(username,'@')>0")
+ db.execSQL("UPDATE app_users SET email=lower(trim((SELECT email FROM employees WHERE employees.id=app_users.employeeId LIMIT 1))) WHERE email='' AND employeeId<>0 AND EXISTS(SELECT 1 FROM employees WHERE employees.id=app_users.employeeId AND trim(employees.email)<>'')")
+}}
+
+val MIGRATION_31_32=object:Migration(31,32){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE journeys ADD COLUMN startBranchId TEXT")
+ db.execSQL("ALTER TABLE journeys ADD COLUMN endBranchId TEXT")
+}}
+
+val MIGRATION_32_33=object:Migration(32,33){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("CREATE TABLE IF NOT EXISTS employee_face_biometrics (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, employeeId INTEGER NOT NULL, encryptedEmbedding TEXT NOT NULL, embeddingVersion INTEGER NOT NULL, modelName TEXT NOT NULL, embeddingDimension INTEGER NOT NULL, registeredAt TEXT NOT NULL, registeredBy TEXT NOT NULL, updatedAt TEXT NOT NULL, isActive INTEGER NOT NULL)")
+ db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_employee_face_biometrics_employeeId ON employee_face_biometrics(employeeId)")
+}}
+
+val MIGRATION_33_34=object:Migration(33,34){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'")
+ db.execSQL("ALTER TABLE employees ADD COLUMN lastSyncError TEXT")
+ db.execSQL("UPDATE employees SET syncStatus=CASE WHEN remoteId IS NULL THEN 'PENDING' ELSE 'SYNCED' END")
+ db.execSQL("CREATE TABLE employee_sync_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, employeeLocalId INTEGER NOT NULL, operation TEXT NOT NULL, payloadJson TEXT NOT NULL, idempotencyKey TEXT NOT NULL, status TEXT NOT NULL, retryCount INTEGER NOT NULL, lastError TEXT, nextRetryAt INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)")
+ db.execSQL("CREATE INDEX index_employee_sync_outbox_employeeLocalId ON employee_sync_outbox(employeeLocalId)")
+ db.execSQL("CREATE INDEX index_employee_sync_outbox_status_nextRetryAt ON employee_sync_outbox(status,nextRetryAt)")
+ db.execSQL("CREATE UNIQUE INDEX index_employee_sync_outbox_idempotencyKey ON employee_sync_outbox(idempotencyKey)")
+}}
+
+val MIGRATION_34_35=object:Migration(34,35){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN companyId TEXT")
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN branchId TEXT")
+ db.execSQL("CREATE TABLE IF NOT EXISTS kiosk_settings (companyId TEXT NOT NULL, deviceId TEXT NOT NULL, faceOnlyEnabled INTEGER NOT NULL, pinFallbackEnabled INTEGER NOT NULL, faceMatchThreshold REAL NOT NULL, faceMatchMargin REAL, remoteUpdatedAt TEXT NOT NULL, lastSyncedAt INTEGER NOT NULL, PRIMARY KEY(companyId,deviceId))")
+}}
+
+val MIGRATION_35_36=object:Migration(35,36){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE employees ADD COLUMN remoteCompanyId TEXT")
+}}
+
+val MIGRATION_36_37=object:Migration(36,37){override fun migrate(db:SupportSQLiteDatabase){
+ val validCode = "length(employeeCode) IN (5,6) AND employeeCode NOT GLOB '*[^0-9]*' AND CAST(employeeCode AS INTEGER) BETWEEN 1 AND 999999"
+ val duplicateCanonicalCodes = db.query(
+  "SELECT COUNT(*) FROM employees a JOIN employees b ON a.id < b.id " +
+   "WHERE ${validCode.replace("employeeCode", "a.employeeCode")} " +
+   "AND ${validCode.replace("employeeCode", "b.employeeCode")} " +
+   "AND printf('%06d',CAST(a.employeeCode AS INTEGER))=printf('%06d',CAST(b.employeeCode AS INTEGER))"
+ ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) }
+ check(duplicateCanonicalCodes == 0) {
+  "No se pueden normalizar los códigos locales: existen códigos 5→6 duplicados."
+ }
+
+ db.execSQL(
+  "UPDATE employees SET employeeCode='0'||employeeCode " +
+   "WHERE length(employeeCode)=5 AND employeeCode NOT GLOB '*[^0-9]*' " +
+   "AND CAST(employeeCode AS INTEGER) BETWEEN 1 AND 99999"
+ )
+
+ listOf(
+  "loans",
+  "vacations",
+  "employee_permission_requests",
+  "medical_license_daily_payments",
+  "pending_attendance_reviews"
+ ).forEach { table ->
+  db.execSQL(
+   "UPDATE $table SET employeeCode='0'||employeeCode " +
+    "WHERE length(employeeCode)=5 AND employeeCode NOT GLOB '*[^0-9]*' " +
+    "AND CAST(employeeCode AS INTEGER) BETWEEN 1 AND 99999"
+  )
+ }
+}}
+
+/**
+ * The physical column remains for Room compatibility, but v38 removes its employee meaning.
+ * app_users password hashes are stored in another table and are intentionally untouched.
+ */
+val MIGRATION_37_38=object:Migration(37,38){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("UPDATE employees SET pin='' WHERE pin<>''")
+}}
+
+val MIGRATION_38_39=object:Migration(38,39){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("CREATE TABLE app_users_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, fullName TEXT NOT NULL, username TEXT NOT NULL, email TEXT NOT NULL, role TEXT NOT NULL, employeeId INTEGER NOT NULL, branchId INTEGER NOT NULL, departmentId INTEGER NOT NULL, isActive INTEGER NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, lastLoginAt TEXT NOT NULL)")
+ db.execSQL("INSERT INTO app_users_new(id,fullName,username,email,role,employeeId,branchId,departmentId,isActive,createdAt,updatedAt,lastLoginAt) SELECT id,fullName,username,email,role,employeeId,branchId,departmentId,isActive,createdAt,updatedAt,lastLoginAt FROM app_users")
+ db.execSQL("DROP TABLE app_users")
+ db.execSQL("ALTER TABLE app_users_new RENAME TO app_users")
+ db.execSQL("CREATE TABLE supervisors_new (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, fullName TEXT NOT NULL, username TEXT NOT NULL, isActive INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)")
+ db.execSQL("INSERT INTO supervisors_new(id,fullName,username,isActive,createdAt,updatedAt) SELECT id,fullName,username,isActive,createdAt,updatedAt FROM supervisors")
+ db.execSQL("DROP TABLE supervisors")
+ db.execSQL("ALTER TABLE supervisors_new RENAME TO supervisors")
+ db.execSQL("CREATE UNIQUE INDEX index_supervisors_username ON supervisors(username)")
+}}
+
+
+val MIGRATION_39_40=object:Migration(39,40){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN usageType TEXT NOT NULL DEFAULT 'GENERAL'")
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN departmentIds TEXT NOT NULL DEFAULT ''")
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN configurationRevision INTEGER NOT NULL DEFAULT 0")
+}}
+
+val MIGRATION_40_41=object:Migration(40,41){override fun migrate(db:SupportSQLiteDatabase){
+ db.execSQL("ALTER TABLE device_enrollment ADD COLUMN voiceEnabled INTEGER NOT NULL DEFAULT 1")
+}}

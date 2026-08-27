@@ -1,0 +1,26 @@
+ARCHIVOS MODIFICADOS:
+
+app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+app/src/main/java/database/AppDatabase.kt
+app/src/main/java/database/EmployeeDao.kt
+app/src/main/java/repository/EmployeeRepository.kt
+
+ARCHIVOS NUEVOS:
+
+app/src/main/java/database/SupervisorEntity.kt
+app/src/main/java/database/SupervisorDepartmentEntity.kt
+app/src/main/java/database/SupervisorWorkScheduleEntity.kt
+app/src/main/java/database/SupervisorEventEntity.kt
+app/src/main/java/database/SupervisorDao.kt
+app/src/main/java/database/SupervisorWorkScheduleDao.kt
+app/src/main/java/database/SupervisorEventDao.kt
+
+app/src/main/java/repository/SupervisorRepository.kt
+app/src/main/java/repository/SupervisorWorkScheduleRepository.kt
+app/src/main/java/repository/SupervisorEventRepository.kt
+
+app/src/main/java/ui/supervisors/SupervisorAdminViewModel.kt
+app/src/main/java/ui/supervisors/SupervisorPanelViewModel.kt
+app/src/main/java/ui/supervisors/SupervisorAdminScreen.kt
+app/src/main/java/ui/supervisors/SupervisorLoginScreen.kt
+app/src/main/java/ui/supervisors/SupervisorPanelScreen.kt

@@ -1,0 +1,103 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+# PNPM
+.pnpm-store/
+.npm-cache/
+.tmp/
+
+# Dependencias
+node_modules/
+**/build/
+
+# Build web
+web/node_modules/
+web/dist/
+dist/
+
+# Entorno local
+supabase/.temp/
+
+# TypeScript
+*.tsbuildinfo
+
+# Outputs locales de production-readiness
+/artifacts/production-readiness/android-build.txt
+/artifacts/production-readiness/android-manual-validation.txt
+/artifacts/production-readiness/android-remediation.txt
+/artifacts/production-readiness/android-unit-test-summary.txt
+/artifacts/production-readiness/android-unit-tests-manual.txt
+/artifacts/production-readiness/precheck.txt
+/artifacts/production-readiness/staging-0030-dry-run.txt
+/artifacts/production-readiness/supabase-manual-validation.txt
+/artifacts/production-readiness/supabase-status.txt
+/artifacts/production-readiness/web-brand-scan.txt
+/artifacts/production-readiness/web-build.txt
+
+# Estado local del IDE y dispositivos
+/.idea/deploymentTargetSelector.xml
+
+# Configuracion y respaldos locales
+local.properties*
+**/*.before-*
+
+# Logs y diagnosticos con datos operativos
+/logs/
+*.log
+/app_startup*.txt
+/face_registration*.txt
+/fingerprint*.txt
+
+# Binarios y paquetes de revision locales
+/artifacts/*.apk
+/artifacts/*.zip
+/artifacts/*.diff
+/artifacts/*-before-*.kt
+/artifacts/00*.txt
+/artifacts/*-audit*.txt
+/artifacts/*-build*.txt
+/artifacts/*-input*.txt
+/artifacts/*-review*.txt
+/artifacts/*-snapshot*.txt
+/artifacts/*-slices*.txt
+/artifacts/kiosk-*
+/controlhorario_0044_release/
+
+# Archivos accidentales con nombres malformados
+/ntent `
+/rcmainjavauipunchKioskExitCoordinator.kt'
+.vercel
+.env*
+
+# Artefactos locales de release, despliegue y respaldo
+/backups/
+/app/release/
+/artifacts/prod-pgtap-runtime/
+/artifacts/vercel-prod-package-*/
+*.apk
+*.zip
+*.jks
+*.keystore
+*.log
+*.tmp
+
+# Public release: local diagnostics and IDE state
+/.idea/
+/.kotlin/errors/
+/.supabase/traces/
+/*crash*.txt
+/*test_log*.txt
+/.supabase/
+/*_log.txt

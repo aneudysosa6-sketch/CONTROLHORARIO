@@ -1,0 +1,29 @@
+OSINET - Corrección módulo lector USB 2Connect
+
+Cambios realizados:
+
+1. TwoConnectFingerprintManager.kt
+   - El SDK fplib-reader-v3.jar ahora recibe una Activity real.
+   - Se eliminó el uso de applicationContext para reader.SetContextHandler(...).
+   - Esto corrige el error:
+     android.app.Application cannot be cast to android.app.Activity
+
+2. FingerprintRegistrationScreen.kt
+   - La pantalla obtiene la Activity real desde LocalContext.
+   - El botón Registrar huella 2Connect usa el manager inicializado con Activity.
+   - Si no existe Activity válida, muestra mensaje controlado y no cierra la app.
+   - El botón Solicitar permiso USB también valida el manager antes de usarlo.
+
+3. EmployeePunchScreen.kt
+   - El flujo de verificación de huella también usa Activity real.
+   - Se evita el cierre de la app si la pantalla no puede resolver la Activity.
+
+Rutas modificadas:
+
+app/src/main/java/com/example/controlhorario/fingerprint/external/TwoConnectFingerprintManager.kt
+app/src/main/java/ui/biometrics/FingerprintRegistrationScreen.kt
+app/src/main/java/ui/punch/EmployeePunchScreen.kt
+
+Nota técnica:
+El SDK 2Connect internamente hace cast del Context a Activity cuando abre el lector USB.
+Por eso no se puede usar applicationContext con SetContextHandler.

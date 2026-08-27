@@ -1,0 +1,9 @@
+Error corregido visto en Android Studio:
+
+VacationsScreen.kt:83:22 No value passed for parameter 'onClick'
+
+Causa:
+La llamada usaba lambda trailing con una firma incompatible de OSINETButton.
+
+Solución:
+Se cambió a parámetro nombrado onClick = { ... }.

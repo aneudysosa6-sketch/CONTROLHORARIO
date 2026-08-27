@@ -1,0 +1,25 @@
+OSINET - Cambios realizados
+
+1. Flujo de PIN automático:
+   - Al completar 5 dígitos se identifica el empleado automáticamente.
+   - Si el PIN es incorrecto, se limpia el campo y se muestra "PIN incorrecto".
+   - No se agregó botón manual "Identificar empleado".
+
+2. Flujo de huella 2Connect:
+   - Se conserva la integración USB 2Connect que ya estaba funcionando.
+   - No se modificó la base del lector Android 14/15.
+   - Después de identificar empleado con PIN, se verifica huella automáticamente.
+
+3. Pantalla de asistencia:
+   - Se quitó el botón manual "Iniciar jornada".
+   - Si el empleado no tiene jornada abierta, la app registra INICIO_JORNADA automáticamente al llegar desde huella validada.
+   - Si el empleado está trabajando, solo muestra acciones válidas: pausa o finalizar.
+   - Si está en pausa, solo muestra reanudar.
+   - Si la jornada está finalizada, no permite registrar más acciones.
+
+4. Estabilidad:
+   - Se corrigió el reinicio del intento automático de huella cuando la verificación falla, para que el mismo empleado pueda intentarlo otra vez.
+
+Archivos modificados:
+- app/src/main/java/ui/punch/EmployeePunchScreen.kt
+- app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt

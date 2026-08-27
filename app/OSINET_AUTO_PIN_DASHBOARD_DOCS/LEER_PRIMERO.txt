@@ -1,0 +1,8 @@
+Este paquete mantiene intacta la integración base del lector USB 2Connect.
+
+El cambio se concentra en el flujo operativo solicitado:
+- PIN automático.
+- Sin botón manual Identificar empleado.
+- Verificación de huella automática.
+- Sin botón manual Iniciar jornada cuando no existe jornada del día.
+- Inicio de jornada automático después de huella válida.

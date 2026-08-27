@@ -1,0 +1,13 @@
+Archivos principales modificados:
+
+app/src/main/java/ui/components/OSINETDesign.kt
+app/src/main/java/ui/components/OSINETButton.kt
+app/src/main/java/ui/components/OSINETTextField.kt
+app/src/main/java/com/example/controlhorario/ui/theme/Theme.kt
+app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+app/src/main/java/ui/login/LoginScreen.kt
+app/src/main/java/ui/punch/EmployeePunchScreen.kt
+app/src/main/java/ui/punch/EmployeeVerifiedAttendanceScreen.kt
+app/src/main/java/ui/biometrics/FingerprintRegistrationScreen.kt
+app/src/main/java/ui/supervisors/SupervisorLoginScreen.kt
+app/src/main/java/ui/supervisors/SupervisorPanelScreen.kt

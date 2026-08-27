@@ -1,0 +1,8 @@
+Reemplazar estos archivos en tu proyecto Android Studio:
+
+1. app/src/main/java/com/example/controlhorario/fingerprint/external/TwoConnectFingerprintManager.kt
+2. app/src/main/java/ui/biometrics/FingerprintRegistrationScreen.kt
+3. app/src/main/java/ui/employees/EmployeeProfileScreen.kt
+4. app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+
+Este ZIP también incluye el módulo app completo con esos cambios ya aplicados.

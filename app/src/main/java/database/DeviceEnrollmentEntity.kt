@@ -1,0 +1,21 @@
+package com.example.controlhorario.database
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName="device_enrollment")
+data class DeviceEnrollmentEntity(
+    @PrimaryKey val deviceId:String,
+    val installationId:String,
+    val credentialExpiresAt:String,
+    val enrolledAt:Long=System.currentTimeMillis(),
+    val lastEmployeeSyncAt:Long?=null,
+    val employeeSyncCursorUpdatedAt:String?=null,
+    val employeeSyncCursorId:String?=null,
+    val companyId:String?=null,
+    val branchId:String?=null,
+    val usageType:String="GENERAL",
+    val departmentIds:String="",
+    val voiceEnabled:Boolean=true,
+    val configurationRevision:Long=0
+)

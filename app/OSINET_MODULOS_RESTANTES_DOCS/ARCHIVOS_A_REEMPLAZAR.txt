@@ -1,0 +1,8 @@
+Reemplazar/agregar estos archivos principales:
+
+app/src/main/java/com/example/controlhorario/ui/navigation/AppNavigation.kt
+app/src/main/java/ui/vacations/VacationsScreen.kt
+app/src/main/java/ui/reports/ReportsScreen.kt
+app/src/main/java/ui/biometrics/FingerprintRegistrationScreen.kt
+app/src/main/java/ui/employees/EmployeeProfileScreen.kt
+app/src/main/java/ui/home/HmeScreen.kt

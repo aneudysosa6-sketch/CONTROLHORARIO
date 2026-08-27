@@ -1,0 +1,130 @@
+import { createClient } from '@supabase/supabase-js'
+
+const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,x-device-id,x-device-credential'}
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,'Content-Type':'application/json'}})
+const text=(value:unknown)=>typeof value==='string'?value.trim():''
+const hash=async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(x=>x.toString(16).padStart(2,'0')).join('')
+const validUuid=(value:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+const afterCursor=(row:{updated_at:string,id:string},updatedAt:string,id:string)=>!updatedAt||row.updated_at>updatedAt||(row.updated_at===updatedAt&&row.id>id)
+const validEmployeeCode=(value:string)=>/^[0-9]{6}$/.test(value)&&value!=='000000'
+const maskedEmployeeCode=(value:string)=>validEmployeeCode(value)?`****${value.slice(-2)}`:'invalid'
+const validEmbedding=(value:unknown):value is number[]=>Array.isArray(value)&&value.length===128&&value.every(item=>typeof item==='number'&&Number.isFinite(item))
+const failureCode=(value:unknown)=>{const record=value&&typeof value==='object'?value as Record<string,unknown>:{};return text(record.code)||text(record.name)||'EMPLOYEE_SYNC_INTERNAL'}
+const stageFailure=(requestId:string,stage:string,value:unknown,_companyId:string|null,status=500)=>{console.error('EmployeeSync etapa fallida',{request_id:requestId,stage,error_code:failureCode(value)});return json({error:'EMPLOYEE_SYNC_FAILED',stage,diagnostic_request_id:requestId},status>=400&&status<500?status:500)}
+
+Deno.serve(async request=>{
+  const requestId=crypto.randomUUID()
+  let diagnosticCompanyId:string|null=null
+  if(request.method==='OPTIONS')return new Response('ok',{headers:cors})
+  if(request.method!=='POST')return json({error:'Metodo no permitido'},405)
+  try{
+    const url=Deno.env.get('SUPABASE_URL')!,service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const deviceId=text(request.headers.get('x-device-id')),credential=text(request.headers.get('x-device-credential'))
+    if(!validUuid(deviceId)||credential.length!==64)return json({error:'Credencial de dispositivo requerida'},401)
+    const admin=createClient(url,service,{auth:{persistSession:false}}),now=new Date().toISOString()
+    let authResult
+    try{authResult=await admin.from('credenciales_dispositivo').select('empresa_id,dispositivo_id,expires_at').eq('dispositivo_id',deviceId).eq('token_hash',await hash(credential)).is('revocado_at',null).gt('expires_at',now).maybeSingle()}
+    catch(error){return stageFailure(requestId,'autenticacion_dispositivo',error,null)}
+    if(authResult.error)return stageFailure(requestId,'autenticacion_dispositivo',authResult.error,null,authResult.status||500)
+    const auth=authResult.data
+    if(!auth)return json({error:'Dispositivo no autorizado o credencial vencida'},401)
+    diagnosticCompanyId=auth.empresa_id
+    let deviceResult
+    try{deviceResult=await admin.from('dispositivos_android').select('id,empresa_id,sucursal_id,tipo_uso,voz_habilitada,configuracion_revision').eq('id',deviceId).eq('empresa_id',auth.empresa_id).eq('estado','activo').maybeSingle()}
+    catch(error){return stageFailure(requestId,'validacion_dispositivo',error,auth.empresa_id)}
+    if(deviceResult.error)return stageFailure(requestId,'validacion_dispositivo',deviceResult.error,auth.empresa_id,deviceResult.status||500)
+    const device=deviceResult.data
+    if(!device)return json({error:'Dispositivo revocado o empresa incorrecta'},403)
+
+    const terminalMode=device.tipo_uso==='DEPARTMENTS'?'DEPARTMENTS':'GENERAL'
+    const terminalDepartmentsResult=await admin.from('dispositivo_departamentos').select('departamento_id').eq('empresa_id',auth.empresa_id).eq('dispositivo_id',deviceId)
+    if(terminalDepartmentsResult.error)return stageFailure(requestId,'consulta_departamentos_terminal',terminalDepartmentsResult.error,auth.empresa_id,terminalDepartmentsResult.status||500)
+    const terminalDepartmentIds=(terminalDepartmentsResult.data??[]).map(row=>String(row.departamento_id))
+    const terminalDepartmentSet=new Set(terminalDepartmentIds)
+
+    let settingsResult
+    try{settingsResult=await admin.from('company_settings').select('face_only_enabled,pin_fallback_enabled,face_match_threshold,face_match_margin,terminal_offline_lease_hours,updated_at').eq('company_id',auth.empresa_id).maybeSingle()}
+    catch(error){return stageFailure(requestId,'consulta_company_settings',error,auth.empresa_id)}
+    if(settingsResult.error)return stageFailure(requestId,'consulta_company_settings',settingsResult.error,auth.empresa_id,settingsResult.status||500)
+    let companySettings=settingsResult.data
+    if(!companySettings){
+      const defaultSettingsResult=await admin.from('company_settings').upsert({company_id:auth.empresa_id},{onConflict:'company_id'}).select('face_only_enabled,pin_fallback_enabled,face_match_threshold,face_match_margin,terminal_offline_lease_hours,updated_at').single()
+      if(defaultSettingsResult.error)return stageFailure(requestId,'crear_company_settings',defaultSettingsResult.error,auth.empresa_id,defaultSettingsResult.status||500)
+      companySettings=defaultSettingsResult.data
+    }
+    const companySettingsPayload={...companySettings,employee_code_fallback_enabled:companySettings.pin_fallback_enabled}
+    const configuredOfflineLeaseHours=Number(companySettings.terminal_offline_lease_hours)
+    const offlineLeaseHours=Number.isFinite(configuredOfflineLeaseHours)
+      ?Math.min(24,Math.max(1,configuredOfflineLeaseHours))
+      :24
+    const offlineLeaseExpiresAt=new Date(Math.min(
+      Date.parse(auth.expires_at),
+      Date.parse(now)+offlineLeaseHours*60*60*1000,
+    )).toISOString()
+
+    const body=await request.json().catch(()=>({})) as Record<string,unknown>
+    const targeted=Object.prototype.hasOwnProperty.call(body,'employee_code'),employeeCode=text(body.employee_code)
+    if(targeted&&!validEmployeeCode(employeeCode))return json({error:'employee_code invalido'},400)
+    const serverRevision=Number(device.configuracion_revision??0),clientRevision=Number(body.configuration_revision??0)
+    const configurationChanged=!targeted&&clientRevision!==serverRevision
+    const cursor:Record<string,unknown>=targeted||configurationChanged?{}:((body.cursor??{}) as Record<string,unknown>)
+    const cursorUpdatedAt=text(cursor.updated_at),cursorId=text(cursor.id)
+    if(cursorUpdatedAt&&Number.isNaN(Date.parse(cursorUpdatedAt)))return json({error:'Cursor updated_at invalido'},400)
+    if(cursorId&&!validUuid(cursorId))return json({error:'Cursor id invalido'},400)
+    if(targeted)console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode:maskedEmployeeCode(employeeCode),targetedSyncStarted:true})
+
+    let query=admin.from('empleados').select('id,perfil_id,codigo_empleado,nombre_completo,correo,telefono,sucursal_id,departamento_id,puesto_id,supervisor_id,estado_laboral,fecha_ingreso,salario,tipo_pago,activo,jornada_habilitada,updated_at,face_embedding').eq('empresa_id',auth.empresa_id)
+    if(targeted)query=query.eq('codigo_empleado',employeeCode).limit(1)
+    else{query=query.order('updated_at').order('id').limit(1001);if(cursorUpdatedAt)query=query.gte('updated_at',cursorUpdatedAt)}
+    let employeeResult
+    try{employeeResult=await query}catch(error){return stageFailure(requestId,'consulta_empleados',error,auth.empresa_id)}
+    if(employeeResult.error)return stageFailure(requestId,'consulta_empleados',employeeResult.error,auth.empresa_id,employeeResult.status||500)
+    const data=employeeResult.data
+    const changed=targeted?(data??[]):(data??[]).filter(row=>afterCursor(row,cursorUpdatedAt,cursorId))
+    const page=targeted?changed.slice(0,1):changed.slice(0,500),last=page.at(-1)
+    const eligible=(row:Record<string,unknown>)=>row.activo===true&&row.estado_laboral==='activo'&&(terminalMode==='GENERAL'||terminalDepartmentSet.has(String(row.departamento_id??'')))
+    const branchIds=[...new Set(page.map(row=>row.sucursal_id).filter(Boolean))] as string[]
+    const departmentIds=[...new Set(page.map(row=>row.departamento_id).filter(Boolean))] as string[]
+    const positionIds=[...new Set(page.map(row=>row.puesto_id).filter(Boolean))] as string[]
+    const supervisorIds=[...new Set(page.map(row=>row.supervisor_id).filter(Boolean))] as string[]
+    const employeeIds=page.filter(eligible).map(row=>row.id) as string[]
+    const empty={data:[] as Record<string,unknown>[],error:null,status:200,statusText:'Sin IDs'}
+    let branchResult,departmentResult,positionResult,supervisorResult,scheduleResult
+    try{;[branchResult,departmentResult,positionResult,supervisorResult,scheduleResult]=await Promise.all([
+      branchIds.length?admin.from('branches').select('id,name').eq('company_id',auth.empresa_id).in('id',branchIds):Promise.resolve(empty),
+      departmentIds.length?admin.from('departments').select('id,name').eq('company_id',auth.empresa_id).in('id',departmentIds):Promise.resolve(empty),
+      positionIds.length?admin.from('positions').select('id,name').eq('company_id',auth.empresa_id).in('id',positionIds):Promise.resolve(empty),
+      supervisorIds.length?admin.from('empleados').select('id,nombre_completo').eq('empresa_id',auth.empresa_id).in('id',supervisorIds):Promise.resolve(empty),
+      employeeIds.length?admin.from('horarios_empleados').select('empleado_id,hora_entrada,hora_salida,inicio_almuerzo,duracion_almuerzo_min,dias_laborales,tolerancia_min,fecha_vigencia').eq('empresa_id',auth.empresa_id).eq('activo',true).in('empleado_id',employeeIds).order('fecha_vigencia',{ascending:false}):Promise.resolve(empty),
+    ])}catch(error){return stageFailure(requestId,'consulta_catalogos_supervisores',error,auth.empresa_id)}
+    const lookupError=branchResult.error||departmentResult.error||positionResult.error||supervisorResult.error||scheduleResult.error
+    if(lookupError)return stageFailure(requestId,'consulta_catalogos_supervisores',lookupError,auth.empresa_id,500)
+    const branchNames=new Map((branchResult.data??[]).map(row=>[row.id,row.name]))
+    const departmentNames=new Map((departmentResult.data??[]).map(row=>[row.id,row.name]))
+    const positionNames=new Map((positionResult.data??[]).map(row=>[row.id,row.name]))
+    const supervisorNames=new Map((supervisorResult.data??[]).map(row=>[row.id,row.nombre_completo]))
+    const schedules=new Map<string,Record<string,unknown>>();for(const row of scheduleResult.data??[]){if(!schedules.has(String(row.empleado_id)))schedules.set(String(row.empleado_id),row)}
+    const employees=page.filter(eligible).map(row=>{const schedule=schedules.get(row.id),rawEmbeddingPresent=row.face_embedding!==null&&row.face_embedding!==undefined,rawEmbeddingDimension=Array.isArray(row.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid=validEmbedding(row.face_embedding);return({
+      remote_id:row.id,code:row.codigo_empleado,name:row.nombre_completo,email:row.correo??'',phone:row.telefono??'',branch_id:row.sucursal_id,branch_name:branchNames.get(row.sucursal_id)??'',
+      department_id:row.departamento_id,department_name:departmentNames.get(row.departamento_id)??'',position_id:row.puesto_id,position_name:positionNames.get(row.puesto_id)??'',
+      supervisor_id:row.supervisor_id,supervisor_name:supervisorNames.get(row.supervisor_id)??'',status:row.estado_laboral,jornada_enabled:row.jornada_habilitada!==false,
+      schedule_start:schedule?.hora_entrada??null,schedule_end:schedule?.hora_salida??null,lunch_start:schedule?.inicio_almuerzo??null,lunch_duration_minutes:schedule?.duracion_almuerzo_min??null,
+      work_days:schedule?.dias_laborales??null,tolerance_minutes:schedule?.tolerancia_min??null,start_date:row.fecha_ingreso,salary:row.salario,pay_type:row.tipo_pago,updated_at:row.updated_at,
+      face_embedding:remoteEmbeddingValid?row.face_embedding:null,face_embedding_present:rawEmbeddingPresent,face_embedding_dimension:rawEmbeddingDimension,face_embedding_valid:remoteEmbeddingValid,
+    })})
+    const inactive=page.filter(row=>!eligible(row)).map(row=>({remote_id:row.id,profile_id:row.perfil_id??null,updated_at:row.updated_at,status:row.estado_laboral,jornada_enabled:false}))
+    if(targeted){const row=page[0],rawEmbeddingPresent=row?.face_embedding!==null&&row?.face_embedding!==undefined;console.log('FACE_CROSS_DEVICE_SYNC',{employeeCode:maskedEmployeeCode(employeeCode),remoteEmbeddingPresent:rawEmbeddingPresent,remoteEmbeddingDimension:Array.isArray(row?.face_embedding)?row.face_embedding.length:null,remoteEmbeddingValid:validEmbedding(row?.face_embedding),httpStatus:200,finalResult:row?'FOUND':'NOT_FOUND'})}
+
+    const pendingFaceCountResult=await admin.rpc('terminal_face_enrollment_pending_count',{p_empresa:auth.empresa_id,p_dispositivo:deviceId})
+    if(pendingFaceCountResult.error)return stageFailure(requestId,'conteo_rostros_pendientes',pendingFaceCountResult.error,auth.empresa_id,pendingFaceCountResult.status||500)
+    const pendingFaceCount=Math.max(0,Number(pendingFaceCountResult.data??0))
+
+    const pendingMessagesResult=await admin.rpc('obtener_mensajes_pendientes_dispositivo',{p_empresa:auth.empresa_id,p_dispositivo:deviceId})
+    if(pendingMessagesResult.error)return stageFailure(requestId,'consulta_mensajes_pendientes',pendingMessagesResult.error,auth.empresa_id,pendingMessagesResult.status||500)
+    const messages=await Promise.all(((pendingMessagesResult.data??[]) as Record<string,unknown>[]).map(async message=>{const audioObjectPath=text(message.audio_object_path);if(!audioObjectPath)return message;const {data:signed}=await admin.storage.from('employee-message-audio').createSignedUrl(audioObjectPath,600);return {...message,audio_url:signed?.signedUrl??null,audio_object_path:undefined}}))
+
+    await admin.from('dispositivos_android').update({ultima_conexion_at:now}).eq('id',deviceId).eq('empresa_id',auth.empresa_id)
+    await admin.from('credenciales_dispositivo').update({ultima_uso_at:now}).eq('dispositivo_id',deviceId).eq('empresa_id',auth.empresa_id)
+    return json({employees,inactive,messages,cursor:targeted?null:(last?{updated_at:last.updated_at,id:last.id}:{updated_at:cursorUpdatedAt,id:cursorId}),has_more:targeted?false:changed.length>page.length,targeted,synced_at:now,company_id:auth.empresa_id,device_branch_id:device.sucursal_id,company_settings:companySettingsPayload,authorization:{validated_at:now,credential_expires_at:auth.expires_at,offline_lease_expires_at:offlineLeaseExpiresAt},terminal_config:{branch_id:device.sucursal_id,usage_type:terminalMode,department_ids:terminalDepartmentIds,voice_enabled:device.voz_habilitada!==false,configuration_revision:serverRevision},pending_face_count:pendingFaceCount,configuration_changed:configurationChanged,diagnostic_request_id:requestId})
+  }catch(error){return stageFailure(requestId,'excepcion_no_controlada',error,diagnosticCompanyId)}
+})

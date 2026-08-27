@@ -1,0 +1,16 @@
+1. Si Android muestra permiso USB:
+   - Aceptar permiso.
+   - Luego tocar de nuevo "Registrar huella 2Connect".
+
+2. Si dice que no encuentra el lector:
+   - Revisar OTG.
+   - Revisar que el lector encienda.
+   - Desconectar y conectar nuevamente.
+
+3. Si la captura falla:
+   - Colocar el dedo completo sobre el sensor.
+   - No mover el dedo durante la lectura.
+   - Repetir registro.
+
+4. Si Android vuelve a mostrar error de PendingIntent:
+   - Confirmar que reemplazaste TwoConnectFingerprintManager.kt por el de este paquete.

@@ -1,0 +1,18 @@
+begin;
+set local search_path = extensions, public, pg_catalog;
+set local role postgres;
+select plan(13);
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_reglas_empleado' and column_name='valor_hora_extra'),'valor_hora_extra');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_reglas_empleado' and column_name='descuento_fijo_quincenal'),'descuento_fijo_quincenal');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_reglas_empleado' and column_name='descuento_fijo_motivo'),'descuento_fijo_motivo');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_reglas_empleado' and column_name='descuento_fijo_activo'),'descuento_fijo_activo');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_reglas_empleado' and column_name='otros_descuentos_fijos'),'otros_descuentos_fijos');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_reglas_empleado' and column_name='nomina_activa'),'nomina_activa');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_detalles' and column_name='pago_normal'),'pago_normal');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_detalles' and column_name='valor_hora_extra'),'valor_hora_extra detalle');
+select ok(exists(select 1 from information_schema.columns where table_schema='public' and table_name='nomina_detalles' and column_name='descuento_fijo'),'descuento_fijo');
+select has_function('public','obtener_ficha_pago_empleado',array['uuid']);
+select has_function('public','guardar_ficha_pago_empleado',array['uuid','jsonb','text']);
+select function_privs_are('public','guardar_ficha_pago_empleado',array['uuid','jsonb','text'],'authenticated',array['EXECUTE']);
+select ok((select relrowsecurity from pg_class where oid='public.nomina_reglas_empleado'::regclass),'RLS permanece activo');
+select * from finish();rollback;
